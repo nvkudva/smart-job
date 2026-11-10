@@ -1,0 +1,197 @@
+export type ProviderKind = "openai" | "anthropic";
+
+export interface ProviderSettings {
+  kind: ProviderKind;
+  /** e.g. http://localhost:11434/v1 (Ollama), http://localhost:1234/v1 (LM Studio), https://api.openai.com/v1 */
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface Settings {
+  provider: ProviderSettings;
+  /** Re-fill automatically when the apply page changes (Workday multi-step). */
+  autoFillOnPageChange: boolean;
+  /** Analyze job automatically when a job page is detected. */
+  autoAnalyze: boolean;
+  salarySearch: boolean;
+}
+
+export interface Experience {
+  title: string;
+  company: string;
+  location: string;
+  /** YYYY-MM */
+  start: string;
+  /** YYYY-MM or "" for current */
+  end: string;
+  current: boolean;
+  description: string;
+}
+
+export interface Education {
+  school: string;
+  degree: string;
+  field: string;
+  /** YYYY-MM */
+  start: string;
+  end: string;
+  gpa: string;
+}
+
+export type YesNo = "yes" | "no" | "";
+
+export interface Profile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  /** E.164 style country code, e.g. "+1" */
+  phoneCountryCode: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  linkedin: string;
+  github: string;
+  portfolio: string;
+  website: string;
+  headline: string;
+  summary: string;
+  currentTitle: string;
+  currentCompany: string;
+  yearsExperience: number;
+  skills: string[];
+  experience: Experience[];
+  education: Education[];
+  workAuthorized: YesNo;
+  requiresSponsorship: YesNo;
+  willingToRelocate: YesNo;
+  salaryExpectation: string;
+  noticePeriod: string;
+  /** Free-form EEO defaults; "" means decline to answer. */
+  gender: string;
+  ethnicity: string;
+  veteranStatus: string;
+  disabilityStatus: string;
+  pronouns: string;
+}
+
+export interface Resume {
+  text: string;
+  fileName: string;
+  /** base64 of the original PDF/DOCX, used to attach to file inputs */
+  fileBase64: string;
+  mimeType: string;
+}
+
+export interface JobPosting {
+  /** stable id derived from canonical URL / site job id */
+  id: string;
+  url: string;
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  /** posted salary text if the page shows one */
+  salaryText: string;
+  employmentType: string;
+  /** "linkedin" | "workday" | "jsonld" | "generic" ... */
+  source: string;
+}
+
+export interface SalaryEstimate {
+  min: number | null;
+  max: number | null;
+  currency: string;
+  period: "year" | "month" | "hour" | "";
+  /** "posted" | "web" | "estimate" */
+  basis: "posted" | "web" | "estimate";
+  /** how the number was derived, e.g. "Levels.fyi data for Senior SWE at Stripe" */
+  note: string;
+  sources: { title: string; url: string }[];
+}
+
+export interface JobAnalysis {
+  summary: string;
+  mustHave: string[];
+  niceToHave: string[];
+  /** 0-100 from LLM */
+  matchScore: number;
+  /** 0-100 deterministic keyword overlap */
+  keywordScore: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  strengths: string[];
+  gaps: string[];
+  verdict: string;
+  salary: SalaryEstimate | null;
+  analyzedAt: number;
+}
+
+export type JobStatus = "saved" | "applied" | "interview" | "offer" | "rejected";
+
+export interface TrackedJob {
+  job: JobPosting;
+  analysis: JobAnalysis | null;
+  status: JobStatus;
+  notes: string;
+  savedAt: number;
+  updatedAt: number;
+  coverLetter: string;
+}
+
+export type FieldKind =
+  | "text"
+  | "email"
+  | "tel"
+  | "number"
+  | "url"
+  | "date"
+  | "textarea"
+  | "select"
+  | "radio"
+  | "checkbox"
+  | "combobox"
+  | "file"
+  | "contenteditable";
+
+export interface FieldDescriptor {
+  /** unique within the frame; content script stamps data-sj-id on the element */
+  id: string;
+  frameId: number;
+  kind: FieldKind;
+  /** best human label (label/aria/legend/placeholder/nearby text) */
+  label: string;
+  name: string;
+  placeholder: string;
+  automationId: string;
+  required: boolean;
+  /** options for select/radio/combobox (visible text) */
+  options: string[];
+  currentValue: string;
+  /** section heading the field sits under, helps disambiguate (e.g. "Education") */
+  section: string;
+}
+
+export type FillSource = "profile" | "answers" | "ai" | "resume" | "user";
+
+export interface FieldFill {
+  id: string;
+  frameId: number;
+  /** string value; for checkbox "true"/"false"; for radio/select/combobox the option text */
+  value: string;
+  source: FillSource;
+}
+
+export interface FillResult {
+  id: string;
+  ok: boolean;
+  /** value actually present after filling */
+  finalValue: string;
+  error: string;
+}
+
+/** Answer bank: normalized question -> answer */
+export type AnswerBank = Record<string, { question: string; answer: string; updatedAt: number }>;

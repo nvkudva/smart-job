@@ -1,0 +1,27 @@
+{
+  "name": "smartjob",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "bun run build.ts",
+    "typecheck": "bun check",
+    "test": "bun test test/unit",
+    "test:e2e": "bun run build.ts && bun test test/e2e",
+    "zip": "bun run build.ts && cd dist && zip -qr ../smartjob.zip ."
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.4",
+    "@types/bun": "latest",
+    "@types/chrome": "^0.3.7",
+    "playwright": "^1.65.0",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.7.0",
+    "pdfjs-dist": "^6.5.438",
+    "preact": "^11.2.0"
+  }
+}

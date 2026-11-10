@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>iCIMS application form</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 12px; }
+  .iCIMS_TableRow { margin: 10px 0; }
+  .iCIMS_Label { display: block; font-weight: bold; }
+  input[type=text], input[type=email], input[type=tel], select, textarea { width: 320px; padding: 4px; }
+</style>
+</head>
+<body>
+<form id="applicationForm" onsubmit="return false">
+  <div class="iCIMS_MainWrapper">
+  <h2 class="iCIMS_InfoMsg">Personal Information</h2>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="PersonProfileFields.FirstName">First Name *</label><input type="text" id="PersonProfileFields.FirstName" name="PersonProfileFields.FirstName" required /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="PersonProfileFields.LastName">Last Name *</label><input type="text" id="PersonProfileFields.LastName" name="PersonProfileFields.LastName" required /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="PersonProfileFields.Email">Email Address *</label><input type="email" id="PersonProfileFields.Email" name="PersonProfileFields.Email" required /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="PersonProfileFields.Phone">Phone Number</label><input type="tel" id="PersonProfileFields.Phone" name="PersonProfileFields.Phone" /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="addr1">Street Address</label><input type="text" id="addr1" name="PersonProfileFields.AddressStreet1" /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="city">City *</label><input type="text" id="city" name="PersonProfileFields.AddressCity" required /></div>
+  <div class="iCIMS_TableRow">
+    <label class="iCIMS_Label" for="state">State/Province</label>
+    <select id="state" name="PersonProfileFields.AddressState"><option value="">Select One</option><option value="AZ">AZ</option><option value="CA">CA</option><option value="NY">NY</option><option value="TX">TX</option></select>
+  </div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="zip">Zip/Postal Code</label><input type="text" id="zip" name="PersonProfileFields.AddressZip" /></div>
+  <div class="iCIMS_TableRow">
+    <label class="iCIMS_Label" for="country">Country</label>
+    <select id="country" name="PersonProfileFields.AddressCountry"><option value="">Select One</option><option value="CA">Canada</option><option value="GB">United Kingdom</option><option value="US">United States</option></select>
+  </div>
+
+  <h2 class="iCIMS_InfoMsg">Resume</h2>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="resumeFile">Resume *</label><input type="file" id="resumeFile" name="resumeFile" required /></div>
+
+  <h2 class="iCIMS_InfoMsg">Questions</h2>
+  <div class="iCIMS_TableRow">
+    <label class="iCIMS_Label" for="auth">Are you legally authorized to work in the United States? *</label>
+    <select id="auth" name="auth" required><option value="">Select One</option><option value="Yes">Yes</option><option value="No">No</option></select>
+  </div>
+  <fieldset class="iCIMS_TableRow">
+    <legend class="iCIMS_Label">Will you require sponsorship now or in the future? *</legend>
+    <input type="radio" id="sp_y" name="sponsor" value="Yes" /><label for="sp_y">Yes</label>
+    <input type="radio" id="sp_n" name="sponsor" value="No" /><label for="sp_n">No</label>
+  </fieldset>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="salary">Desired Salary</label><input type="text" id="salary" name="salary" /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="linkedin">LinkedIn Profile URL</label><input type="text" id="linkedin" name="linkedin" /></div>
+  <div class="iCIMS_TableRow"><label class="iCIMS_Label" for="gender">Gender</label>
+    <select id="gender" name="gender"><option value="">Select One</option><option>Male</option><option>Female</option><option>Prefer not to answer</option></select></div>
+  </div>
+  <button type="button">Submit</button>
+</form>
+<script src="/form-state.js"></script>
+</body>
+</html>
