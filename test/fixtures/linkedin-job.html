@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Jobs | LinkedIn</title></head>
+<body>
+<div class="scaffold-layout__list-detail-inner">
+  <ul class="scaffold-layout__list-container">
+    <li class="jobs-search-results-list__list-item--active" data-occludable-job-id="1001">
+      <div class="job-card-container job-card-container--active" data-job-id="1001"><a href="?currentJobId=1001">Senior Frontend Engineer</a></div>
+    </li>
+    <li data-occludable-job-id="1002">
+      <div class="job-card-container" data-job-id="1002"><a href="?currentJobId=1002">Data Engineer</a></div>
+    </li>
+  </ul>
+  <button id="swap" type="button">Open job 1002</button>
+  <div class="jobs-search__job-details--wrapper">
+   <div class="jobs-search__job-details" id="pane">
+    <div class="job-details-jobs-unified-top-card__container--two-pane">
+      <div class="t-24 job-details-jobs-unified-top-card__job-title"><h1><a href="/jobs/view/1001/">Senior Frontend Engineer</a></h1></div>
+      <div class="job-details-jobs-unified-top-card__company-name"><a href="/company/acme">Acme Robotics</a></div>
+      <div class="job-details-jobs-unified-top-card__primary-description-container">
+        <div class="t-black--light mb2"><span class="tvm__text">Berlin, Germany</span> · <span class="tvm__text">2 days ago</span> · <span class="tvm__text">50 applicants</span></div>
+      </div>
+      <div class="job-details-preferences-and-skills"><span class="job-details-preferences-and-skills__pill">On-site</span><span class="job-details-preferences-and-skills__pill">$120,000 - $150,000</span></div>
+    </div>
+    <div class="jobs-description__content"><div id="job-details" class="jobs-box__html-content">
+      <h2>About the job</h2>
+      <p>Acme Robotics builds warehouse automation. We are hiring a frontend engineer to own our operator dashboard.</p>
+      <ul><li>Build React interfaces</li><li>Partner with design and robotics teams</li></ul>
+      <p>Requirements: 5+ years experience with TypeScript.</p>
+    </div></div>
+   </div>
+  </div>
+</div>
+<script>
+  const jobs = {
+    "1002": { title: "Data Engineer", company: "Globex Analytics", place: "London, United Kingdom", body: "Globex needs a data engineer to build pipelines on Spark. Requirements: SQL and Python experience." },
+  };
+  document.getElementById("swap").addEventListener("click", () => {
+    const job = jobs["1002"];
+    history.pushState({}, "", "?currentJobId=1002");
+    document.querySelector(".job-details-jobs-unified-top-card__job-title h1").innerHTML = '<a href="/jobs/view/1002/">' + job.title + "</a>";
+    document.querySelector(".job-details-jobs-unified-top-card__company-name").textContent = job.company;
+    document.querySelector(".tvm__text").textContent = job.place;
+    document.getElementById("job-details").innerHTML = "<p>" + job.body + "</p>";
+  });
+</script>
+</body></html>

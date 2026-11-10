@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Apply - Acme Careers (Workday-like)</title>
+<style>
+  body { font-family: sans-serif; max-width: 720px; margin: 0 auto; padding: 16px; }
+  [data-automation-id^="formField"] { margin: 10px 0; display: block; }
+  label, legend { display: block; font-weight: 600; margin-bottom: 4px; }
+  input[type=text], input[type=email], input[type=tel] { width: 100%; padding: 6px; box-sizing: border-box; }
+  button[aria-haspopup] { width: 100%; text-align: left; padding: 6px; }
+  [data-popup] { position: fixed; top: 80px; left: 40px; width: 300px; background: #fff; border: 1px solid #888; z-index: 99; max-height: 300px; overflow: auto; }
+  [role=option] { padding: 6px; cursor: pointer; }
+  [role=radio] { padding: 4px 10px; margin-right: 6px; border: 1px solid #888; background: #fff; }
+  [role=radio][aria-checked=true] { background: #cde; }
+  .date-pair { display: flex; gap: 6px; }
+  .date-pair input { width: 80px; }
+  fieldset { border: 0; padding: 0; margin: 10px 0; }
+</style>
+</head>
+<body>
+<header data-automation-id="header"><input type="search" placeholder="Search for jobs" aria-label="Search" /></header>
+<h1 data-automation-id="pageHeader">Senior Software Engineer - Application</h1>
+<form onsubmit="return false" data-automation-id="applyForm">
+<section data-automation-id="myInformationSection">
+  <h2>My Information</h2>
+  <div data-automation-id="formField-source">
+    <label id="lbl-source" for="source">How Did You Hear About Us?<span aria-hidden="true">*</span></label>
+    <button type="button" id="source" aria-haspopup="listbox" aria-labelledby="lbl-source" data-automation-id="source" data-options="Employee Referral|Job Board|Company Website|Other">Select One</button>
+  </div>
+  <div data-automation-id="formField-sourceMulti">
+    <label for="sourceMulti">Where did you hear about this role?</label>
+    <div data-automation-id="multiSelectContainer"><div data-automation-id="multiselectInputContainer">
+      <input type="text" id="sourceMulti" name="sourceMulti" role="combobox" aria-haspopup="listbox" placeholder="Search" data-automation-id="searchBox" data-multiselect="Careers Site|LinkedIn|Referral|Other" />
+    </div></div>
+  </div>
+  <div data-automation-id="formField-country">
+    <label id="lbl-country">Country<span aria-hidden="true">*</span></label>
+    <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-country" data-automation-id="countryDropdown" data-search data-options="Afghanistan|Albania|Algeria|Australia|Canada|France|Germany|India|United Kingdom|United States of America">United States of America</button>
+  </div>
+  <div data-automation-id="legalNameSection">
+    <div data-automation-id="formField-legalNameSection_firstName">
+      <label for="firstName">First Name<span>*</span></label>
+      <input type="text" id="firstName" required data-automation-id="legalNameSection_firstName" />
+    </div>
+    <div data-automation-id="formField-legalNameSection_middleName">
+      <label for="middleName">Middle Name</label>
+      <input type="text" id="middleName" data-automation-id="legalNameSection_middleName" />
+    </div>
+    <div data-automation-id="formField-legalNameSection_lastName">
+      <label for="lastName">Last Name<span>*</span></label>
+      <input type="text" id="lastName" required data-automation-id="legalNameSection_lastName" />
+    </div>
+  </div>
+  <div data-automation-id="addressSection">
+    <div data-automation-id="formField-addressSection_addressLine1">
+      <label for="addr1">Address Line 1<span>*</span></label>
+      <input type="text" id="addr1" required data-automation-id="addressSection_addressLine1" />
+    </div>
+    <div data-automation-id="formField-addressSection_city">
+      <label for="city">City<span>*</span></label>
+      <input type="text" id="city" required data-automation-id="addressSection_city" />
+    </div>
+    <div data-automation-id="formField-addressSection_countryRegion">
+      <label id="lbl-state">State<span>*</span></label>
+      <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-state" data-automation-id="addressSection_countryRegion" data-options="Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Florida|Georgia|New York|Texas|Washington">Select One</button>
+    </div>
+    <div data-automation-id="formField-addressSection_postalCode">
+      <label for="zip">Postal Code<span>*</span></label>
+      <input type="text" id="zip" required data-automation-id="addressSection_postalCode" />
+    </div>
+  </div>
+  <div data-automation-id="formField-email">
+    <label for="email">Email Address<span>*</span></label>
+    <input type="email" id="email" required data-automation-id="email" />
+  </div>
+  <div data-automation-id="phoneSection">
+    <div data-automation-id="formField-phone-device-type">
+      <label id="lbl-ptype">Phone Device Type<span>*</span></label>
+      <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-ptype" data-automation-id="phone-device-type" data-options="Home|Mobile|Work">Select One</button>
+    </div>
+    <div data-automation-id="formField-country-phone-code">
+      <label id="lbl-pcode">Country Phone Code<span>*</span></label>
+      <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-pcode" data-automation-id="country-phone-code" data-search data-options="Australia (+61)|Canada (+1)|France (+33)|India (+91)|United Kingdom (+44)|United States of America (+1)">Select One</button>
+    </div>
+    <div data-automation-id="formField-phone-number">
+      <label for="phone">Phone Number<span>*</span></label>
+      <input type="tel" id="phone" required data-automation-id="phone-number" />
+    </div>
+    <div data-automation-id="formField-phone-extension">
+      <label for="ext">Phone Extension</label>
+      <input type="text" id="ext" data-automation-id="phone-extension" />
+    </div>
+  </div>
+</section>
+
+<section data-automation-id="myExperienceSection">
+  <h2>My Experience</h2>
+  <div data-automation-id="workExperience-1">
+    <h4>Work Experience 1</h4>
+    <div data-automation-id="formField-jobTitle-1"><label for="jt1">Job Title<span>*</span></label><input type="text" id="jt1" required data-automation-id="jobTitle-1" /></div>
+    <div data-automation-id="formField-company-1"><label for="co1">Company<span>*</span></label><input type="text" id="co1" required data-automation-id="company-1" /></div>
+    <div data-automation-id="formField-currentlyWorkHere-1"><label><input type="checkbox" data-automation-id="currentlyWorkHere-1" /> I currently work here</label></div>
+    <div data-automation-id="formField-startDate-1">
+      <label id="lbl-from1">From<span>*</span></label>
+      <div class="date-pair" data-automation-id="dateInputWrapper">
+        <input type="text" placeholder="MM" aria-label="Month" data-automation-id="dateSectionMonth-input-1" />
+        <input type="text" placeholder="YYYY" aria-label="Year" data-automation-id="dateSectionYear-input-1" />
+      </div>
+    </div>
+  </div>
+  <div data-automation-id="workExperience-2">
+    <h4>Work Experience 2</h4>
+    <div data-automation-id="formField-jobTitle-2"><label for="jt2">Job Title</label><input type="text" id="jt2" data-automation-id="jobTitle-2" /></div>
+    <div data-automation-id="formField-company-2"><label for="co2">Company</label><input type="text" id="co2" data-automation-id="company-2" /></div>
+    <div data-automation-id="formField-startDate-2"><label for="from2">From</label><input type="text" id="from2" placeholder="MM/YYYY" data-automation-id="startDate-2" /></div>
+    <div data-automation-id="formField-endDate-2"><label for="to2">To</label><input type="text" id="to2" placeholder="MM/YYYY" data-automation-id="endDate-2" /></div>
+  </div>
+  <div data-automation-id="educationSection">
+    <h4>Education 1</h4>
+    <div data-automation-id="formField-school"><label for="school">School or University<span>*</span></label><input type="text" id="school" required data-automation-id="school" /></div>
+    <div data-automation-id="formField-degree">
+      <label id="lbl-degree">Degree<span>*</span></label>
+      <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-degree" data-automation-id="degree" data-options="High School|Associate's Degree|Bachelor's Degree|Master's Degree|Doctorate">Select One</button>
+    </div>
+    <div data-automation-id="formField-fieldOfStudy"><label for="fos">Field of Study</label><input type="text" id="fos" data-automation-id="fieldOfStudy" /></div>
+  </div>
+  <div data-automation-id="resumeSection">
+    <h4>Resume/CV</h4>
+    <div data-automation-id="formField-resume">
+      <label for="resume">Resume/CV<span>*</span></label>
+      <button type="button" data-automation-id="select-files" onclick="document.getElementById('resume').click()">Select files</button>
+      <input type="file" id="resume" data-automation-id="file-upload-input-ref" style="display:none" />
+    </div>
+  </div>
+  <div data-automation-id="formField-linkedin"><label for="li">LinkedIn URL</label><input type="text" id="li" data-automation-id="linkedinQuestion" /></div>
+</section>
+
+<section data-automation-id="questionsSection">
+  <h2>Application Questions</h2>
+  <fieldset data-automation-id="formField-authorized">
+    <legend>Are you legally authorized to work in the United States?<span>*</span></legend>
+    <label><input type="radio" name="authorized" value="Yes" /> Yes</label>
+    <label><input type="radio" name="authorized" value="No" /> No</label>
+  </fieldset>
+  <fieldset data-automation-id="formField-sponsorship">
+    <legend>Will you now or in the future require sponsorship for employment visa status?<span>*</span></legend>
+    <label><input type="radio" name="sponsorship" value="Yes" /> Yes</label>
+    <label><input type="radio" name="sponsorship" value="No" /> No</label>
+  </fieldset>
+  <div data-automation-id="formField-relocate">
+    <label id="lbl-reloc">Are you willing to relocate?</label>
+    <div role="radiogroup" aria-labelledby="lbl-reloc" data-automation-id="relocate">
+      <button type="button" role="radio" aria-checked="false">Yes</button>
+      <button type="button" role="radio" aria-checked="false">No</button>
+    </div>
+  </div>
+</section>
+
+<section data-automation-id="voluntaryDisclosuresSection">
+  <h2>Voluntary Disclosures</h2>
+  <div data-automation-id="formField-gender">
+    <label id="lbl-gender">Gender</label>
+    <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-gender" data-automation-id="gender" data-options="Male|Female|Non-binary|I do not wish to answer">Select One</button>
+  </div>
+  <div data-automation-id="formField-veteran">
+    <label id="lbl-vet">Veteran Status</label>
+    <button type="button" aria-haspopup="listbox" aria-labelledby="lbl-vet" data-automation-id="veteran" data-options="I am a protected veteran|I am not a protected veteran|I do not wish to answer">Select One</button>
+  </div>
+  <div data-automation-id="formField-terms">
+    <label><input type="checkbox" required data-automation-id="acceptTerms" /> I have read and agree to the terms<span>*</span></label>
+  </div>
+</section>
+<button type="button" data-automation-id="bottom-navigation-next-button">Save and Continue</button>
+</form>
+<script src="/form-state.js"></script>
+</body>
+</html>

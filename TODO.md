@@ -1,0 +1,12 @@
+- [x] W1 form-fill engine: scanner, filler, mapping, fill session, form fixtures, tests
+- [x] W2 job extraction: JSON-LD, LinkedIn, Indeed, Greenhouse, Lever, Workday, iCIMS, generic; fixtures, tests
+- [x] W3 AI tasks: analysis, keyword match, salary search, profile extraction, answers, cover letter, tailored resume, resume file parsing
+- [x] W4 side panel UI: Job, Apply, Tracker, Write, Settings/onboarding tabs
+- [x] W5 Workday/iCIMS hardening: custom dropdowns, date pickers, repeating sections, multi-step, iframe
+- [x] Integration: full build, typecheck, unit + e2e green
+- [x] Live LLM run against LM Studio (qwen3.5-4b-mlx)
+- [x] README: install, load unpacked, configure, test walkthrough
+- [x] Skeleton: contracts, build, manifest, Playwright harness, smoke test
+- [x] PLAN.md (PRD + architecture + plan)
+- [x] Salary search: Bing first, DDG fallback, relevance filter, magnitude fix
+- [x] Local models: reasoning_effort for Ollama/LM Studio; Ollama Origin header stripped via DNR session rule
