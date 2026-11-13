@@ -21,6 +21,12 @@ export function joinLines(items: TextPiece[]): string {
   return text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/** Resumes often show "LinkedIn" / "GitHub" as clickable words; the URLs live only in PDF link annotations. */
+export function withLinks(text: string, urls: string[]): string {
+  const missing = urls.filter((url) => !text.includes(url));
+  return missing.length ? `${text}\n\nLinks\n${missing.join("\n")}` : text;
+}
+
 export function toBase64(bytes: Uint8Array): string {
   const chunk = 0x8000;
   let binary = "";
@@ -33,11 +39,16 @@ async function readPdfText(bytes: Uint8Array): Promise<string> {
   // pdf.js transfers the buffer to its worker, so give it a copy
   const document = await pdfjs.getDocument({ data: bytes.slice() }).promise;
   const pages: string[] = [];
+  const links = new Set<string>();
   for (let number = 1; number <= document.numPages; number++) {
-    const content = await (await document.getPage(number)).getTextContent();
+    const page = await document.getPage(number);
+    const content = await page.getTextContent();
     pages.push(joinLines(content.items.filter((item): item is typeof item & TextPiece => "str" in item)));
+    for (const annotation of await page.getAnnotations()) {
+      if (typeof annotation.url === "string" && /^https?:/i.test(annotation.url)) links.add(annotation.url);
+    }
   }
-  return pages.join("\n\n");
+  return withLinks(pages.join("\n\n"), [...links]);
 }
 
 export async function read(file: File): Promise<Resume> {

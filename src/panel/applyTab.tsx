@@ -37,9 +37,10 @@ export function ApplyTab({ tabId, job }: ApplyTabProps) {
   const [remember, setRemember] = useState(true);
   const [isMarked, setIsMarked] = useState(false);
 
-  const fillTask = useTask(async () => {
+  // the account password is filled only on an explicit click, never by auto-fill on a page the user did not choose
+  const fillTask = useTask(async (isUserClick: boolean) => {
     if (!tabId) throw new Error("No tab to fill.");
-    const next = await session.run(tabId, job, { useAi });
+    const next = await session.run(tabId, job, { useAi, includeAccount: isUserClick });
     setReport(next);
     setEdits({});
   });
@@ -67,7 +68,7 @@ export function ApplyTab({ tabId, job }: ApplyTabProps) {
     const onMessage = (message: messages.ContentEvent, sender: chrome.runtime.MessageSender) => {
       if (message?.type !== "formChanged" || sender.tab?.id !== tabId) return;
       clearTimeout(timer);
-      timer = setTimeout(() => latest.current.autoFill && !latest.current.isBusy && void latest.current.run(), autoFillDelayMs);
+      timer = setTimeout(() => latest.current.autoFill && !latest.current.isBusy && void latest.current.run(false), autoFillDelayMs);
     };
     chrome.runtime.onMessage.addListener(onMessage);
     return () => {
@@ -94,7 +95,7 @@ export function ApplyTab({ tabId, job }: ApplyTabProps) {
     <div class="stack">
       <Card title="Autofill">
         <div class="stack tight">
-          <Button kind="primary" isBusy={fillTask.isBusy} disabled={!tabId} onClick={() => void fillTask.run()}>
+          <Button kind="primary" isBusy={fillTask.isBusy} disabled={!tabId} onClick={() => void fillTask.run(true)}>
             {fillTask.isBusy ? "Filling…" : "Fill this page"}
           </Button>
           <Check label="Use AI for unanswered questions" checked={useAi} onChecked={setUseAi} />
@@ -104,7 +105,7 @@ export function ApplyTab({ tabId, job }: ApplyTabProps) {
           </Button>
           {scanNote && <span class="muted small">{scanNote}</span>}
         </div>
-        <ErrorNote message={fillTask.error} onRetry={() => void fillTask.run()} />
+        <ErrorNote message={fillTask.error} onRetry={() => void fillTask.run(true)} />
       </Card>
       {report && (
         <ReportList report={report} edits={edits} onEdit={(key, value) => setEdits({ ...edits, [key]: value })} tabId={tabId} />

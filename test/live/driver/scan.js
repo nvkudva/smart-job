@@ -1,0 +1,2 @@
+const fields = await s.panel.evaluate(async (t) => { const f = await chrome.webNavigation.getAllFrames({ tabId: t }); const all = []; for (const x of f) { const r = await chrome.tabs.sendMessage(t, { type: "scanFields" }, { frameId: x.frameId }).catch(() => null); if (r) all.push(...r); } return all; }, s.fillTab);
+return fields.map(f => `${f.kind} | ${f.label.slice(0,70)} | n=${f.name.slice(0,20)} | ph=${f.placeholder} | sec=${f.section.slice(0,30)} | opts=${f.options.slice(0,4).join("/")} | v=${f.currentValue.slice(0,30)}`);

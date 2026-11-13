@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 
 test("run scans frames, fills in the right frame and reports unanswered required fields (AI failure tolerated)", async () => {
-  const report = await session.run(1, null, { useAi: true });
+  const report = await session.run(1, null, { useAi: true, includeAccount: false });
   const fillMessage = sent.find((entry) => entry.request.type === "fillFields")!;
   expect(fillMessage.frameId).toBe(7);
   expect(fillMessage.request.fills).toEqual([{ id: "a", frameId: 7, value: "Priya", source: "profile" }]);

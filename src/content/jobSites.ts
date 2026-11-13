@@ -13,6 +13,8 @@ interface Spec {
   description: string[];
   salary: string[];
   id?: (url: URL, doc: Document) => string;
+  /** Tried before the selectors, for sites whose markup has no stable class names */
+  readLayout?: (doc: Document, url: URL) => SiteJob | null;
   fixup?: (job: SiteJob) => void;
 }
 
@@ -20,7 +22,7 @@ const BLOCK = new Set(["p", "div", "li", "ul", "ol", "h1", "h2", "h3", "h4", "h5
 const SKIP = new Set(["script", "style", "noscript", "template", "button", "svg"]);
 
 const CURRENCY = String.raw`(?:[$€£₹]|USD|EUR|GBP|INR|CAD|AUD)`;
-const AMOUNT = String.raw`\d[\d,.]*\s?[kKmM]?`;
+const AMOUNT = String.raw`\d[\d,.]*\s?(?:[kKmM]|L\b|Cr\b)?`;
 const UNIT = String.raw`(?:\s?(?:\/|per|a)\s?(?:hr|hour|year|yr|annum|month|mo|week|day))?`;
 const SALARY = new RegExp(
   String.raw`${CURRENCY}\s?${AMOUNT}(?:\s?(?:[-–—]|to)\s?(?:${CURRENCY}\s?)?${AMOUNT})?${UNIT}|\b\d{2,3}[kK]\s?[-–—]\s?\d{2,3}[kK]\b${UNIT}`,
@@ -91,11 +93,43 @@ function linkedinJobId(url: URL, doc: Document): string {
   return (active ?? doc.querySelector(".jobs-search__job-details [data-job-id], [data-job-id]"))?.getAttribute("data-job-id") ?? "";
 }
 
+const LINKEDIN_ABOUT_PREFIX = "JobDetails_AboutTheJob_";
+const LINKEDIN_COMPANY_LABEL = '[aria-label^="Company, "]';
+
+/** LinkedIn's 2026 UI (/jobs/search-results/, /jobs/view/): hashed class names, so read by element ids, aria-labels and text order. */
+function readLinkedinLayout(doc: Document, url: URL): SiteJob | null {
+  const jobId = url.searchParams.get("currentJobId") ?? url.pathname.match(/\/jobs\/view\/(?:[^/]*-)?(\d+)/)?.[1];
+  // with a job id in the URL, wait for that job's block: falling back to any block would return the previous job mid-render
+  const about = jobId ? doc.getElementById(LINKEDIN_ABOUT_PREFIX + jobId) : doc.querySelector(`[id^="${LINKEDIN_ABOUT_PREFIX}"]`);
+  if (!about) return null;
+  let column = about.parentElement;
+  while (column && !column.querySelector(LINKEDIN_COMPANY_LABEL)) column = column.parentElement;
+  const companyLabel = column?.querySelector(LINKEDIN_COMPANY_LABEL);
+  if (!companyLabel) return null;
+  const company = (companyLabel.getAttribute("aria-label") ?? "").replace(/^Company,\s*/, "").replace(/\.$/, "").trim();
+  let card: Element | null = companyLabel;
+  while (card && !card.textContent?.includes("·")) card = card.parentElement;
+  const lines = card ? toText(card).split("\n") : [];
+  const titleIndex = lines.findIndex((line) => line !== company);
+  const placeLine = lines.find((line, index) => index > titleIndex && line.includes("·")) ?? "";
+  const description = toText(about).replace(/^About the job\n/i, "");
+  return {
+    id: `linkedin:${about.id.slice(LINKEDIN_ABOUT_PREFIX.length)}`,
+    source: "linkedin",
+    title: lines[titleIndex] ?? "",
+    company,
+    location: (placeLine.split("·")[0] ?? "").trim(),
+    description,
+    salaryText: findSalary(lines.join(" ")),
+  };
+}
+
 const SPECS: Spec[] = [
   {
     source: "linkedin",
     host: /(^|\.)linkedin\.com$/,
-    marker: LINKEDIN_TITLE.join(",") + ", .jobs-search__job-details, #job-details, .jobs-description__content",
+    marker: LINKEDIN_TITLE.join(",") + `, .jobs-search__job-details, #job-details, .jobs-description__content, [id^="${LINKEDIN_ABOUT_PREFIX}"]`,
+    readLayout: readLinkedinLayout,
     title: LINKEDIN_TITLE,
     company: [
       ".job-details-jobs-unified-top-card__company-name",
@@ -226,6 +260,8 @@ function icimsDocument(doc: Document): Document {
 }
 
 function read(spec: Spec, doc: Document, url: URL): SiteJob {
+  const fromLayout = spec.readLayout?.(doc, url);
+  if (fromLayout?.title) return fromLayout;
   const job: SiteJob = {
     id: spec.id?.(url, doc) ?? "",
     source: spec.source,
@@ -243,5 +279,6 @@ function read(spec: Spec, doc: Document, url: URL): SiteJob {
 export function signature(doc: Document, href: string): string {
   const url = new URL(href);
   const title = firstText(doc, [...LINKEDIN_TITLE, "h1"]);
-  return `${linkedinJobId(url, doc)}|${title}`;
+  const linkedinAbout = doc.querySelector(`[id^="${LINKEDIN_ABOUT_PREFIX}"]`)?.id ?? "";
+  return `${linkedinJobId(url, doc)}|${title}|${linkedinAbout}`;
 }

@@ -1,5 +1,5 @@
 // Pure, deterministic field -> profile mapping. Also imported by the content-script filler for option matching.
-import type { AnswerBank, Education, Experience, FieldDescriptor, FieldFill, FieldKind, Profile, Resume } from "../types.ts";
+import type { AccountLogin, AnswerBank, Education, Experience, FieldDescriptor, FieldFill, FieldKind, Profile, Resume } from "../types.ts";
 
 export function normalize(text: string): string {
   return text
@@ -178,6 +178,21 @@ function yearsExperience({ profile, field }: Context): string | undefined {
   return pickYearsRange(field.options, profile.yearsExperience) ?? String(profile.yearsExperience);
 }
 
+/** On a career break the latest role has no employer; forms asking "current company" want the most recent one. */
+function currentCompany({ profile }: Context): string | undefined {
+  return profile.currentCompany || profile.experience.find((job) => job.company)?.company || undefined;
+}
+
+/** "15 days" / "2 weeks" / "1 month"; number inputs labelled "(in days)" get the day count. */
+function noticePeriod({ profile, field }: Context): string | undefined {
+  if (field.kind === "date" || !profile.noticePeriod) return undefined;
+  if (field.kind !== "number") return profile.noticePeriod;
+  const amount = Number(profile.noticePeriod.match(/\d+(?:\.\d+)?/)?.[0] ?? (/immediate/i.test(profile.noticePeriod) ? 0 : NaN));
+  if (Number.isNaN(amount)) return undefined;
+  const daysPerUnit = /month/i.test(profile.noticePeriod) ? 30 : /week/i.test(profile.noticePeriod) ? 7 : 1;
+  return String(/\bdays?\b/i.test(field.label) ? amount * daysPerUnit : amount);
+}
+
 function cityState({ profile }: Context): string | undefined {
   return [profile.city, profile.state].filter(Boolean).join(", ") || undefined;
 }
@@ -196,8 +211,9 @@ const questionRules: Rule[] = [
   [/disabilit/, ({ profile }) => eeo(profile.disabilityStatus)],
   [/pronoun/, ({ profile }) => profile.pronouns || undefined],
   [/how did you hear|hear(d)? about|where did you (hear|find|learn)|referral source|source of (application|referral)/, hearAbout],
-  [/salary|compensation|desired pay|pay expectation|expected pay/, ({ profile }) => profile.salaryExpectation || undefined],
-  [/notice period|how soon|when (can|could|would) you (start|join)|available to start|earliest (start|available)|availability|start date/, ({ profile, field }) => (field.kind === "date" ? undefined : profile.noticePeriod || undefined)],
+  [/(current|present|last|existing)( \S+){0,2} (ctc|salary|compensation|pay|package)/, ({ profile }) => profile.currentSalary || undefined],
+  [/salary|compensation|desired pay|pay expectation|expected pay|\bctc\b/, ({ profile }) => profile.salaryExpectation || undefined],
+  [/notice period|how soon|when (can|could|would) you (start|join)|available to start|earliest (start|available)|availability|start date/, noticePeriod],
   [/years? of (relevant |professional |work |total )?experience|total experience|how many years/, yearsExperience],
 ];
 
@@ -206,7 +222,7 @@ const contactRules: Rule[] = [
   [/phone (device )?type|device type/, () => "Mobile"],
   [/country (phone )?code|phone code|dial/, phoneCode],
   [/extension/, none],
-  [/phone|mobile|telephone|\bcell\b/, localPhone],
+  [/phone|mobile|telephone|\bcell\b|contact (number|no)\b/, localPhone],
   [/preferred (first )?name|nick ?name|goes by/, ({ profile }) => profile.firstName || undefined],
   [/middle|suffix|prefix/, none],
   [/first name|given name|forename/, ({ profile }) => profile.firstName || undefined],
@@ -242,7 +258,7 @@ const experienceRules: Rule[] = [
 
 const generalRules: Rule[] = [
   // short labels only: "...with your current employer or a past employer?" is a question, not the employer field
-  [/^(\S+ ){0,3}(company|employer|organi[sz]ation)( \S+){0,2}$|^org$/, ({ profile }) => profile.currentCompany || undefined],
+  [/^(\S+ ){0,3}(company|employer|organi[sz]ation)( \S+){0,2}$|^org$/, currentCompany],
   [/current (job )?title|current position|current role|job title|position title|\btitle\b/, ({ profile }) => profile.currentTitle || undefined, ["text", "combobox", "textarea"]],
   [/address line 2|address 2|\bapt\b|suite|unit number|street 2/, none],
   [/address line 1|address 1|street|address/, ({ profile }) => profile.address || undefined],
@@ -332,12 +348,22 @@ function fileFill(field: FieldDescriptor, resume: Resume | null | undefined): Pi
   return { value: "resume", source: "resume" };
 }
 
-export function map(fields: FieldDescriptor[], profile: Profile, answers: AnswerBank, resume?: Resume | null): FieldFill[] {
+/** Sign-in / create-account pages: passwords from settings, and the account email for the email / username field. */
+function accountFill(field: FieldDescriptor, account: AccountLogin | undefined): Pick<FieldFill, "value" | "source"> | undefined {
+  if (field.kind === "password") return account?.password ? { value: account.password, source: "profile" } : undefined;
+  const text = normalize(`${field.label} ${field.name} ${field.automationId} ${field.placeholder}`);
+  const isLogin = field.kind === "email" || /e ?mail|user ?name|user ?id|login/.test(text);
+  return isLogin && account?.email ? { value: account.email, source: "profile" } : undefined;
+}
+
+export function map(fields: FieldDescriptor[], profile: Profile, answers: AnswerBank, resume?: Resume | null, account?: AccountLogin): FieldFill[] {
   const hasPhoneCodeField = fields.some((field) => /country (phone )?code|phone code/.test(normalize(field.label)));
+  const isAccountForm = fields.some((field) => field.kind === "password");
   const fills: FieldFill[] = [];
   for (const field of fields) {
     if (hasFilledValue(field)) continue;
-    const fill = field.kind === "file" ? fileFill(field, resume) : fromBankOrProfile(field, profile, answers, hasPhoneCodeField);
+    const fromAccount = isAccountForm ? accountFill(field, account) : undefined;
+    const fill = fromAccount ?? (field.kind === "file" ? fileFill(field, resume) : field.kind === "password" ? undefined : fromBankOrProfile(field, profile, answers, hasPhoneCodeField));
     if (fill) fills.push({ id: field.id, frameId: field.frameId, ...fill });
   }
   return fills;
@@ -360,7 +386,8 @@ function fromBankOrProfile(
     education: profile.education[sectionIndex(field.section)],
     hasPhoneCodeField,
   };
-  const wanted = lookup(field, context);
+  const looked = lookup(field, context);
+  const wanted = field.kind === "number" && looked ? looked.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] : looked;
   const value = wanted ? (resolveChoice(field, wanted) ?? namedOtherOption(field)) : undefined;
   return value ? { value, source: "profile" } : undefined;
 }

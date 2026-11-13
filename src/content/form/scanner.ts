@@ -3,7 +3,7 @@ import type { FieldDescriptor, FieldKind } from "../../types.ts";
 
 const CANDIDATES =
   "input, textarea, select, [contenteditable]:not([contenteditable=false]), [role=combobox], [role=radiogroup], button[aria-haspopup=listbox]";
-const SKIPPED_INPUT_TYPES = new Set(["hidden", "submit", "button", "image", "reset", "password", "search"]);
+const SKIPPED_INPUT_TYPES = new Set(["hidden", "submit", "button", "image", "reset", "search"]);
 const PLACEHOLDER_TEXT = /^(select|choose|please|pick|-+|—|…|\.\.\.)/i;
 
 let idCounter = 0;
@@ -44,7 +44,7 @@ export function kindOf(element: HTMLElement): FieldKind | null {
 function inputKind(input: HTMLInputElement): FieldKind | null {
   const type = input.type.toLowerCase();
   if (SKIPPED_INPUT_TYPES.has(type)) return null;
-  if (type === "file" || type === "radio" || type === "checkbox") return type;
+  if (type === "file" || type === "radio" || type === "checkbox" || type === "password") return type;
   if (type === "email" || type === "tel" || type === "number" || type === "url") return type;
   if (type === "date" || type === "month" || type === "datetime-local") return "date";
   if (isComboboxInput(input)) return "combobox";
@@ -73,6 +73,7 @@ function describe(element: HTMLElement, seenGroups: Set<string>): FieldDescripto
     seenGroups.add(key);
   }
   const rawLabel = group ? groupLabel(element) : fieldLabel(element);
+  if (isHoneypot(element, rawLabel)) return null;
   return {
     id: stamp(element),
     frameId: 0, // overwritten by the panel with the real frame id
@@ -83,7 +84,8 @@ function describe(element: HTMLElement, seenGroups: Set<string>): FieldDescripto
     automationId: automationIdOf(element) || (element.closest('[data-automation-id^="formField"]')?.getAttribute("data-automation-id") ?? ""),
     required: isRequired(element, rawLabel, group),
     options: group?.map((option) => option.label) ?? optionTexts(element, kind),
-    currentValue: readValue(element, kind),
+    // the scan is shown in the panel and copied into bug reports, so never carry a typed password
+    currentValue: kind === "password" && readValue(element, kind) ? "********" : readValue(element, kind),
     section: cleanLabel(sectionOf(element, !!group)),
   };
 }
@@ -109,6 +111,13 @@ function isVisible(element: HTMLElement, ignoreSelf: boolean): boolean {
   if (ignoreSelf || !hasLayout()) return true;
   const box = element.getBoundingClientRect();
   return box.width > 0 || box.height > 0;
+}
+
+const HONEYPOT_TEXT = /for robots|if you(?:'|’| a)re (?:a )?human|honeypot/i;
+
+/** Anti-bot trap fields (Workday "beecatcher"): filling one flags the application as spam. */
+function isHoneypot(element: HTMLElement, label: string): boolean {
+  return HONEYPOT_TEXT.test(label) || /beecatcher|honeypot/i.test(automationIdOf(element) + (element.getAttribute("name") ?? ""));
 }
 
 function isExcluded(element: HTMLElement, kind: FieldKind): boolean {

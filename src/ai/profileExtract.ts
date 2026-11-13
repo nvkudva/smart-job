@@ -6,7 +6,11 @@ export const profileSystem = `You extract a structured profile from resume text.
 {"firstName","lastName","email","phone","city","state","country","linkedin","github","portfolio","website","headline","summary","yearsExperience":number,"skills":[string],
 "experience":[{"title","company","location","start":"YYYY-MM","end":"YYYY-MM or empty if current","current":boolean,"description":"key bullets joined by newlines"}],
 "education":[{"school","degree","field","start":"YYYY-MM","end":"YYYY-MM","gpa"}]}
-Rules: copy facts exactly as written in the resume; never invent anything. Use "" or [] when a field is not in the resume. Newest experience first. Skills are short names (e.g. "Python", "Stakeholder management").`;
+Rules: copy facts exactly as written in the resume; never invent anything. Use "" or [] when a field is not in the resume. Newest experience first. Skills are short names (e.g. "Python", "Stakeholder management").
+- Several roles listed under one company heading are separate experience entries, each with that company. A role without its own dates takes the company's date span.
+- A role with no employer (career break, sabbatical, freelance) keeps company "".
+- Read the whole resume to the end: education, certifications and links are often last. URLs listed under "Links" belong in linkedin / github / portfolio / website.
+- city / state / country: where the candidate lives now (from the header, or the location of the current role).`;
 
 // ---------- deterministic pass ----------
 
@@ -110,6 +114,19 @@ function latestExperience(experience: Experience[]): Experience | undefined {
 }
 
 // ---------- profile ----------
+
+function isBlank(value: unknown): boolean {
+  return value === "" || value === 0 || value == null || (Array.isArray(value) && value.length === 0);
+}
+
+/** A re-extraction must not wipe what the user typed: blank extracted fields keep the previous value. */
+export function mergeInto(previous: Profile, extracted: Profile): Profile {
+  const merged = { ...previous };
+  for (const key of Object.keys(extracted) as (keyof Profile)[]) {
+    if (!isBlank(extracted[key])) (merged as Record<string, unknown>)[key] = extracted[key];
+  }
+  return merged;
+}
 
 export function buildProfile(raw: unknown, resumeText: string, now = new Date()): Profile {
   const data = normalize.asRecord(raw);

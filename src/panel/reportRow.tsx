@@ -8,6 +8,7 @@ function ValueInput({ item, value, onValue }: { item: FillReportItem; value: str
   const { field } = item;
   const label = field.label || field.name || field.id;
   if (field.kind === "file") return <span class="muted">{value || "file input"}</span>;
+  if (field.kind === "password") return <input type="password" aria-label={label} value={value} onInput={(event) => onValue(event.currentTarget.value)} />;
   if (field.kind === "checkbox") {
     return (
       <select aria-label={label} value={value} onChange={(event) => onValue(event.currentTarget.value)}>

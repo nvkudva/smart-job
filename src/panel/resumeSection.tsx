@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import * as profileExtract from "../ai/profileExtract.ts";
 import * as tasks from "../ai/tasks.ts";
 import * as resumeFile from "../profile/resumeFile.ts";
 import * as storage from "../storage.ts";
@@ -35,8 +36,9 @@ export function ResumeSection() {
     setIsSaved(true);
   };
   const extract = useTask(async () => {
-    const profile = await aiContext.run(({ client }) => tasks.extractProfile(client, text));
-    await storage.set("profile", profile);
+    const extracted = await aiContext.run(({ client }) => tasks.extractProfile(client, text));
+    const previous = await storage.get("profile");
+    await storage.set("profile", profileExtract.mergeInto(previous, extracted));
     setIsExtracted(true);
   });
 

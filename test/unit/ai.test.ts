@@ -107,6 +107,11 @@ describe("extractProfile", () => {
     expect(profileExtract.buildProfile(null, "").firstName).toBe("");
     expect(profileExtract.buildProfile({ experience: "oops", skills: "a, b; c" }, "").skills).toEqual(["a", "b", "c"]);
   });
+  test("re-extraction keeps what the user typed when the resume lacks it", () => {
+    const previous = { ...emptyProfile, postalCode: "560068", noticePeriod: "15 days", city: "Old", skills: ["a"] };
+    const extracted = { ...emptyProfile, city: "Bangalore", skills: [] };
+    expect(profileExtract.mergeInto(previous, extracted)).toMatchObject({ postalCode: "560068", noticePeriod: "15 days", city: "Bangalore", skills: ["a"] });
+  });
   test("normalizeMonth", () => {
     expect(profileExtract.normalizeMonth("Mar 2021")).toBe("2021-03");
     expect(profileExtract.normalizeMonth("2021-3")).toBe("2021-03");

@@ -16,6 +16,7 @@ export const defaultSettings: Settings = {
   autoFillOnPageChange: false,
   autoAnalyze: true,
   salarySearch: true,
+  account: { email: "", password: "" },
 };
 
 export const emptyProfile: Profile = {
@@ -45,6 +46,8 @@ export const emptyProfile: Profile = {
   requiresSponsorship: "",
   willingToRelocate: "",
   salaryExpectation: "",
+  currentSalary: "",
+  linkedinSummary: "",
   noticePeriod: "",
   gender: "",
   ethnicity: "",

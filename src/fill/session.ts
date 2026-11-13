@@ -34,7 +34,7 @@ const isSingleCheckbox = (field: FieldDescriptor) => field.kind === "checkbox" &
 const isEmpty = (field: FieldDescriptor) => field.currentValue.trim() === "" || field.currentValue === "false";
 
 function needsAnswer(field: FieldDescriptor): boolean {
-  if (field.kind === "file" || !isEmpty(field)) return false;
+  if (field.kind === "file" || field.kind === "password" || !isEmpty(field)) return false;
   return field.required || QUESTION_KINDS.has(field.kind) || (field.kind === "checkbox" && !isSingleCheckbox(field));
 }
 
@@ -86,11 +86,11 @@ async function sendFills(tabId: number, fills: FieldFill[], resume: Resume | nul
 const keyOf = (item: { frameId: number; id: string }) => `${item.frameId}:${item.id}`;
 
 /** scan all frames → deterministic map → answer bank → AI for leftovers → fill → report. */
-export async function run(tabId: number, job: JobPosting | null, options: { useAi: boolean }): Promise<FillReport> {
+export async function run(tabId: number, job: JobPosting | null, options: { useAi: boolean; includeAccount: boolean }): Promise<FillReport> {
   const fields = await scanAllFrames(tabId);
-  const [profile, resume, answers] = await Promise.all([storage.get("profile"), storage.get("resume"), storage.get("answers")]);
+  const [profile, resume, answers, settings] = await Promise.all([storage.get("profile"), storage.get("resume"), storage.get("answers"), storage.get("settings")]);
 
-  const fills = mapping.map(fields, profile, answers, resume);
+  const fills = mapping.map(fields, profile, answers, resume, options.includeAccount ? settings.account : undefined);
   const filledKeys = new Set(fills.map(keyOf));
   // never let the model tick consent / terms checkboxes
   const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !isSingleCheckbox(field));
@@ -135,7 +135,7 @@ async function saveAnswers(fills: FieldFill[], fields: FieldDescriptor[]): Promi
     for (const fill of fills) {
       const field = fieldByKey.get(keyOf(fill));
       const key = field ? mapping.normalize(field.label) : "";
-      if (key && fill.source === "user" && fill.value.trim() && field?.kind !== "file") next[key] = { question: field!.label, answer: fill.value, updatedAt: now };
+      if (key && fill.source === "user" && fill.value.trim() && field?.kind !== "file" && field?.kind !== "password") next[key] = { question: field!.label, answer: fill.value, updatedAt: now };
     }
     return next;
   });

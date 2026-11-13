@@ -47,8 +47,9 @@ Small local models (<4B) produce weak analysis; ≥7B local or any cloud model i
 ## First run
 
 1. Settings → upload your resume PDF (or paste text) → **Save resume** → **Extract profile with AI**.
-2. Review the profile, then fill in what a resume does not contain: work authorization, sponsorship, relocation, salary expectation, notice period. Leave the EEO fields blank to have SmartJob choose "decline to answer".
+2. Review the profile, then fill in what a resume does not contain: work authorization, sponsorship, relocation, current salary / CTC, salary expectation, notice period. Leave the EEO fields blank to have SmartJob choose "decline to answer".
 3. Save.
+4. Optional: Settings → **Job-site account email / password**. On Workday / iCIMS "Create Account" or sign-in pages, **Fill this page** fills email, password and confirm password. You click Create Account. The password stays on this device and is never sent to the AI. Workday requires an uppercase letter, a number and a special character.
 
 ## Test walkthrough (manual)
 
@@ -81,7 +82,7 @@ If Workday or iCIMS misbehaves: Apply tab → **Copy field scan (for bug reports
 ## Known limits
 
 - Real Workday and iCIMS application pages need an account, so they were tested against fixtures modelled on their markup, not live. If a field stays amber, it was not filled.
-- LinkedIn logged-in job pages use selectors that were written from memory of LinkedIn's markup and not tested. The logged-out view was tested and works through JSON-LD. If the logged-in view fails, the generic extractor is the fallback.
+- LinkedIn logged-in pages (2026 UI: `/jobs/search-results/` and `/jobs/view/`) were tested live. LinkedIn uses hashed class names, so a redesign can break detection again.
 - Salary web search: search engines and salary sites (Bing, DuckDuckGo, levels.fyi, Glassdoor) serve captchas or junk results to automated requests. SmartJob filters out results that don't mention pay. When nothing usable remains, it shows an AI estimate labelled **Estimate**, plus links to Levels.fyi and Glassdoor.
 - Comboboxes such as react-select don't list their options until opened. AI answers for them are matched against the menu when it opens.
 - File upload attaches your stored resume to file inputs. Some sites parse the upload and overwrite fields, so upload first and then fill again.

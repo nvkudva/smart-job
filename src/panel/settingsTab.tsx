@@ -67,6 +67,8 @@ function ProviderForm({ initial }: { initial: Settings }) {
         <Check label="Analyze jobs automatically" checked={draft.autoAnalyze} onChecked={(autoAnalyze) => setToggle({ autoAnalyze })} />
         <Check label="Re-fill automatically when the page changes" checked={draft.autoFillOnPageChange} onChecked={(autoFillOnPageChange) => setToggle({ autoFillOnPageChange })} />
         <Check label="Search the web for salary data" checked={draft.salarySearch} onChecked={(salarySearch) => setToggle({ salarySearch })} />
+        <Field label="Job-site account email" type="email" value={draft.account.email} placeholder="Used on sign-up / sign-in pages" onValue={(email) => setToggle({ account: { ...draft.account, email } })} />
+        <Field label="Job-site account password" type="password" value={draft.account.password} placeholder="Stored on this device only, never sent to the AI" onValue={(password) => setToggle({ account: { ...draft.account, password } })} />
         <div class="row">
           <Button kind="primary" onClick={() => void save()}>
             Save settings

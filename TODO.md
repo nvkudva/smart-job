@@ -10,3 +10,9 @@
 - [x] PLAN.md (PRD + architecture + plan)
 - [x] Salary search: Bing first, DDG fallback, relevance filter, magnitude fix
 - [x] Local models: reasoning_effort for Ollama/LM Studio; Ollama Origin header stripped via DNR session rule
+- [x] LinkedIn 2026 UI job extraction (search-results split view + /jobs/view/)
+- [x] Profile extraction: full resume, PDF link URLs, merge instead of overwrite
+- [x] Job-site account email/password in Settings; fill sign-up forms; skip honeypots
+- [x] Current/Expected CTC, "Contact number", number inputs (notice days, LPA), current company on a career break
+- [ ] Re-run AI profile extraction + AI form answers live once the LLM server responds
+- [ ] Workday post-account steps (My Information / Experience) live, once a password that meets Workday rules is set

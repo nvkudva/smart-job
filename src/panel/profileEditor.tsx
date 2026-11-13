@@ -52,6 +52,7 @@ const groups: { title: string; note?: string; fields: FieldSpec[] }[] = [
   {
     title: "Salary & notice",
     fields: [
+      { key: "currentSalary", label: "Current salary / CTC" },
       { key: "salaryExpectation", label: "Salary expectation" },
       { key: "noticePeriod", label: "Notice period" },
     ],

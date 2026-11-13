@@ -15,6 +15,13 @@ export interface Settings {
   /** Analyze job automatically when a job page is detected. */
   autoAnalyze: boolean;
   salarySearch: boolean;
+  /** Default login used to create accounts on job sites (Workday, iCIMS...). Stored locally only, never sent to the AI. */
+  account: AccountLogin;
+}
+
+export interface AccountLogin {
+  email: string;
+  password: string;
 }
 
 export interface Experience {
@@ -69,6 +76,10 @@ export interface Profile {
   requiresSponsorship: YesNo;
   willingToRelocate: YesNo;
   salaryExpectation: string;
+  /** current pay / CTC, asked by most Indian application forms */
+  currentSalary: string;
+  /** Plain-text digest of the user's LinkedIn profile (about, extra experience, skills, certifications, themes of recent posts); "" until imported */
+  linkedinSummary: string;
   noticePeriod: string;
   /** Free-form EEO defaults; "" means decline to answer. */
   gender: string;
@@ -155,6 +166,7 @@ export type FieldKind =
   | "checkbox"
   | "combobox"
   | "file"
+  | "password"
   | "contenteditable";
 
 export interface FieldDescriptor {

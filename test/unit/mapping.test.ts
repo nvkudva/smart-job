@@ -243,6 +243,31 @@ describe("questions", () => {
     expect(fills.map((fill) => fill.value)).toEqual(["Yes", "$180,000", "2 weeks"]);
   });
 
+  test("Indian CTC fields: current vs expected", () => {
+    const labels = ["Current CTC", "Current fixed CTC", "Last drawn salary", "Expected CTC"];
+    const fills = mapping.map(labels.map((label, index) => field({ id: String(index), label })), { ...profile, currentSalary: "₹60L" }, {});
+    expect(fills.map((fill) => fill.value)).toEqual(["₹60L", "₹60L", "₹60L", "$180,000"]);
+  });
+
+  test("number inputs get numbers: notice period in days, CTC in LPA, contact number", () => {
+    const indian = { ...profile, noticePeriod: "2 weeks", currentSalary: "60 LPA" };
+    const fills = mapping.map(
+      [
+        field({ id: "n", kind: "number", label: "What is the duration of your notice period? (In Days)" }),
+        field({ id: "c", kind: "number", label: "What is your current CTC? (In LPA)" }),
+        field({ id: "p", kind: "tel", label: "Contact number" }),
+      ],
+      indian,
+      {},
+    );
+    expect(fills.map((fill) => fill.value)).toEqual(["14", "60", profile.phone]);
+  });
+
+  test("current company on a career break falls back to the most recent employer", () => {
+    const onBreak = { ...profile, currentCompany: "", experience: [{ ...profile.experience[0]!, company: "", title: "Career break" }, profile.experience[1]!] };
+    expect(fillOne(field({ label: "Current company" }), onBreak)?.value).toBe("Globex");
+  });
+
   test("EEO with empty profile values picks decline options", () => {
     const gender = field({ kind: "select", label: "Gender", options: ["Select...", "Male", "Female", "Decline To Self Identify"] });
     const race = field({ kind: "select", label: "Race", options: ["Asian", "White", "I prefer not to answer"] });
@@ -372,5 +397,26 @@ describe("real-world questions (Lever / Greenhouse)", () => {
     const address = "What is the address from which you plan on working? If you would be relocating, please enter the address of your new home";
     expect(fill(field({ label: address }))).toBeUndefined();
     expect(fill(field({ label: "How did you hear about this role?" }))).toBe("LinkedIn");
+  });
+});
+
+describe("account forms", () => {
+  const account = { email: "me@jobs.test", password: "s3cret!" };
+  test("create-account page: account email + password + confirm password", () => {
+    const email = field({ id: "e", kind: "email", label: "Email Address" });
+    const password = field({ id: "p", kind: "password", label: "Password" });
+    const confirm = field({ id: "c", kind: "password", label: "Verify New Password" });
+    const fills = mapping.map([email, password, confirm], profile, {}, null, account);
+    expect(fills.map((fill) => fill.value)).toEqual(["me@jobs.test", "s3cret!", "s3cret!"]);
+  });
+  test("without a password field, email comes from the profile; without an account, passwords stay empty", () => {
+    const email = field({ id: "e", kind: "email", label: "Email" });
+    expect(mapping.map([email], profile, {}, null, account)[0]?.value).toBe(profile.email);
+    const password = field({ id: "p", kind: "password", label: "Password" });
+    expect(mapping.map([email, password], profile, {}, null)).toEqual([{ id: "e", frameId: 0, value: profile.email, source: "profile" }]);
+  });
+  test("saved answers never fill a password field", () => {
+    const password = field({ id: "p", kind: "password", label: "Password" });
+    expect(mapping.map([password], profile, { password: { question: "Password", answer: "leak", updatedAt: 0 } })).toEqual([]);
   });
 });

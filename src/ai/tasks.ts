@@ -14,6 +14,8 @@ export interface CandidateContext {
 
 const jobLimit = 6000;
 const resumeLimit = 6000;
+// profile extraction needs the end of the resume (education, links); 20k chars is ~5k tokens
+const fullResumeLimit = 20000;
 const noInvention = "Use only facts that appear in the resume or profile. Never invent employers, titles, dates, skills or numbers.";
 
 // ---------- prompt context ----------
@@ -101,7 +103,7 @@ export async function estimateSalary(
 export async function extractProfile(client: llm.LlmClient, resumeText: string): Promise<Profile> {
   const raw = await llm.chatJson<unknown>(client, {
     system: profileExtract.profileSystem,
-    user: `Resume:\n${normalize.truncate(resumeText, resumeLimit)}`,
+    user: `Resume:\n${normalize.truncate(resumeText, fullResumeLimit)}`,
     maxTokens: tokenBudget,
   });
   return profileExtract.buildProfile(raw, resumeText);

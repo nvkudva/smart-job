@@ -15,6 +15,7 @@ function load(name: string, url: string) {
 
 const cases = [
   { file: "linkedin-job.html", url: "https://www.linkedin.com/jobs/search/?currentJobId=1001", id: "linkedin:1001", source: "linkedin", title: "Senior Frontend Engineer", company: "Acme Robotics", location: "Berlin, Germany", salary: "$120,000 - $150,000" },
+  { file: "linkedin-2026-job.html", url: "https://www.linkedin.com/jobs/search-results/?currentJobId=4484674454", id: "linkedin:4484674454", source: "linkedin", title: "Engineering Manager", company: "Hevo Data", location: "Bengaluru, Karnataka, India", salary: "₹40L – ₹60L/yr" },
   { file: "jsonld-job.html", url: "http://localhost/jsonld-job.html?utm=1#x", id: "url:http://localhost/jsonld-job.html", source: "jsonld", title: "Backend Engineer", company: "Initech", location: "Austin, TX, US", salary: "USD 120,000–150,000 / year" },
   { file: "greenhouse-job.html", url: "https://boards.greenhouse.io/hooli/jobs/55", id: "url:https://boards.greenhouse.io/hooli/jobs/55", source: "greenhouse", title: "Platform Engineer", company: "Hooli", location: "San Francisco, CA", salary: "" },
   { file: "lever-job.html", url: "https://jobs.lever.co/umbrella/abc", id: "url:https://jobs.lever.co/umbrella/abc", source: "lever", title: "Product Designer", company: "Umbrella", location: "Remote - EU", salary: "" },

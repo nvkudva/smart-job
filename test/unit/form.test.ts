@@ -45,6 +45,14 @@ describe("label resolution", () => {
     expect(fields.map((field) => field.name)).toEqual(["keep"]);
   });
 
+  test("scans password fields with the value masked, and skips anti-bot honeypots", () => {
+    const fields = scanHtml(`
+      <label for="pw">Password</label><input id="pw" type="password" name="password" value="hunter2" />
+      <label for="hp">Enter website. This input is for robots only, do not enter if you're human.</label><input id="hp" name="website" data-automation-id="beecatcher" />
+    `);
+    expect(fields.map((field) => [field.kind, field.name, field.currentValue])).toEqual([["password", "password", "********"]]);
+  });
+
   test("data-sj-id stays stable across rescans", () => {
     document.body.innerHTML = `<input name="a" aria-label="A" /><input name="b" aria-label="B" />`;
     const first = form.scan().map((field) => field.id);
