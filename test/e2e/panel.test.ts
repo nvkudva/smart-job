@@ -172,7 +172,7 @@ test("feedback button sends a report with page and panel screenshots", async () 
     sent = route.request().postDataBuffer()?.toString("latin1") ?? "";
     await route.fulfill({ status: 201, contentType: "application/json", body: '{"url":"x"}' });
   });
-  await panel.getByRole("button", { name: "Send feedback" }).click();
+  await panel.getByRole("button", { name: "Report a bug or idea" }).click();
   await visible(panel.getByRole("dialog"));
   expect(await panel.locator("#shots img").count()).toBe(2);
   await panel.getByLabel("Details").fill("Autofill skipped the phone field");

@@ -34,7 +34,7 @@
 - [x] Tracker shows posting link, application portal, login email, saved resumes, cover letter
 - [ ] Verify on a real sign-up page that Chrome offers to save the created account (PasswordCredential.store)
 - [x] Feedback button: ../feedback-widget (widget + Cloudflare Worker) files GitHub issues with page + panel screenshots
-- [ ] Feedback: deploy worker (repo, fine-grained token, feedback-assets branch, extension ID in APPS), replace localhost endpoint in src/panel/main.tsx
-- [ ] Feedback: local wrangler dev needs "" in APPS origins (DNR rule strips Origin for localhost)
+- [ ] Feedback: deploy worker (fine-grained token, feedback-assets branch, repo + extension ID in REPOS), set endpoint + repo in src/panel/main.tsx
+- [ ] Feedback: local wrangler dev needs "" in REPOS origins (DNR rule strips Origin for localhost)
 - [ ] Feedback: verify one real report (asset branch upload, labels auto-created, ?raw=true image renders in private issue)
 - [ ] Feedback: build widget to JS + publish (npm/GitHub) so non-Bun projects can import it

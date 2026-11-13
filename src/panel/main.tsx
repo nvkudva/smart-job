@@ -15,8 +15,9 @@ import { SettingsTab } from "./settings/settingsTab.tsx";
 import { TrackerTab } from "./tracker/trackerTab.tsx";
 import { useStored } from "./shared/useStored.ts";
 
-// shortcut: points at `wrangler dev`; swap for the deployed worker URL.
+// shortcut: endpoint points at `wrangler dev` and the repo is a placeholder; set both once the worker is deployed.
 const feedbackEndpoint = "http://localhost:8787/";
+const feedbackRepo = "OWNER/smartjob";
 
 /** The job page in the tab, which is usually what a bug report is about. Throws on chrome:// pages; the widget then skips it. */
 async function captureJobPage(): Promise<Blob> {
@@ -26,7 +27,7 @@ async function captureJobPage(): Promise<Blob> {
 
 const reporter = feedback.create({
   endpoint: feedbackEndpoint,
-  app: "smartjob",
+  repo: feedbackRepo,
   version: chrome.runtime.getManifest().version,
   captures: { page: captureJobPage, panel: feedback.captureDom },
 });
@@ -84,6 +85,10 @@ function App() {
 
   useEffect(() => void (isResumeLoaded && !hasResume && setTab("Profile")), [isResumeLoaded]);
   useEffect(() => void (active.job && setLastJob(active.job)), [active.job]);
+  useEffect(() => {
+    const job = active.job ?? lastJob;
+    reporter.setContext({ tab, site: active.host, page: active.url, job: job?.title, company: job?.company });
+  }, [tab, active.host, active.url, active.job, lastJob]);
 
   if (isSetupComplete === undefined) return null;
   if (!isSetupComplete) {
@@ -116,15 +121,6 @@ function App() {
             {name === "Settings" && <AiDot />}
           </button>
         ))}
-        <button
-          type="button"
-          class="feedback"
-          aria-label="Send feedback"
-          title="Send feedback"
-          onClick={() => void reporter.open({ site: active.host, page: active.url, job: currentJob?.title, company: currentJob?.company })}
-        >
-          <Icon name="Feedback" />
-        </button>
       </nav>
       <main>
         {isResumeLoaded && !hasResume && <Onboarding onProfile={() => setTab("Profile")} isOnProfile={tab === "Profile"} />}
