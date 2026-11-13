@@ -5,7 +5,7 @@ import * as resumeFile from "../../profile/resumeFile.ts";
 import * as storage from "../../storage.ts";
 import type { Resume } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
-import { Button, Card, ErrorNote } from "../shared/controls.tsx";
+import { Button, Card, ErrorNote, FileButton } from "../shared/controls.tsx";
 import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
 
@@ -44,6 +44,7 @@ export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean
   };
   const baseResume = () => pendingFile ?? stored ?? { text: "", fileName: "pasted.txt", fileBase64: "", mimeType: "text/plain" };
   const save = () => saveResume(baseResume(), text);
+  const isDirty = !!pendingFile && !isSaved || text !== (stored?.text ?? "");
   const extract = useTask(async () => {
     await saveExtractedProfile(text);
     setIsExtracted(true);
@@ -52,11 +53,12 @@ export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean
   return (
     <Card title="Resume">
       <div class="stack tight">
-        <label class="field">
-          <span>Upload PDF or TXT</span>
-          <input type="file" accept=".pdf,.txt,.md,application/pdf,text/plain" onChange={(event) => event.currentTarget.files?.[0] && void readFile.run(event.currentTarget.files[0])} />
-        </label>
-        {readFile.isBusy && <span class="muted">Reading file…</span>}
+        <div class="row between">
+          <span class="muted small clamp">{(pendingFile ?? stored)?.fileName || "No file chosen"}</span>
+          <FileButton accept=".pdf,.txt,.md,application/pdf,text/plain" isBusy={readFile.isBusy} onFile={(file) => void readFile.run(file)}>
+            Choose file
+          </FileButton>
+        </div>
         <ErrorNote message={readFile.error} />
         <label class="field">
           <span>or paste text</span>
@@ -72,17 +74,16 @@ export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean
           />
         </label>
         {stored?.fileName && stored.fileBase64 && <span class="muted small">Stored file: {stored.fileName} (attached to upload fields)</span>}
-        <div class="row wrap">
-          <Button kind="primary" disabled={!text.trim()} onClick={() => void save()}>
-            Save resume
-          </Button>
+        <div class="actions">
+          <span class="grow ok-text">{isExtracted ? "Profile updated" : isSaved ? "Saved" : ""}</span>
           {!isOnboarding && (
-            <Button isBusy={extract.isBusy} disabled={!stored?.text || (!isSaved && text !== stored.text)} onClick={() => void extract.run()}>
+            <Button isBusy={extract.isBusy} disabled={!stored?.text || isDirty} onClick={() => void extract.run()}>
               Extract profile with AI
             </Button>
           )}
-          {isSaved && <span class="ok-text">Saved</span>}
-          {isExtracted && <span class="ok-text">Profile updated</span>}
+          <Button kind="primary" disabled={!text.trim() || !isDirty} onClick={() => void save()}>
+            Save resume
+          </Button>
         </div>
         <ErrorNote message={extract.error} onRetry={() => void extract.run()} />
       </div>

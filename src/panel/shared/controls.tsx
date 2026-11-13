@@ -15,6 +15,25 @@ export function Button({ isBusy = false, kind = "ghost", children, disabled, ...
   );
 }
 
+export function FileButton({ accept, isBusy = false, children, onFile }: { accept: string; isBusy?: boolean; children: ComponentChildren; onFile: (file: File) => void }) {
+  return (
+    <label class={`btn ghost file-btn${isBusy ? " disabled" : ""}`}>
+      {isBusy && <Spinner />}
+      {children}
+      <input
+        type="file"
+        accept={accept}
+        disabled={isBusy}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) onFile(file);
+        }}
+      />
+    </label>
+  );
+}
+
 export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
   if (!message) return null;
   return (

@@ -58,7 +58,7 @@ function DataTab() {
   return (
     <div class="stack">
       <Card title="Setup">
-        <div class="row wrap">
+        <div class="actions">
           <Button onClick={() => void storage.set("setupComplete", false)}>Run setup again</Button>
           <span class="muted small">Walks through provider, profile and job searches. Existing data is kept.</span>
         </div>

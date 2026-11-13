@@ -1,5 +1,5 @@
 import * as storage from "../../storage.ts";
-import { Button, Card, ErrorNote } from "../shared/controls.tsx";
+import { Button, Card, ErrorNote, FileButton } from "../shared/controls.tsx";
 import * as download from "../shared/download.ts";
 import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
@@ -42,12 +42,11 @@ export function DataSection() {
       <AnswerBank />
       <Card title="Your data">
         <p class="muted small">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint and salary search.</p>
-        <div class="row wrap">
+        <div class="actions">
           <Button onClick={() => void exportAll()}>Export JSON</Button>
-          <label class="btn ghost file-btn">
+          <FileButton accept="application/json,.json" isBusy={importFile.isBusy} onFile={(file) => void importFile.run(file)}>
             Import JSON
-            <input type="file" accept="application/json,.json" hidden onChange={(event) => event.currentTarget.files?.[0] && void importFile.run(event.currentTarget.files[0])} />
-          </label>
+          </FileButton>
           <Button kind="danger" onClick={() => void clearAll()}>
             Clear all
           </Button>

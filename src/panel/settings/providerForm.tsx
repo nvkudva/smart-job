@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import * as llm from "../../ai/llm.ts";
 import * as models from "../../ai/models.ts";
 import type { ProviderSettings } from "../../types.ts";
@@ -50,12 +50,16 @@ export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
   const [latency, setLatency] = useState<number | null>(null);
   const modelIds = useModelIds(provider);
   const presetNames = Object.keys(llm.presets);
-  const presetName = llm.presetFor(provider) ?? customPreset;
+  const [presetName, setPresetName] = useState(llm.presetFor(provider) ?? customPreset);
+  // each provider keeps its own edited URL, key and model while the user switches between them
+  const rememberedByPreset = useRef<Record<string, ProviderSettings>>({});
   const keyPage = llm.keyPages[presetName];
 
   const choosePreset = (name: string) => {
-    const preset = llm.presets[name];
-    if (preset) onProvider({ kind: preset.kind, baseUrl: preset.baseUrl, model: preset.model });
+    rememberedByPreset.current[presetName] = provider;
+    const next = rememberedByPreset.current[name] ?? llm.presets[name];
+    setPresetName(name);
+    if (next) onProvider(next);
   };
   const testConnection = useTask(async () => {
     setLatency(null);

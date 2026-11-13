@@ -51,7 +51,7 @@ function JobCard({ job, tracked, state, onApply, onShortlist }: JobCardProps) {
         <span class="badge">{job.source}</span>
         {job.salaryText && <span class="badge basis-posted">{job.salaryText}</span>}
       </div>
-      <div class="row wrap">
+      <div class="actions">
         <Button kind="primary" onClick={onApply}>
           Apply
         </Button>

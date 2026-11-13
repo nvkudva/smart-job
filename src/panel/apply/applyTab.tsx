@@ -111,15 +111,17 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     <div class="stack">
       <Card title="Autofill">
         <div class="stack tight">
-          <Button kind="primary" isBusy={fillTask.isBusy} disabled={!tabId} onClick={() => void fillTask.run(true)}>
-            {fillTask.isBusy ? "Filling…" : "Fill this page"}
-          </Button>
           <Check label="Use AI for unanswered questions" checked={useAi} onChecked={setUseAi} />
           <p class="muted small">SmartJob never submits — review and click Submit yourself.</p>
-          <Button disabled={!tabId} onClick={() => tabId && void copyFieldScan(tabId).then(setScanNote, (error) => setScanNote(String(error)))}>
-            Copy field scan (for bug reports)
-          </Button>
-          {scanNote && <span class="muted small">{scanNote}</span>}
+          <div class="actions">
+            <span class="grow muted small">{scanNote}</span>
+            <Button disabled={!tabId} title="Copy every scanned field as JSON for bug reports" onClick={() => tabId && void copyFieldScan(tabId).then(setScanNote, (error) => setScanNote(String(error)))}>
+              Copy field scan
+            </Button>
+            <Button kind="primary" isBusy={fillTask.isBusy} disabled={!tabId} onClick={() => void fillTask.run(true)}>
+              {fillTask.isBusy ? "Filling…" : "Fill this page"}
+            </Button>
+          </div>
         </div>
         <ErrorNote message={fillTask.error} onRetry={() => void fillTask.run(true)} />
       </Card>
@@ -127,12 +129,14 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
         <ReportList report={report} edits={edits} onEdit={(key, value) => setEdits({ ...edits, [key]: value })} tabId={tabId} />
       )}
       {report && (
-        <div class="row wrap">
+        <div class="actions">
+          <span class="grow">
+            <Check label="Remember my answers" checked={remember} onChecked={setRemember} />
+          </span>
+          <Button onClick={() => void clearHighlights()}>Clear highlights</Button>
           <Button kind="primary" isBusy={applyTask.isBusy} disabled={changedItems.length === 0} onClick={() => void applyTask.run(changedItems)}>
             Apply edits{changedItems.length ? ` (${changedItems.length})` : ""}
           </Button>
-          <Button onClick={() => void clearHighlights()}>Clear highlights</Button>
-          <Check label="Remember my answers" checked={remember} onChecked={setRemember} />
         </div>
       )}
       <ErrorNote message={applyTask.error} />

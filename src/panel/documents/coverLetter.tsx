@@ -45,7 +45,7 @@ export function CoverLetter({ job, tracked }: { job: JobPosting; tracked: Tracke
             onInput={(event) => setLetter(event.currentTarget.value)}
             onBlur={() => void trackedJobs.track(job, { coverLetter: letter })}
           />
-          <div class="row wrap">
+          <div class="actions">
             <Button onClick={() => void copy()}>{isCopied ? "Copied" : "Copy"}</Button>
             <Button onClick={() => download.save(`cover-letter-${job.company || "job"}.txt`.replace(/\s+/g, "-"), letter, "text/plain")}>Download .txt</Button>
           </div>
