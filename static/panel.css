@@ -129,6 +129,11 @@ a:hover,
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
+.tabs button.feedback {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 6px 6px 7px;
+}
 .tabs .dot {
   position: absolute;
   top: 6px;

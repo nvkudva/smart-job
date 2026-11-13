@@ -100,8 +100,8 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
 
   await panel.getByRole("button", { name: "★ Shortlist" }).click();
   await visible(panel.getByRole("button", { name: "★ Shortlisted" }));
-  await panel.getByRole("tab", { name: "Tracker" }).click();
-  await visible(panel.getByRole("tabpanel", { name: "Tracker" }).getByText("Panel Test Engineer"));
+  await panel.getByRole("tab", { name: "Track" }).click();
+  await visible(panel.getByRole("tabpanel", { name: "Track" }).getByText("Panel Test Engineer"));
   const tracked = Object.values((await stored(panel, "jobs")) as Record<string, { status: string; analysis: { matchScore: number } }>);
   expect(tracked).toHaveLength(1);
   expect(tracked[0]!.analysis.matchScore).toBe(82);
@@ -119,8 +119,8 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
   await visible(write.getByRole("button", { name: "Saved to answer bank" }));
   expect(Object.keys((await stored(panel, "answers")) as object)).toHaveLength(1);
 
-  await panel.getByRole("tab", { name: "Tracker" }).click();
-  const tracker = panel.getByRole("tabpanel", { name: "Tracker" });
+  await panel.getByRole("tab", { name: "Track" }).click();
+  const tracker = panel.getByRole("tabpanel", { name: "Track" });
   await visible(tracker.getByText(/Job posting on/));
   await visible(tracker.getByText("Cover letter", { exact: true }));
   await panel.close();
@@ -163,3 +163,24 @@ test("setup wizard: provider, profile, review, job searches, then tabs", async (
   expect(await stored(panel, "setupComplete")).toBe(true);
   await panel.close();
 }, 60000);
+
+test("feedback button sends a report with page and panel screenshots", async () => {
+  const panel = await openPanelOnJob("panel-job.html");
+  await visible(panel.locator(".job-title").first());
+  let sent = "";
+  await panel.route("http://localhost:8787/**", async (route) => {
+    sent = route.request().postDataBuffer()?.toString("latin1") ?? "";
+    await route.fulfill({ status: 201, contentType: "application/json", body: '{"url":"x"}' });
+  });
+  await panel.getByRole("button", { name: "Send feedback" }).click();
+  await visible(panel.getByRole("dialog"));
+  expect(await panel.locator("#shots img").count()).toBe(2);
+  await panel.getByLabel("Details").fill("Autofill skipped the phone field");
+  await panel.getByRole("button", { name: "Send", exact: true }).click();
+  await visible(panel.getByText("Thanks! Your report was sent."));
+  expect(sent).toContain("Autofill skipped the phone field");
+  expect(sent).toContain('filename="page.jpg"');
+  expect(sent).toContain('filename="panel.jpg"');
+  expect(sent).toContain("Panel Test Engineer");
+  await panel.close();
+}, 30000);

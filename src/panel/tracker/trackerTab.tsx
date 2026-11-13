@@ -127,7 +127,7 @@ export function TrackerTab() {
 
   if (entries.length === 0) {
     return (
-      <Card title="Tracker">
+      <Card title="Track">
         <p class="muted">No jobs yet. Shortlist or apply to a job from the Analysis tab and it will appear here.</p>
       </Card>
     );

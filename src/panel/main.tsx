@@ -1,3 +1,4 @@
+import * as feedback from "feedback-widget";
 import { Component, render } from "preact";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
@@ -14,7 +15,23 @@ import { SettingsTab } from "./settings/settingsTab.tsx";
 import { TrackerTab } from "./tracker/trackerTab.tsx";
 import { useStored } from "./shared/useStored.ts";
 
-const tabNames = ["Analysis", "Apply", "Tracker", "Profile", "Settings"] as const;
+// shortcut: points at `wrangler dev`; swap for the deployed worker URL.
+const feedbackEndpoint = "http://localhost:8787/";
+
+/** The job page in the tab, which is usually what a bug report is about. Throws on chrome:// pages; the widget then skips it. */
+async function captureJobPage(): Promise<Blob> {
+  const dataUrl = await chrome.tabs.captureVisibleTab({ format: "jpeg", quality: 70 });
+  return (await fetch(dataUrl)).blob();
+}
+
+const reporter = feedback.create({
+  endpoint: feedbackEndpoint,
+  app: "smartjob",
+  version: chrome.runtime.getManifest().version,
+  captures: { page: captureJobPage, panel: feedback.captureDom },
+});
+
+const tabNames = ["Analysis", "Apply", "Track", "Profile", "Settings"] as const;
 type TabName = (typeof tabNames)[number];
 
 /** Keeps one failing tab from taking down the whole panel. */
@@ -84,7 +101,7 @@ function App() {
   const panels: Record<TabName, ComponentChildren> = {
     Analysis: <AnalysisTab active={active} hasResume={hasResume} onApply={() => setTab("Apply")} />,
     Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} />,
-    Tracker: <TrackerTab />,
+    Track: <TrackerTab />,
     Profile: <ProfileTab />,
     Settings: <SettingsTab />,
   };
@@ -99,6 +116,15 @@ function App() {
             {name === "Settings" && <AiDot />}
           </button>
         ))}
+        <button
+          type="button"
+          class="feedback"
+          aria-label="Send feedback"
+          title="Send feedback"
+          onClick={() => void reporter.open({ site: active.host, page: active.url, job: currentJob?.title, company: currentJob?.company })}
+        >
+          <Icon name="Feedback" />
+        </button>
       </nav>
       <main>
         {isResumeLoaded && !hasResume && <Onboarding onProfile={() => setTab("Profile")} isOnProfile={tab === "Profile"} />}
