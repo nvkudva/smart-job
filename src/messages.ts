@@ -7,7 +7,8 @@ export type ContentRequest =
   | { type: "scanFields" }
   | { type: "fillFields"; fills: FieldFill[]; resumeFile?: { name: string; base64: string; mimeType: string } }
   | { type: "clearHighlights" }
-  | { type: "focusField"; id: string };
+  | { type: "focusField"; id: string }
+  | { type: "storeCredential"; username: string; password: string };
 
 export interface ContentResponses {
   ping: { ok: true; url: string; isTop: boolean };
@@ -16,6 +17,7 @@ export interface ContentResponses {
   fillFields: FillResult[];
   clearHighlights: { ok: true };
   focusField: { ok: boolean };
+  storeCredential: { ok: boolean };
 }
 
 /** Messages the content script broadcasts (chrome.runtime.sendMessage) for the panel. */

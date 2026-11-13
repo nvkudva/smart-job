@@ -112,6 +112,21 @@ export interface JobPosting {
   source: string;
 }
 
+export interface SalaryRange {
+  min: number;
+  max: number;
+}
+
+/** per-year pay split; null when the source does not give that part */
+export interface SalaryComponents {
+  base: SalaryRange | null;
+  /** cash, annual target */
+  bonus: SalaryRange | null;
+  /** annualised: a grant counts as grant / vesting years */
+  stock: SalaryRange | null;
+  total: SalaryRange;
+}
+
 export interface SalaryEstimate {
   min: number | null;
   max: number | null;
@@ -122,11 +137,17 @@ export interface SalaryEstimate {
   /** how the number was derived, e.g. "Levels.fyi data for Senior SWE at Stripe" */
   note: string;
   sources: { title: string; url: string }[];
+  /** only when the split is known (and at least two figures); min/max then equal components.total per year. Absent in estimates cached before it existed */
+  components?: SalaryComponents;
 }
+
+export type MustHaveMet = "yes" | "partial" | "no";
 
 export interface JobAnalysis {
   summary: string;
   mustHave: string[];
+  /** the model's verdict per mustHave item, same order; absent in analyses cached before it existed */
+  mustHaveMet?: MustHaveMet[];
   niceToHave: string[];
   /** 0-100 from LLM */
   matchScore: number;
@@ -151,6 +172,25 @@ export interface TrackedJob {
   savedAt: number;
   updatedAt: number;
   coverLetter: string;
+  /** page where the user applied and can log in to follow the application; absent on older entries */
+  portalUrl?: string;
+  /** login email used on that portal (never the password) */
+  accountEmail?: string;
+  appliedAt?: number;
+}
+
+/** A resume tailored for one job, kept so the tracker can show what was sent. */
+export interface TailoredResume {
+  id: string;
+  jobId: string;
+  /** readable label such as "Acme - Senior Engineer - Resume (13 Nov 2026)" */
+  name: string;
+  fileName: string;
+  createdAt: number;
+  /** tailored PDF; "" when the resume was rewritten as markdown */
+  pdfBase64: string;
+  markdown: string;
+  changeCount: number;
 }
 
 export type FieldKind =
@@ -207,3 +247,10 @@ export interface FillResult {
 
 /** Answer bank: normalized question -> answer */
 export type AnswerBank = Record<string, { question: string; answer: string; updatedAt: number }>;
+
+/** A saved LinkedIn job search suggested during setup. */
+export interface JobSearch {
+  role: string;
+  location: string;
+  url: string;
+}

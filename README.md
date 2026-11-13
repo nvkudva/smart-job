@@ -7,7 +7,8 @@ AI job-hunting copilot as a Chrome side panel. Keep it open while you browse Lin
 - **Job tab**: detects the job you are viewing, summarizes it, scores your match against your resume (AI score + deterministic keyword score), estimates salary (posted → web search → AI estimate from nearest equivalents), and lets you shortlist it.
 - **Apply tab**: fills application forms in all frames (iCIMS iframes included) from your profile. Rules handle the standard fields, AI answers the leftover questions, and your saved answers are reused. Filled fields are outlined: green = profile, blue = AI, amber = needs review. **It never submits.**
 - **Tracker tab**: shortlisted and applied jobs with status, notes and CSV export.
-- **Write tab**: cover letter, tailored resume (with a list of changes, printable to PDF), and an answer box for any application question.
+- **Write tab**: a short, keyword-aware cover letter; a tailored resume that keeps your PDF's exact look and redraws only the changed lines (side-by-side preview, download as PDF); and an answer box for any application question.
+- **LinkedIn import**: Settings → Import / Refresh from LinkedIn reads your own profile, skills, certifications and recent posts (you must be logged in) and adds them to your profile for matching and writing.
 - **Settings**: AI provider, resume upload (PDF/TXT), AI profile extraction, full profile editor, answer bank, export/import.
 
 Everything is stored locally in `chrome.storage.local`. Data leaves the machine only for calls to the AI endpoint you choose and for the salary web search.
@@ -45,6 +46,8 @@ Ollama rejects browser-extension origins by default (HTTP 403). SmartJob strips 
 Small local models (<4B) produce weak analysis; ≥7B local or any cloud model is recommended. Form filling mostly does not need AI: the standard fields are filled by deterministic rules.
 
 ## First run
+
+On first open, a setup wizard walks through the AI provider, your resume and/or LinkedIn profile, a review of the profile, and suggested roles. Each role you pick becomes a LinkedIn job search that you can reopen from the Job tab. The steps below are the same thing done by hand in Settings.
 
 1. Settings → upload your resume PDF (or paste text) → **Save resume** → **Extract profile with AI**.
 2. Review the profile, then fill in what a resume does not contain: work authorization, sponsorship, relocation, current salary / CTC, salary expectation, notice period. Leave the EEO fields blank to have SmartJob choose "decline to answer".

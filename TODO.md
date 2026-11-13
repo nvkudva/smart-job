@@ -16,3 +16,20 @@
 - [x] Current/Expected CTC, "Contact number", number inputs (notice days, LPA), current company on a career break
 - [ ] Re-run AI profile extraction + AI form answers live once the LLM server responds
 - [ ] Workday post-account steps (My Information / Experience) live, once a password that meets Workday rules is set
+- [x] Cover letter: short, modern, keyword-aware
+- [x] Tailored resume keeps the PDF look; side-by-side preview
+- [x] LinkedIn profile import + refresh; linkedinSummary used in matching and writing
+- [x] Onboarding wizard with role ladder and LinkedIn searches
+- [x] Salary: exact sources, role-wide look-ups, in-panel viewer
+- [x] Tailored PDF: remove original text from the text layer, new text in reading order
+- [ ] Keyword "missing skills" list is noisy with soft skills (Collaboration, Ownership, IC)
+- [x] Salary: base / bonus / stock split with total per year
+- [x] Provider presets (DeepSeek, Gemini, Groq) with "Get API key" links and clipboard paste
+- [x] Settings split into AI / Profile / Data; sticky save bar; collapsible profile cards
+- [x] UI restyle: tokens, glass tab bar with icons, pill buttons, soft cards
+- [x] panel/ grouped by feature (job, apply, write, tracker, settings, shared)
+- [x] Audit fixes: serialized storage updates, capped analysis cache, safe import
+- [ ] Export JSON includes the API key and account password in plain text
+- [x] Tabs: Analysis, Apply (with documents), Tracker, Profile, Settings; header row removed
+- [x] Tracker shows posting link, application portal, login email, saved resumes, cover letter
+- [ ] Verify on a real sign-up page that Chrome offers to save the created account (PasswordCredential.store)

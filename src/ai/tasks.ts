@@ -1,8 +1,10 @@
 // CONTRACT (owned by supervisor): signatures are fixed; implementations by the AI worker.
-import type { FieldDescriptor, JobAnalysis, JobPosting, Profile, SalaryEstimate } from "../types.ts";
+import type { FieldDescriptor, JobAnalysis, JobPosting, MustHaveMet, Profile, SalaryEstimate } from "../types.ts";
 import * as llm from "./llm.ts";
 import * as normalize from "./normalize.ts";
 const { tokenBudget } = normalize;
+import * as layout from "../resume/layout.ts";
+import * as rewrite from "../resume/rewrite.ts";
 import * as profileExtract from "./profileExtract.ts";
 import * as salary from "./salary.ts";
 import * as skills from "./skills.ts";
@@ -14,6 +16,7 @@ export interface CandidateContext {
 
 const jobLimit = 6000;
 const resumeLimit = 6000;
+const linkedinLimit = 3000;
 // profile extraction needs the end of the resume (education, links); 20k chars is ~5k tokens
 const fullResumeLimit = 20000;
 const noInvention = "Use only facts that appear in the resume or profile. Never invent employers, titles, dates, skills or numbers.";
@@ -35,22 +38,39 @@ export function describeCandidate(candidate: CandidateContext): string {
     profile.skills.length > 0 && `Skills: ${profile.skills.join(", ")}`,
   ];
   const resume = candidate.resumeText.trim() || profile.experience.map((job) => `${job.title}, ${job.company}: ${job.description}`).join("\n");
-  return `${facts.filter(Boolean).join("\n")}\n\nResume:\n${normalize.truncate(resume, resumeLimit)}`;
+  const linkedin = (profile.linkedinSummary ?? "").trim();
+  const linkedinSection = linkedin ? `\n\nLinkedIn profile:\n${normalize.truncate(linkedin, linkedinLimit)}` : "";
+  return `${facts.filter(Boolean).join("\n")}\n\nResume:\n${normalize.truncate(resume, resumeLimit)}${linkedinSection}`;
 }
 
 // ---------- analyzeJob ----------
 
 const analysisSystem = `You are a recruiter assessing how well a candidate fits a job. Reply with JSON:
-{"summary": "3-5 sentences about the role", "mustHave": [short phrases], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
+{"summary": "3-5 sentences about the role", "mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
 Scoring rubric for matchScore: must-have requirements covered = up to 60 points, experience level/seniority fit = up to 25, nice-to-have covered = up to 15. Be honest; do not inflate.
+"met" judges the candidate's whole background (resume and LinkedIn), not exact wording: an engineering manager meets "2+ years leading teams".
 strengths and gaps compare the candidate to the job, citing specifics. ${noInvention}`;
+
+const MET_VALUES: MustHaveMet[] = ["yes", "partial", "no"];
+
+/** Small models answer either plain strings or {requirement, met} objects. */
+function normalizeMustHave(raw: unknown): { mustHave: string[]; mustHaveMet?: MustHaveMet[] } {
+  const items = Array.isArray(raw) ? raw.slice(0, 12) : [];
+  const isRated = items.some((item) => item && typeof item === "object");
+  if (!isRated) return { mustHave: normalize.asStringList(raw, 12) };
+  const rated = items.map((item) => normalize.asRecord(item)).filter((item) => normalize.asString(item.requirement));
+  return {
+    mustHave: rated.map((item) => normalize.asString(item.requirement)),
+    mustHaveMet: rated.map((item) => MET_VALUES.find((value) => value === normalize.asString(item.met).toLowerCase()) ?? "no"),
+  };
+}
 
 export function normalizeAnalysis(raw: unknown): Omit<JobAnalysis, "salary" | "analyzedAt" | "keywordScore" | "matchedSkills" | "missingSkills"> {
   const data = normalize.asRecord(raw);
   const score = normalize.asScore(data.matchScore);
   return {
     summary: normalize.asString(data.summary),
-    mustHave: normalize.asStringList(data.mustHave, 12),
+    ...normalizeMustHave(data.mustHave),
     niceToHave: normalize.asStringList(data.niceToHave, 10),
     matchScore: score,
     strengths: normalize.asStringList(data.strengths, 6),
@@ -81,7 +101,7 @@ export function keywordMatch(
   candidate: CandidateContext,
 ): { score: number; matched: string[]; missing: string[] } {
   const wanted = skills.skillsIn(jobText);
-  const haystack = `${candidate.profile.skills.join("\n")}\n${candidate.resumeText}`;
+  const haystack = `${candidate.profile.skills.join("\n")}\n${candidate.resumeText}\n${candidate.profile.linkedinSummary ?? ""}`;
   const matched = wanted.filter((skill) => skills.hasSkill(skill, haystack));
   const missing = wanted.filter((skill) => !matched.includes(skill));
   const score = wanted.length ? Math.round((matched.length / wanted.length) * 100) : 0;
@@ -228,15 +248,51 @@ export function removePlaceholders(letter: string, job: JobPosting): string {
     .trim();
 }
 
+type Tone = "professional" | "enthusiastic" | "concise";
+
+const toneGuides: Record<Tone, { voice: string; format: string }> = {
+  professional: {
+    voice: "confident and warm, like a sharp colleague writing to a hiring manager; polished but never stiff",
+    format: "a one-line greeting, then 3 short paragraphs of 2-3 sentences each",
+  },
+  enthusiastic: {
+    voice: "upbeat and personal, with genuine interest in what the company builds; energy without hype",
+    format: "a one-line greeting, then 3 short paragraphs of 2-3 sentences each",
+  },
+  concise: {
+    voice: "very tight and direct, every line earns its place",
+    format: "a one-line greeting, a 2-line opener, then exactly 3 punchy bullets (start each with '- ') with a real result or skill each, then a one-line close",
+  },
+};
+
+const bannedOpeners = '"I am writing to express my interest", "I am excited to apply", "I believe I would be a great fit", "Please find attached", "Dear Sir or Madam"';
+
+function coverLetterSystem(tone: Tone, words: number): string {
+  const guide = toneGuides[tone] ?? toneGuides.professional;
+  return `You write short, modern cover letters. A busy recruiter skims them in 20 seconds and an ATS keyword screener also reads them.
+Length: about ${words} words, never more than ${words + 30}. Plain text only, no markdown, no bold.
+Voice: ${guide.voice}. First person, conversational, plain words, contractions are fine. Never use stock phrases such as ${bannedOpeners}.
+Structure: ${guide.format}. Greet with "Hi <hiring manager>," if a person is named, otherwise "Hi <company> team,".
+Open by naming the role and the strongest specific reason the candidate fits (a real result or number from the resume). Close with one short line inviting a chat, then "Best," and the candidate's name if known.
+Keywords: work the job's must-have skills, tools and terms into real sentences about real work, using the job's own wording, but only ones the candidate truly has according to the resume, profile or LinkedIn text. Never list keywords, never claim a skill or tool the candidate lacks.
+Use the real company and role names; never leave placeholders like [Company] or [Your Name]. ${noInvention}`;
+}
+
+function keywordHint(job: JobPosting, candidate: CandidateContext): string {
+  const { matched } = keywordMatch(`${job.title}\n${job.description}`, candidate);
+  return matched.length ? `\n\nJOB KEYWORDS THE CANDIDATE HAS (use the most relevant naturally)\n${matched.join(", ")}` : "";
+}
+
 export async function writeCoverLetter(
   client: llm.LlmClient,
   job: JobPosting,
   candidate: CandidateContext,
-  options: { tone: "professional" | "enthusiastic" | "concise"; words: number },
+  options: { tone: Tone; words: number },
 ): Promise<string> {
+  const words = normalize.clamp(Math.round(options.words), 80, 300);
   const text = await client.chat({
-    system: `You write cover letters. Tone: ${options.tone}. Length: about ${options.words} words. Plain text only, no markdown. Open with "Dear Hiring Team," unless a hiring manager is named. Connect the candidate's real experience to the job's main requirements with specifics. Use the real company and role names; never leave placeholders like [Company] or [Your Name]. Sign off with the candidate's name if known. ${noInvention}`,
-    user: `JOB\n${describeJob(job)}\n\nCANDIDATE\n${describeCandidate(candidate)}`,
+    system: coverLetterSystem(options.tone, words),
+    user: `JOB\n${describeJob(job)}\n\nCANDIDATE\n${describeCandidate(candidate)}${keywordHint(job, candidate)}`,
     maxTokens: tokenBudget,
   });
   return removePlaceholders(cleanText(text), job);
@@ -277,4 +333,59 @@ export async function tailorResume(
     maxTokens: tokenBudget,
   });
   return normalizeTailoring(raw, candidate);
+}
+
+// ---------- tailorPdf ----------
+
+const pdfTailorSystem = `You tailor a resume to a job by rewriting individual lines in place. The resume is a fixed-layout PDF, so every rewrite must fit the space of the lines it replaces. Reply with JSON: {"rewrites": [{"id": "b1_3", "newText": "...", "reason": "..."}]}
+The resume is shown as plain text. Editable blocks start with [id | N lines | max C chars]; everything else is context you must not change.
+Rules:
+- Rewrite only blocks that gain from the job: the summary and bullets. Usually 4-10 blocks; leave every other block out of the reply.
+- newText must be at most C characters. Plain text: no bullet symbol, no markdown, no emoji, no arrows.
+- Keep the meaning and every employer, title, date, number and metric exactly. You may tighten and re-word, and use the job's own terms where the candidate genuinely did that work.
+- Never add skills, tools, numbers or responsibilities that are not in the resume or the candidate's skills list. Do not give the candidate the job's title or seniority, and do not attach job words (like "AI") to work the resume does not describe that way.
+- Never touch contact details, job titles, company names, dates, education or awards.
+- reason: one short phrase, e.g. "Surfaces 'platform' and 'GenAI' from the job".`;
+
+const shortenSystem = `Each rewrite below is too long to fit its space in a fixed-layout resume. Shorten each one to at most its max chars, keeping the key facts, numbers and the job-relevant terms. No new facts. Reply with JSON: {"rewrites": [{"id": "...", "newText": "...", "reason": "..."}]}`;
+
+async function shortenOverlong(client: llm.LlmClient, overlong: rewrite.Overlong[], resume: layout.Layout, measurer: rewrite.Measurer): Promise<rewrite.Placement[]> {
+  if (overlong.length === 0) return [];
+  const lines = overlong.map(({ rewrite: attempt, maxChars }) => JSON.stringify({ id: attempt.id, maxChars, newText: attempt.newText, reason: attempt.reason }));
+  try {
+    const raw = await llm.chatJson<unknown>(client, { system: shortenSystem, user: lines.join("\n"), maxTokens: tokenBudget });
+    const wanted = new Set(overlong.map((item) => item.rewrite.id));
+    const shortened = rewrite.parse(raw).filter((item) => wanted.has(item.id));
+    return rewrite.validate(shortened, resume, measurer).placements;
+  } catch {
+    return [];
+  }
+}
+
+/** Line rewrites for a PDF resume, each verified to fit the lines it replaces. Rewrites that still do not fit after one retry are dropped. */
+export async function tailorPdf(
+  client: llm.LlmClient,
+  job: JobPosting,
+  candidate: CandidateContext,
+  resume: layout.Layout,
+  measurer: rewrite.Measurer,
+): Promise<rewrite.Placement[]> {
+  const skillsLine = candidate.profile.skills.length ? `\n\nCANDIDATE SKILLS\n${candidate.profile.skills.join(", ")}` : "";
+  const raw = await llm.chatJson<unknown>(client, {
+    system: pdfTailorSystem,
+    user: `JOB\n${describeJob(job)}${keywordHint(job, candidate)}${skillsLine}\n\nRESUME\n${normalize.truncate(rewrite.describe(resume), fullResumeLimit)}`,
+    maxTokens: tokenBudget,
+  });
+  const first = rewrite.validate(rewrite.parse(raw), resume, measurer);
+  const retried = await shortenOverlong(client, first.overlong, resume, measurer);
+  const order = new Map(layout.allBlocks(resume).map((block, index) => [block.id, index]));
+  const truthful = [...first.placements, ...retried].filter((placement) => !addsSkill(placement, candidate));
+  return truthful.sort((a, b) => order.get(a.block.id)! - order.get(b.block.id)!);
+}
+
+/** The model keeps adding the job's skills (e.g. "Backend systems") despite the prompt; a rewrite naming a skill the candidate never mentions is dropped. */
+export function addsSkill(placement: rewrite.Placement, candidate: CandidateContext): boolean {
+  const known = `${candidate.profile.skills.join("\n")}\n${candidate.resumeText}\n${candidate.profile.linkedinSummary ?? ""}`;
+  const original = placement.block.text;
+  return skills.skillsIn(placement.lines.join(" ")).some((skill) => !skills.hasSkill(skill, known) && !skills.hasSkill(skill, original));
 }

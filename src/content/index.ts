@@ -26,6 +26,21 @@ async function respond(request: ContentRequest): Promise<unknown> {
       return { ok: true };
     case "focusField":
       return { ok: form.focus(request.id) };
+    case "storeCredential":
+      return { ok: await storeCredential(request.username, request.password) };
+  }
+}
+
+/** Offers the login to Chrome's password manager (Google Password Manager when signed in); Chrome decides whether to show its save prompt. */
+async function storeCredential(username: string, password: string): Promise<boolean> {
+  // Chrome-only API that the DOM typings do not include
+  const PasswordCredential = (globalThis as { PasswordCredential?: new (data: { id: string; password: string; name: string }) => Credential }).PasswordCredential;
+  if (!username || !password || !PasswordCredential) return false;
+  try {
+    await navigator.credentials.store(new PasswordCredential({ id: username, password, name: username }));
+    return true;
+  } catch {
+    return false;
   }
 }
 

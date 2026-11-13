@@ -16,12 +16,40 @@ export interface LlmClient {
 }
 
 export const presets: Record<string, ProviderSettings> = {
+  Anthropic: { kind: "anthropic", baseUrl: "https://api.anthropic.com", apiKey: "", model: "claude-opus-5-5" },
+  OpenAI: { kind: "openai", baseUrl: "https://api.openai.com/v1", apiKey: "", model: "gpt-4.1-mini" },
+  DeepSeek: { kind: "openai", baseUrl: "https://api.deepseek.com/v1", apiKey: "", model: "deepseek-chat" },
+  Gemini: { kind: "openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", apiKey: "", model: "gemini-2.5-flash" },
+  Groq: { kind: "openai", baseUrl: "https://api.groq.com/openai/v1", apiKey: "", model: "llama-3.3-70b-versatile" },
+  OpenRouter: { kind: "openai", baseUrl: "https://openrouter.ai/api/v1", apiKey: "", model: "openai/gpt-4.1-mini" },
   Ollama: { kind: "openai", baseUrl: "http://localhost:11434/v1", apiKey: "", model: "qwen2.5:7b" },
   "LM Studio": { kind: "openai", baseUrl: "http://localhost:1234/v1", apiKey: "", model: "qwen3.6-35b-a3b-splash" },
-  OpenAI: { kind: "openai", baseUrl: "https://api.openai.com/v1", apiKey: "", model: "gpt-4.1-mini" },
-  OpenRouter: { kind: "openai", baseUrl: "https://openrouter.ai/api/v1", apiKey: "", model: "openai/gpt-4.1-mini" },
-  Anthropic: { kind: "anthropic", baseUrl: "https://api.anthropic.com", apiKey: "", model: "claude-opus-5-5" },
 };
+
+/** Where to create an API key, per preset; local servers need none. */
+export const keyPages: Record<string, string> = {
+  Anthropic: "https://console.anthropic.com/settings/keys",
+  OpenAI: "https://platform.openai.com/api-keys",
+  DeepSeek: "https://platform.deepseek.com/api_keys",
+  Gemini: "https://aistudio.google.com/apikey",
+  Groq: "https://console.groq.com/keys",
+  OpenRouter: "https://openrouter.ai/settings/keys",
+};
+
+/** The preset whose server the provider points at, matched on host so a tweaked path or trailing slash still counts. */
+export function presetFor(provider: ProviderSettings): string | undefined {
+  const host = hostOf(provider.baseUrl);
+  if (!host) return undefined;
+  return Object.keys(presets).find((name) => hostOf(presets[name]!.baseUrl) === host && presets[name]!.kind === provider.kind);
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+}
 
 export function create(settings: ProviderSettings): LlmClient {
   if (settings.kind === "anthropic") return anthropicClient(settings);

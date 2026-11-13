@@ -112,6 +112,14 @@ describe("extractProfile", () => {
     const extracted = { ...emptyProfile, city: "Bangalore", skills: [] };
     expect(profileExtract.mergeInto(previous, extracted)).toMatchObject({ postalCode: "560068", noticePeriod: "15 days", city: "Bangalore", skills: ["a"] });
   });
+  test("career break: current company is the most recent employer, not the model's label", () => {
+    const raw = { currentCompany: "Career break", experience: [{ title: "Sabbatical", company: "", start: "2025-05", end: "present" }, { title: "EM", company: "Uber", start: "2018-12", end: "2025-05" }] };
+    expect(profileExtract.buildProfile(raw, "").currentCompany).toBe("Uber");
+  });
+  test("must-haves rated by the model keep their verdicts; unknown verdicts read as no", () => {
+    const rated = tasks.normalizeAnalysis({ mustHave: [{ requirement: "Leads teams", met: "Yes" }, { requirement: "Go", met: "partial" }, { requirement: "Rust", met: "maybe" }] });
+    expect(rated).toMatchObject({ mustHave: ["Leads teams", "Go", "Rust"], mustHaveMet: ["yes", "partial", "no"] });
+  });
   test("normalizeMonth", () => {
     expect(profileExtract.normalizeMonth("Mar 2021")).toBe("2021-03");
     expect(profileExtract.normalizeMonth("2021-3")).toBe("2021-03");
@@ -160,6 +168,23 @@ describe("writing", () => {
     const letter = await tasks.writeCoverLetter(fake, job, candidate, { tone: "concise", words: 200 });
     expect(letter).toBe("Dear Hiring Team,\n\nI want to join Globex as a .\n\nJane");
     expect(fake.requests[0]!.system).toContain("about 200 words");
+  });
+  test("cover letter prompt bans stiff openers, asks for job keywords and feeds matched skills", async () => {
+    const fake = new FakeLlm(["Hi Globex team,\n\nHello."]);
+    await tasks.writeCoverLetter(fake, job, candidate, { tone: "concise", words: 150 });
+    const request = fake.requests[0]!;
+    expect(request.system).toContain("I am writing to express my interest");
+    expect(request.system).toContain("3 punchy bullets");
+    expect(request.system).toContain("only ones the candidate truly has");
+    expect(request.user).toContain("JOB KEYWORDS THE CANDIDATE HAS");
+    expect(request.user).toContain("Python");
+  });
+  test("candidate context includes the LinkedIn profile, truncated", () => {
+    const withLinkedin = { ...candidate, profile: { ...candidate.profile, linkedinSummary: `About: platform leader ${"x".repeat(4000)}` } };
+    const text = tasks.describeCandidate(withLinkedin);
+    expect(text).toContain("LinkedIn profile:\nAbout: platform leader");
+    expect(text.length).toBeLessThan(candidate.resumeText.length + 3500);
+    expect(tasks.describeCandidate(candidate)).not.toContain("LinkedIn profile");
   });
 });
 

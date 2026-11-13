@@ -1,4 +1,4 @@
-import type { JobPosting, SalaryEstimate } from "../types.ts";
+import type { JobPosting, SalaryComponents, SalaryEstimate, SalaryRange } from "../types.ts";
 import * as llm from "./llm.ts";
 import * as normalize from "./normalize.ts";
 const { tokenBudget } = normalize;
@@ -52,9 +52,145 @@ function amounts(text: string): number[] {
   return found.slice(0, 2).map((item) => item.value * (multipliers[item.suffix || shared] ?? 1));
 }
 
-/** Parses "$120,000 - $150,000 a year", "₹25L–35L", "USD 120k-150k", "$60/hr". Null when no amount. */
+// ---------- pay components (base / bonus / stock per year) ----------
+
+const defaultVestingYears = 4;
+
+function toBounds(value: unknown): number[] {
+  if (Array.isArray(value)) return value.flatMap(toBounds);
+  if (value && typeof value === "object") return [normalize.asRecord(value).min, normalize.asRecord(value).max].flatMap(toBounds);
+  const plain = normalize.asNumber(value);
+  if (plain !== null) return [plain];
+  return typeof value === "string" && !value.includes("%") ? amounts(value) : [];
+}
+
+/** Tolerant: 150000, "$180k", "₹45L", "2.5 Cr", "45L - 60L", [a, b], {min, max}. Null when no positive amount. */
+export function toRange(value: unknown): SalaryRange | null {
+  const bounds = toBounds(value).filter((amount) => amount > 0);
+  if (!bounds.length) return null;
+  return { min: Math.min(...bounds), max: Math.max(...bounds) };
+}
+
+function mapRange(range: SalaryRange | null, convert: (amount: number) => number): SalaryRange | null {
+  return range && { min: convert(range.min), max: convert(range.max) };
+}
+
+function yearlyRange(value: unknown, currency: string, period: Period): SalaryRange | null {
+  const monthsFactor = period === "month" ? 12 : 1;
+  return mapRange(toRange(value), (amount) => fixMagnitude(amount * monthsFactor, currency, "year")!);
+}
+
+function vestingYears(value: unknown): number {
+  const years = toRange(value)?.min ?? defaultVestingYears;
+  return years >= 1 && years <= 10 ? years : defaultVestingYears;
+}
+
+function annualise(grant: SalaryRange | null, years: number): SalaryRange | null {
+  return mapRange(grant, (amount) => Math.round(amount / years));
+}
+
+function grantNote(years: number): string {
+  return `Stock counted per year: grant ÷ ${years} years of vesting.`;
+}
+
+type Parts = Pick<SalaryComponents, "base" | "bonus" | "stock">;
+
+/** Total is the stated one when it covers the parts, else their sum; one lone part without a stated total is just the plain range. */
+export function assembleComponents(parts: Parts, statedTotal: SalaryRange | null): SalaryComponents | null {
+  const known = Object.values(parts).filter((range): range is SalaryRange => range !== null);
+  if (!known.length) return null;
+  const sum = { min: known.reduce((all, range) => all + range.min, 0), max: known.reduce((all, range) => all + range.max, 0) };
+  const isStatedUsable = statedTotal !== null && statedTotal.max >= sum.max;
+  const total = isStatedUsable ? statedTotal : known.length >= 2 ? sum : null;
+  return total && { ...parts, total };
+}
+
+function applyComponents(estimate: SalaryEstimate, components: SalaryComponents | null, extraNote: string): SalaryEstimate {
+  if (!components) return estimate;
+  const note = [estimate.note, extraNote].filter(Boolean).join(" ");
+  return { ...estimate, min: components.total.min, max: components.total.max, period: "year", components, note };
+}
+
+function withModelComponents(estimate: SalaryEstimate, data: Record<string, unknown>): SalaryEstimate {
+  if (estimate.period === "hour") return estimate;
+  const { currency, period } = estimate;
+  const perYear = yearlyRange(data.stock, currency, period);
+  const years = vestingYears(data.vestingYears);
+  const grant = perYear ? null : yearlyRange(data.stockGrant, currency, "year");
+  const parts = { base: yearlyRange(data.base, currency, period), bonus: yearlyRange(data.bonus, currency, period), stock: perYear ?? annualise(grant, years) };
+  return applyComponents(estimate, assembleComponents(parts, yearlyRange(data.total, currency, period)), grant ? grantNote(years) : "");
+}
+
+// ---------- bonus / equity next to a posted salary ----------
+
+const amountPattern = "(?:(?:[$₹£€]|\\brs\\.?\\s?)\\s?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:lpa|lakhs?|lacs?|crores?|cr|k|m|l)?|\\d[\\d,]*(?:\\.\\d+)?\\s?(?:lpa|lakhs?|lacs?|crores?|cr|k|m|l))(?![\\p{L}\\p{N}])";
+const percentPattern = "(\\d{1,3}(?:\\.\\d+)?)\\s?%";
+const fillerWords = "(?:(?:annual|yearly|target|performance|cash|in|of|worth)\\s+){0,2}";
+const vestingTail = "(?:\\s*(?:vesting\\s+|vested\\s+)?over\\s+(\\d{1,2})\\s*(?:years?|yrs?))?";
+const stockWords = "(?:equity|rsus?|stock(?:\\s+options)?|esops?)";
+
+function patternsFor(keyword: string, tail: string): RegExp[] {
+  return [`(${amountPattern})\\s*${fillerWords}${keyword}${tail}`, `${keyword}\\s*(?:of|:|-|up to|worth)?\\s*(${amountPattern})${tail}`].map((source) => new RegExp(source, "iu"));
+}
+
+const stockPatterns = patternsFor(stockWords, vestingTail);
+const bonusAmountPatterns = patternsFor("bonus", "");
+const bonusPercentPatterns = [`${percentPattern}\\s*(?:(?:annual|yearly|target|performance)\\s+)?bonus`, `bonus\\s*(?:of|:|target)?\\s*${percentPattern}`].map((source) => new RegExp(source, "i"));
+
+interface TakenExtra {
+  figure: string;
+  years: string | undefined;
+}
+
+function takeExtra(text: string, patterns: RegExp[]): { rest: string; taken: TakenExtra } | null {
+  for (const pattern of patterns) {
+    const hit = text.match(pattern);
+    if (hit) return { rest: text.replace(hit[0], " "), taken: { figure: hit[1]!, years: hit[2] } };
+  }
+  return null;
+}
+
+interface PostedExtras {
+  rest: string;
+  stock: TakenExtra | null;
+  bonus: TakenExtra | null;
+  bonusPercent: TakenExtra | null;
+}
+
+/** Pulls "plus $20k bonus", "15% bonus", "RSUs worth $200k over 4 years" out so they do not read as part of the base range. */
+function splitExtras(text: string): PostedExtras {
+  let rest = text;
+  const take = (patterns: RegExp[]): TakenExtra | null => {
+    const found = takeExtra(rest, patterns);
+    if (found) rest = found.rest;
+    return found?.taken ?? null;
+  };
+  const stock = take(stockPatterns);
+  const bonus = take(bonusAmountPatterns);
+  const bonusPercent = bonus ? null : take(bonusPercentPatterns);
+  return { rest, stock, bonus, bonusPercent };
+}
+
+function withPostedExtras(posted: SalaryEstimate, extras: PostedExtras): SalaryEstimate {
+  if (posted.period === "hour" || posted.min === null || posted.max === null) return posted;
+  const monthsFactor = posted.period === "month" ? 12 : 1;
+  const base = { min: posted.min * monthsFactor, max: posted.max * monthsFactor };
+  const percent = extras.bonusPercent ? Number(extras.bonusPercent.figure) / 100 : 0;
+  const bonus = extras.bonus ? toRange(extras.bonus.figure) : mapRange(percent ? base : null, (amount) => Math.round(amount * percent));
+  const years = vestingYears(extras.stock?.years);
+  const stock = annualise(extras.stock ? toRange(extras.stock.figure) : null, years);
+  return applyComponents(posted, assembleComponents({ base, bonus, stock }, null), stock ? grantNote(years) : "");
+}
+
+/** Parses "$120,000 - $150,000 a year", "₹25L–35L", "USD 120k-150k", "$60/hr", plus a stated bonus or equity figure. Null when no amount. */
 export function parseSalaryText(text: string): SalaryEstimate | null {
-  const [min, max = min] = amounts(text);
+  const extras = splitExtras(text);
+  const posted = parseBaseSalary(text, extras.rest);
+  return posted && withPostedExtras(posted, extras);
+}
+
+function parseBaseSalary(text: string, baseText: string): SalaryEstimate | null {
+  const [min, max = min] = amounts(baseText);
   if (min === undefined || min < 10) return null;
   const period = detectPeriod(text) || (min < 1000 ? "hour" : "year");
   const currency = detectCurrency(text) || "USD";
@@ -189,10 +325,15 @@ export async function searchWeb(job: JobPosting, fetchPage: typeof fetch = fetch
 
 // ---------- LLM extraction ----------
 
-const extractionSystem = `Read the search snippets and report the salary range for the job. Reply with JSON only:
-{"min": 2500000, "max": 3800000, "currency": "INR", "period": "year", "note": "which role/company the figures are for", "sourceUrls": ["https://..."]}
-- Copy figures from the snippets; never invent numbers. Full numbers (150000, not 150k).
+const extractionSystem = `Read the search snippets and report the pay for the job. Reply with JSON only:
+{"min": 2500000, "max": 3800000, "currency": "INR", "period": "year", "base": {"min": 2000000, "max": 2800000}, "bonus": null, "stock": {"min": 500000, "max": 1000000}, "stockGrant": null, "vestingYears": null, "total": {"min": 2500000, "max": 3800000}, "note": "which role/company the figures are for", "sourceIds": [1, 3]}
+- Copy figures from the snippets; never invent numbers or a split the snippets do not show. Full numbers (150000, not 150k).
+- min/max: the overall range (total pay when the snippets give it, else the one range they show).
+- base, bonus (cash, yearly target), stock (value vested per year; levels.fyi lists it as "Stock (/yr)") and total are per YEAR (convert monthly figures). Use null for any part the snippets do not give.
+- If a snippet gives only the whole equity grant, put it in stockGrant and the vesting length in vestingYears (4 if unstated); do not divide it yourself.
+- If only total pay is known, fill min/max and total and leave base, bonus and stock null.
 - Prefer the exact title and company. If only a nearby role is available (same title at a similar company, or another level at the same company), use it and say so in "note".
+- sourceIds are the [numbers] of the snippets whose figures you used; list only those.
 - If no snippet has a salary figure, use null for min and max.
 Be brief; do not deliberate.`;
 
@@ -201,27 +342,41 @@ export function buildExtractionPrompt(job: JobPosting, results: SearchResult[], 
   return `Job: ${job.title} at ${job.company}, ${job.location || "location unknown"}. Expected currency: ${currency}.\n\nSearch results:\n${snippets.join("\n\n")}`;
 }
 
+const figurePattern = /[$₹£€]\s?\d|\d\s?(lpa|lakhs?|k\b)|\d{2,3},\d{3}/i;
+
+function normalizeUrl(url: string): string {
+  return url.toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+}
+
+/** The result pages the numbers came from: cited by number or URL, else the results whose snippets show a figure. */
+export function citedResults(data: Record<string, unknown>, results: SearchResult[]): SearchResult[] {
+  const ids = (Array.isArray(data.sourceIds) ? data.sourceIds : []).map((id) => normalize.asNumber(id)).filter((id): id is number => id !== null);
+  const byId = results.filter((_, index) => ids.includes(index + 1));
+  const urls = new Set(normalize.asStringList(data.sourceUrls, 10).map(normalizeUrl));
+  const byUrl = results.filter((result) => urls.has(normalizeUrl(result.url)));
+  const cited = byId.length ? byId : byUrl;
+  return (cited.length ? cited : results.filter((result) => figurePattern.test(result.snippet))).slice(0, 4);
+}
+
+function currencyOf(data: Record<string, unknown>, location: string): string {
+  const stated = normalize.asString(data.currency).toUpperCase();
+  return /^[A-Z]{3}$/.test(stated) ? stated : currencyForLocation(location);
+}
+
+/** The headline range is min/max, else the stated total; the components then override it with the per-year total. */
+function fromModel(data: Record<string, unknown>, fields: Pick<SalaryEstimate, "basis" | "currency" | "note" | "sources">): SalaryEstimate {
+  const period = normalizePeriod(data.period);
+  const headline = toRange([data.min, data.max]) ?? toRange(data.total);
+  const min = fixMagnitude(headline?.min ?? null, fields.currency, period);
+  const max = fixMagnitude(headline?.max ?? null, fields.currency, period);
+  return withModelComponents({ min, max, period, ...fields }, data);
+}
+
 export function normalizeExtraction(raw: unknown, results: SearchResult[], location: string): SalaryEstimate | null {
   const data = normalize.asRecord(raw);
-  const min = normalize.asNumber(data.min);
-  const max = normalize.asNumber(data.max);
-  if (min === null && max === null) return null;
-  const low = Math.min(min ?? max!, max ?? min!);
-  const high = Math.max(min ?? max!, max ?? min!);
-  if (low <= 0) return null;
-  const cited = new Set(normalize.asStringList(data.sourceUrls, 10));
-  const used = results.filter((result) => cited.has(result.url));
-  const currency = /^[A-Za-z]{3}$/.test(normalize.asString(data.currency)) ? normalize.asString(data.currency).toUpperCase() : currencyForLocation(location);
-  const period = normalizePeriod(data.period);
-  return {
-    min: fixMagnitude(low, currency, period),
-    max: fixMagnitude(high, currency, period),
-    currency,
-    period,
-    basis: "web",
-    note: normalize.asString(data.note) || "Extracted from web search results.",
-    sources: (used.length ? used : results.slice(0, 3)).map(({ title, url }) => ({ title, url })),
-  };
+  const fields = { basis: "web" as const, currency: currencyOf(data, location), note: normalize.asString(data.note) || "Extracted from web search results.", sources: citedResults(data, results).map(({ title, url }) => ({ title, url })) };
+  const estimate = fromModel(data, fields);
+  return estimate.min === null && estimate.max === null ? null : estimate;
 }
 
 /** Small models often answer "25" meaning 25 LPA or "150" meaning 150k. */
@@ -237,37 +392,73 @@ function normalizePeriod(value: unknown): Period {
   return "year";
 }
 
-const estimateSystem = `You estimate market salary for a job when no posted figure exists. Reply with JSON:
-{"min": number, "max": number, "currency": string, "period": "year"|"month"|"hour", "note": string}
+const estimateSystem = `You estimate market pay for a job when no posted figure exists. Reply with JSON:
+{"min": number, "max": number, "currency": string, "period": "year", "base": {"min": number, "max": number} | null, "bonus": {"min": number, "max": number} | null, "stock": {"min": number, "max": number} | null, "total": {"min": number, "max": number} | null, "note": string}
 Base it on title, seniority, company type/size, location and required skills. Full numbers (150000, not 150k). The note states the assumptions in one or two sentences, including which comparable role or company you used. This is an estimate, not a fact.
-Sanity scale for annual pay: India (INR) roles usually 300000-15000000 (3-150 lakh); US tech roles usually 60000-500000 USD.`;
+Pay parts, all per YEAR: base salary; bonus = cash, yearly target; stock = RSUs/options value vested per year (a 4-year grant counts as grant / 4). Give a part when this kind of company usually pays it (big tech and public companies grant RSUs and a cash bonus; many startups give options of unclear value: null). Use null for a part you have no basis for; never pad a split. total = base + bonus + stock; min/max = total. If you only know overall pay, fill min/max and leave the parts null. Say in the note which parts are assumed from the company type.
+Sanity scale for annual pay: India (INR) roles usually 300000-15000000 (3-150 lakh) base; US tech roles usually 60000-500000 USD base.`;
 
 export function normalizeEstimate(raw: unknown, location: string): SalaryEstimate {
   const data = normalize.asRecord(raw);
-  const a = normalize.asNumber(data.min);
-  const b = normalize.asNumber(data.max);
-  const known = [a, b].filter((value): value is number => value !== null && value > 0);
-  const stated = normalize.asString(data.currency).toUpperCase();
-  const currency = /^[A-Z]{3}$/.test(stated) ? stated : currencyForLocation(location);
-  const period = normalizePeriod(data.period);
-  return {
-    min: fixMagnitude(known.length ? Math.min(...known) : null, currency, period),
-    max: fixMagnitude(known.length ? Math.max(...known) : null, currency, period),
-    currency,
-    period,
-    basis: "estimate",
-    note: normalize.asString(data.note) || "Rough estimate from the title, company and location.",
-    sources: [],
-  };
+  const note = normalize.asString(data.note) || "Rough estimate from the title, company and location.";
+  return fromModel(data, { basis: "estimate", currency: currencyOf(data, location), note, sources: [] });
 }
 
-export function referenceLinks(job: JobPosting): { title: string; url: string }[] {
-  const slug = job.company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const keyword = encodeURIComponent(`${job.title} ${job.company}`.trim());
-  return [
-    { title: "Levels.fyi", url: slug ? `https://www.levels.fyi/companies/${slug}/salaries` : "https://www.levels.fyi/" },
-    { title: "Glassdoor salary search", url: `https://www.glassdoor.com/Search/results.htm?keyword=${keyword}` },
+// ---------- look-up links (not data sources) ----------
+
+export const lookupPrefix = "Look up: ";
+
+export function isLookup(source: { title: string }): boolean {
+  return source.title.startsWith(lookupPrefix);
+}
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+const levelsRoles: [RegExp, string][] = [
+  [/engineering manager|head of engineering|director of engineering|vp of engineering|vp engineering/i, "software-engineering-manager"],
+  [/technical program manager|\btpm\b/i, "technical-program-manager"],
+  [/product manager|\bpm\b|product owner/i, "product-manager"],
+  [/data scientist/i, "data-scientist"],
+  [/designer|\bux\b/i, "product-designer"],
+  [/engineer|developer|\bsde\b|\bswe\b|programmer|architect/i, "software-engineer"],
+];
+
+function levelsRole(title: string): string {
+  return levelsRoles.find(([pattern]) => pattern.test(title))?.[1] ?? "";
+}
+
+export function levelsUrl(job: JobPosting): string {
+  const role = levelsRole(job.title);
+  const company = slugify(job.company);
+  if (company) return `https://www.levels.fyi/companies/${company}/salaries${role ? `/${role}` : ""}`;
+  return role ? `https://www.levels.fyi/t/${role}` : "https://www.levels.fyi/";
+}
+
+const glassdoorDomains: Record<string, string> = { INR: "co.in", GBP: "co.uk", CAD: "ca", AUD: "com.au" };
+
+/** Glassdoor's salary search URL embeds the keyword length; the country domain narrows results to the job's market. */
+export function glassdoorUrl(job: JobPosting): string {
+  const keyword = `${job.company} ${job.title}`.replace(/\([^)]*\)/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().slice(0, 80);
+  const domain = glassdoorDomains[currencyForLocation(job.location)] ?? "com";
+  return `https://www.glassdoor.${domain}/Salaries/${keyword.replace(/ /g, "-")}-salary-SRCH_KO0,${keyword.length}.htm`;
+}
+
+/** Company pages are empty for small companies, so the role across the whole market is always offered too. */
+export function lookupLinks(job: JobPosting): { title: string; url: string }[] {
+  const what = [job.title, job.company && `at ${job.company}`].filter(Boolean).join(" ");
+  const companyLinks = [
+    { title: `${lookupPrefix}Levels.fyi – ${what}`, url: levelsUrl(job) },
+    { title: `${lookupPrefix}Glassdoor – ${what}`, url: glassdoorUrl(job) },
   ];
+  if (!job.company) return companyLinks;
+  const market = { ...job, company: "" };
+  const marketLinks = [
+    { title: `${lookupPrefix}Levels.fyi – ${job.title}, all companies`, url: levelsUrl(market) },
+    { title: `${lookupPrefix}Glassdoor – ${job.title}, all companies`, url: glassdoorUrl(market) },
+  ];
+  return [...companyLinks, ...marketLinks];
 }
 
 async function extractFromWeb(client: llm.LlmClient, job: JobPosting, results: SearchResult[]): Promise<SalaryEstimate | null> {
@@ -293,9 +484,9 @@ async function estimateWithModel(client: llm.LlmClient, job: JobPosting): Promis
 }
 
 export async function estimate(client: llm.LlmClient, job: JobPosting, options: { webSearch: boolean }, fetchPage: typeof fetch = fetch): Promise<SalaryEstimate> {
-  const links = referenceLinks(job);
+  const links = lookupLinks(job);
   const posted = parseSalaryText(job.salaryText);
-  if (posted) return { ...posted, sources: links };
+  if (posted) return { ...posted, sources: [...(job.url ? [{ title: "This job posting", url: job.url }] : []), ...links] };
   if (options.webSearch) {
     const results = await searchWeb(job, fetchPage);
     const web = await extractFromWeb(client, job, results);

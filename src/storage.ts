@@ -1,4 +1,4 @@
-import type { AnswerBank, JobAnalysis, Profile, Resume, Settings, TrackedJob } from "./types.ts";
+import type { AnswerBank, JobAnalysis, JobSearch, Profile, Resume, Settings, TailoredResume, TrackedJob } from "./types.ts";
 
 export interface StoreShape {
   settings: Settings;
@@ -9,6 +9,13 @@ export interface StoreShape {
   /** analysis cache for jobs not (yet) shortlisted, keyed by JobPosting.id */
   analyses: Record<string, JobAnalysis>;
   answers: AnswerBank;
+  /** false shows the setup wizard; absent means "decide from existing data" (see isSetupComplete) */
+  setupComplete: boolean;
+  /** epoch ms of the last LinkedIn import, 0 = never */
+  linkedinImportedAt: number;
+  jobSearches: JobSearch[];
+  /** newest first */
+  tailoredResumes: TailoredResume[];
 }
 
 export const defaultSettings: Settings = {
@@ -63,13 +70,17 @@ const defaults: StoreShape = {
   jobs: {},
   analyses: {},
   answers: {},
+  setupComplete: false,
+  linkedinImportedAt: 0,
+  jobSearches: [],
+  tailoredResumes: [],
 };
 
 export async function get<K extends keyof StoreShape>(key: K): Promise<StoreShape[K]> {
   const stored = await chrome.storage.local.get(key);
   const value = stored[key] as StoreShape[K] | undefined;
   if (value === undefined) return structuredClone(defaults[key]);
-  if (key === "settings" || key === "profile") return { ...defaults[key], ...value } as StoreShape[K];
+  if (key === "settings" || key === "profile") return { ...(defaults[key] as object), ...(value as object) } as StoreShape[K];
   return value;
 }
 
@@ -77,13 +88,18 @@ export async function set<K extends keyof StoreShape>(key: K, value: StoreShape[
   await chrome.storage.local.set({ [key]: value });
 }
 
-export async function update<K extends keyof StoreShape>(
-  key: K,
-  change: (current: StoreShape[K]) => StoreShape[K],
-): Promise<StoreShape[K]> {
-  const next = change(await get(key));
-  await set(key, next);
-  return next;
+const pendingUpdates = new Map<string, Promise<unknown>>();
+
+/** Updates to one key run one after another so two overlapping read-modify-writes cannot drop each other's change. */
+export function update<K extends keyof StoreShape>(key: K, change: (current: StoreShape[K]) => StoreShape[K]): Promise<StoreShape[K]> {
+  const run = async () => {
+    const next = change(await get(key));
+    await set(key, next);
+    return next;
+  };
+  const queued = (pendingUpdates.get(key) ?? Promise.resolve()).then(run, run);
+  pendingUpdates.set(key, queued.catch(() => undefined));
+  return queued;
 }
 
 export function onChange(listener: (changedKeys: (keyof StoreShape)[]) => void): () => void {
@@ -94,12 +110,37 @@ export function onChange(listener: (changedKeys: (keyof StoreShape)[]) => void):
   return () => chrome.storage.onChanged.removeListener(handler);
 }
 
+export interface SetupEvidence {
+  setupComplete?: boolean;
+  settings?: unknown;
+  profile?: Partial<Profile>;
+}
+
+/** Users who configured a provider and have a named profile from before the wizard existed count as done. */
+export function isSetupComplete(stored: SetupEvidence): boolean {
+  if (typeof stored.setupComplete === "boolean") return stored.setupComplete;
+  return stored.settings !== undefined && !!stored.profile?.firstName;
+}
+
+export async function loadSetupComplete(): Promise<boolean> {
+  const stored = (await chrome.storage.local.get(["setupComplete", "settings", "profile"])) as SetupEvidence;
+  const isComplete = isSetupComplete(stored);
+  // pinned so a profile filling in mid-wizard (or being cleared later) cannot flip the answer
+  if (stored.setupComplete === undefined) await set("setupComplete", isComplete);
+  return isComplete;
+}
+
 export async function exportAll(): Promise<string> {
   return JSON.stringify(await chrome.storage.local.get(null), null, 2);
 }
 
+/** Only known keys are written, so a wrong or hand-edited file cannot plant stray data. */
 export async function importAll(json: string): Promise<void> {
-  await chrome.storage.local.set(JSON.parse(json));
+  const parsed: unknown = JSON.parse(json);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Not a SmartJob export file.");
+  const known = Object.entries(parsed).filter(([key]) => key in defaults);
+  if (known.length === 0) throw new Error("This file has no SmartJob data.");
+  await chrome.storage.local.set(Object.fromEntries(known));
 }
 
 export async function clearAll(): Promise<void> {

@@ -31,6 +31,8 @@ async function scanAllFrames(tabId: number): Promise<FieldDescriptor[]> {
 
 const isSingleCheckbox = (field: FieldDescriptor) => field.kind === "checkbox" && field.options.length < 2;
 
+const CONSENT = /privacy (policy|notice)|terms (of|and) (use|service|conditions)|\bconsent\b|\bi agree\b/i;
+
 const isEmpty = (field: FieldDescriptor) => field.currentValue.trim() === "" || field.currentValue === "false";
 
 function needsAnswer(field: FieldDescriptor): boolean {
@@ -92,8 +94,8 @@ export async function run(tabId: number, job: JobPosting | null, options: { useA
 
   const fills = mapping.map(fields, profile, answers, resume, options.includeAccount ? settings.account : undefined);
   const filledKeys = new Set(fills.map(keyOf));
-  // never let the model tick consent / terms checkboxes
-  const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !isSingleCheckbox(field));
+  // agreeing to terms, privacy policies or consent is the user's decision: single checkboxes and consent questions never go to the model
+  const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !isSingleCheckbox(field) && !CONSENT.test(`${field.label} ${field.options.join(" ")}`));
   const ai = options.useAi ? await askAi(leftovers, { profile, resume, job }) : { fills: [], failed: false };
   const allFills = [...fills, ...ai.fills];
 

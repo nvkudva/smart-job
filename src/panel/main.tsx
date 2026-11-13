@@ -2,23 +2,26 @@ import { Component, render } from "preact";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import type { JobPosting } from "../types.ts";
-import * as activeTab from "./activeTab.ts";
-import * as aiContext from "./aiContext.ts";
-import { ApplyTab } from "./applyTab.tsx";
-import { Card, ErrorNote } from "./controls.tsx";
-import { JobTab } from "./jobTab.tsx";
-import { SettingsTab } from "./settingsTab.tsx";
-import { TrackerTab } from "./trackerTab.tsx";
-import { useStored } from "./useStored.ts";
-import { WriteTab } from "./writeTab.tsx";
+import * as activeTab from "./job/activeTab.ts";
+import * as aiContext from "./shared/aiContext.ts";
+import { ApplyTab } from "./apply/applyTab.tsx";
+import { Card, ErrorNote } from "./shared/controls.tsx";
+import { Icon } from "./shared/icons.tsx";
+import { AnalysisTab } from "./job/analysisTab.tsx";
+import { SetupWizard, useSetupComplete } from "./settings/onboarding.tsx";
+import { ProfileTab } from "./settings/profileTab.tsx";
+import { SettingsTab } from "./settings/settingsTab.tsx";
+import { TrackerTab } from "./tracker/trackerTab.tsx";
+import { useStored } from "./shared/useStored.ts";
 
-const tabNames = ["Job", "Apply", "Tracker", "Write", "Settings"] as const;
+const tabNames = ["Analysis", "Apply", "Tracker", "Profile", "Settings"] as const;
 type TabName = (typeof tabNames)[number];
 
 /** Keeps one failing tab from taking down the whole panel. */
 class TabGuard extends Component<{ children: ComponentChildren }, { message: string }> {
   override state = { message: "" };
   override componentDidCatch(failure: unknown) {
+    console.error("[SmartJob] tab crashed", failure);
     this.setState({ message: failure instanceof Error ? failure.message : String(failure) });
   }
   override render() {
@@ -27,31 +30,24 @@ class TabGuard extends Component<{ children: ComponentChildren }, { message: str
   }
 }
 
-const statusLabel = { unknown: "AI provider not checked yet", ok: "AI provider reachable", error: "AI provider error" };
+const statusLabel = { unknown: "AI not checked yet", ok: "AI reachable", error: "AI error" };
 
-function Header({ host }: { host: string }) {
+/** The side panel already shows the extension name, so health lives as a dot on the Settings tab instead of a header row. */
+function AiDot() {
   const status = aiContext.useStatus();
-  return (
-    <header class="app-header">
-      <h1>SmartJob</h1>
-      <span class={`dot ${status}`} role="img" aria-label={statusLabel[status]} title={statusLabel[status]} />
-      <span class="host" title={host}>
-        {host}
-      </span>
-    </header>
-  );
+  return <span class={`dot ${status}`} role="img" aria-label={statusLabel[status]} title={statusLabel[status]} />;
 }
 
-function Onboarding({ onSettings, isOnSettings }: { onSettings: () => void; isOnSettings: boolean }) {
+function Onboarding({ onProfile, isOnProfile }: { onProfile: () => void; isOnProfile: boolean }) {
   return (
     <Card title="Welcome to SmartJob">
       <p class="muted">
         Add your resume and choose an AI model to unlock match scores, autofill and writing tools.
-        {!isOnSettings && (
+        {!isOnProfile && (
           <>
             {" "}
-            <button type="button" class="link" onClick={onSettings}>
-              Go to Settings
+            <button type="button" class="link" onClick={onProfile}>
+              Go to Profile
             </button>
           </>
         )}
@@ -62,41 +58,50 @@ function Onboarding({ onSettings, isOnSettings }: { onSettings: () => void; isOn
 
 function App() {
   const resume = useStored("resume");
+  const isSetupComplete = useSetupComplete();
   const active = activeTab.use();
-  const [tab, setTab] = useState<TabName>("Job");
-  const [writeJobId, setWriteJobId] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabName>("Analysis");
   const [lastJob, setLastJob] = useState<JobPosting | null>(null);
   const isResumeLoaded = resume !== undefined;
   const hasResume = !!resume;
 
-  useEffect(() => void (isResumeLoaded && !hasResume && setTab("Settings")), [isResumeLoaded]);
+  useEffect(() => void (isResumeLoaded && !hasResume && setTab("Profile")), [isResumeLoaded]);
   useEffect(() => void (active.job && setLastJob(active.job)), [active.job]);
 
-  const writeFor = (jobId: string) => {
-    setWriteJobId(jobId);
-    setTab("Write");
-  };
+  if (isSetupComplete === undefined) return null;
+  if (!isSetupComplete) {
+    return (
+      <div class="app">
+        <main>
+          <TabGuard>
+            <SetupWizard />
+          </TabGuard>
+        </main>
+      </div>
+    );
+  }
   const currentJob = active.job ?? lastJob;
   const panels: Record<TabName, ComponentChildren> = {
-    Job: <JobTab active={active} hasResume={hasResume} onWrite={writeFor} />,
-    Apply: <ApplyTab tabId={active.tabId} job={currentJob} />,
+    Analysis: <AnalysisTab active={active} hasResume={hasResume} onApply={() => setTab("Apply")} />,
+    Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} />,
     Tracker: <TrackerTab />,
-    Write: <WriteTab currentJob={currentJob} preferredJobId={writeJobId} />,
+    Profile: <ProfileTab />,
     Settings: <SettingsTab />,
   };
 
   return (
     <div class="app">
-      <Header host={active.host} />
       <nav class="tabs" role="tablist">
         {tabNames.map((name) => (
           <button type="button" role="tab" aria-selected={tab === name} class={tab === name ? "active" : ""} onClick={() => setTab(name)}>
-            {name}
+            <Icon name={name} />
+            <span>{name}</span>
+            {name === "Settings" && <AiDot />}
           </button>
         ))}
       </nav>
       <main>
-        {isResumeLoaded && !hasResume && <Onboarding onSettings={() => setTab("Settings")} isOnSettings={tab === "Settings"} />}
+        {isResumeLoaded && !hasResume && <Onboarding onProfile={() => setTab("Profile")} isOnProfile={tab === "Profile"} />}
         {/* all tabs stay mounted so a running fill or draft survives tab switches */}
         {tabNames.map((name) => (
           <section hidden={tab !== name} role="tabpanel" aria-label={name}>

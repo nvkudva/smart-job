@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { toHtml } from "../../src/panel/markdown.ts";
+import { toHtml } from "../../src/panel/documents/markdown.ts";
 
 test("renders headings, bullets, bold and paragraphs", () => {
   const html = toHtml("# Name\n\nHello **world**\nsecond line\n\n- one\n- two\n\n## Skills");

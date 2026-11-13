@@ -16,6 +16,24 @@ const ollamaOriginRule: chrome.declarativeNetRequest.Rule = {
   },
 };
 
+// Salary sites (levels.fyi, Glassdoor) forbid framing. Dropping their frame-blocking headers only for frames this extension opens lets the panel show a source inline.
+const frameHeadersRule: chrome.declarativeNetRequest.Rule = {
+  id: 2,
+  priority: 1,
+  action: {
+    type: "modifyHeaders" as chrome.declarativeNetRequest.RuleActionType,
+    responseHeaders: [
+      { header: "x-frame-options", operation: "remove" as chrome.declarativeNetRequest.HeaderOperation },
+      { header: "content-security-policy", operation: "remove" as chrome.declarativeNetRequest.HeaderOperation },
+    ],
+  },
+  condition: {
+    regexFilter: "^https?://",
+    initiatorDomains: [chrome.runtime.id],
+    resourceTypes: ["sub_frame" as chrome.declarativeNetRequest.ResourceType],
+  },
+};
+
 chrome.declarativeNetRequest
-  .updateSessionRules({ removeRuleIds: [ollamaOriginRule.id], addRules: [ollamaOriginRule] })
+  .updateSessionRules({ removeRuleIds: [ollamaOriginRule.id, frameHeadersRule.id], addRules: [ollamaOriginRule, frameHeadersRule] })
   .catch(console.error);

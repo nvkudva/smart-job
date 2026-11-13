@@ -34,17 +34,21 @@ const provider = () => ({ kind: "openai", baseUrl: llm.baseUrl, apiKey: "", mode
 const stored = (panel: Page, key: string) => panel.evaluate(async (name) => (await chrome.storage.local.get(name))[name], key);
 const resume = { text: "Ada Lovelace. TypeScript and Preact engineer.", fileName: "resume.txt", fileBase64: "", mimeType: "text/plain" };
 
-test("first run shows onboarding and opens Settings", async () => {
+test("first run shows the setup wizard; skipping lands on Settings", async () => {
   const panel = await h.openPanel();
+  await visible(panel.getByText("Set up SmartJob"));
+  await visible(panel.getByRole("button", { name: "Save and continue" }));
+  await panel.getByRole("button", { name: "Skip" }).click();
   await visible(panel.getByText("Welcome to SmartJob"));
-  expect(await panel.getByRole("tab", { name: "Settings" }).getAttribute("aria-selected")).toBe("true");
-  await panel.getByRole("tab", { name: "Job" }).click();
+  expect(await panel.getByRole("tab", { name: "Profile" }).getAttribute("aria-selected")).toBe("true");
+  await panel.getByRole("tab", { name: "Analysis" }).click();
   await visible(panel.getByText("Welcome to SmartJob"));
   await panel.close();
 }, 30000);
 
 test("settings, resume and profile extraction persist", async () => {
   const panel = await h.openPanel();
+  await panel.getByRole("tab", { name: "Settings" }).click();
   await panel.getByLabel("Base URL").fill(llm.baseUrl);
   await panel.getByLabel("Model").fill("fake");
   await panel.getByRole("button", { name: "Save settings" }).click();
@@ -53,8 +57,9 @@ test("settings, resume and profile extraction persist", async () => {
 
   await panel.getByRole("button", { name: "Test connection" }).click();
   await visible(panel.getByText(/Connected in \d+ ms/));
-  await visible(panel.locator(".dot.ok"));
+  await visible(panel.locator(".dot.ok").first());
 
+  await panel.getByRole("tab", { name: "Profile", exact: true }).click();
   await panel.getByLabel("Resume text").fill(resume.text);
   await panel.getByRole("button", { name: "Save resume" }).click();
   await hidden(panel.getByText("Welcome to SmartJob"));
@@ -91,7 +96,7 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
   expect(await panel.locator(".job-title").first().textContent()).toBe("Panel Test Engineer");
   await visible(panel.locator(".ring"), 20000);
   await visible(panel.getByText("Strong match - apply"));
-  await visible(panel.getByText("USD 130,000 – 160,000/yr"));
+  await visible(panel.getByText(/\$130,000 – \$160,000\/yr/));
 
   await panel.getByRole("button", { name: "★ Shortlist" }).click();
   await visible(panel.getByRole("button", { name: "★ Shortlisted" }));
@@ -101,8 +106,10 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
   expect(tracked).toHaveLength(1);
   expect(tracked[0]!.analysis.matchScore).toBe(82);
 
-  await panel.getByRole("tab", { name: "Write" }).click();
-  const write = panel.getByRole("tabpanel", { name: "Write" });
+  await panel.getByRole("tab", { name: "Analysis" }).click();
+  await panel.getByRole("button", { name: "Apply", exact: true }).click();
+  const write = panel.getByRole("tabpanel", { name: "Apply" });
+  await visible(write.getByText("SmartJob never submits"));
   await write.getByRole("button", { name: "Generate" }).first().click();
   await valueMatches(write.getByLabel("Cover letter text"), /Fake cover letter/);
   await write.getByLabel("Application question").fill("Why do you want this job?");
@@ -111,6 +118,11 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
   await write.getByRole("button", { name: "Save to answer bank" }).click();
   await visible(write.getByRole("button", { name: "Saved to answer bank" }));
   expect(Object.keys((await stored(panel, "answers")) as object)).toHaveLength(1);
+
+  await panel.getByRole("tab", { name: "Tracker" }).click();
+  const tracker = panel.getByRole("tabpanel", { name: "Tracker" });
+  await visible(tracker.getByText(/Job posting on/));
+  await visible(tracker.getByText("Cover letter", { exact: true }));
   await panel.close();
 }, 90000);
 
@@ -123,5 +135,31 @@ test("apply tab runs a fill and never crashes the panel", async () => {
   // either a report (session implemented) or an inline error; both leave the button usable again
   await visible(apply.locator(".report-row, .error, :text('No fillable fields')").first(), 20000);
   expect(await apply.getByRole("button", { name: "Fill this page" }).isEnabled()).toBe(true);
+  await panel.close();
+}, 60000);
+
+test("setup wizard: provider, profile, review, job searches, then tabs", async () => {
+  await h.seed({ setupComplete: false, resume: null, profile: emptyProfile, jobSearches: [] });
+  const panel = await h.openPanel();
+  await panel.getByLabel("Base URL").fill(llm.baseUrl);
+  await panel.getByLabel("Model").fill("fake");
+  await panel.getByRole("button", { name: "Save and continue" }).click();
+
+  await panel.getByLabel("Resume text").fill(resume.text);
+  await panel.getByRole("button", { name: "Build my profile" }).click();
+  await visible(panel.getByText("3. Review your details"));
+  await valueMatches(panel.getByLabel("First name"), /Ada/);
+  await panel.getByLabel("Notice period").fill("30 days");
+  await panel.getByRole("button", { name: "Save and continue" }).click();
+
+  await visible(panel.getByText("4. Job searches"));
+  await visible(panel.getByRole("button", { name: "Engineer", exact: true }));
+  await panel.getByRole("button", { name: "Finish" }).click();
+  await panel.getByRole("tab", { name: "Analysis" }).click();
+  await visible(panel.getByRole("link", { name: "Engineer" }));
+  const searches = (await stored(panel, "jobSearches")) as { url: string }[];
+  expect(searches[0]!.url).toBe("https://www.linkedin.com/jobs/search-results/?keywords=Engineer");
+  expect(((await stored(panel, "profile")) as { noticePeriod: string }).noticePeriod).toBe("30 days");
+  expect(await stored(panel, "setupComplete")).toBe(true);
   await panel.close();
 }, 60000);

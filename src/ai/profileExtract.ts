@@ -154,7 +154,8 @@ export function buildProfile(raw: unknown, resumeText: string, now = new Date())
     headline: normalize.asString(data.headline),
     summary: normalize.asString(data.summary),
     currentTitle: latest?.title || normalize.asString(data.currentTitle),
-    currentCompany: latest?.company || normalize.asString(data.currentCompany),
+    // on a career break the model tends to answer "Career break"; forms want the most recent employer
+    currentCompany: latest?.company || experience.find((job) => job.company)?.company || normalize.asString(data.currentCompany),
     yearsExperience: years && years > 0 ? years : yearsFromExperience(experience, now),
     skills: normalize.asStringList(data.skills, 60),
     experience,
