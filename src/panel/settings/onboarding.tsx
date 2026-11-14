@@ -209,7 +209,9 @@ function StepHeader({ step }: { step: number }) {
     >
       <ol class="wizard-steps">
         {stepTitles.map((title, index) => (
-          <li class={index === step ? "active" : index < step ? "done" : ""}>{title}</li>
+          <li class={index === step ? "active" : index < step ? "done" : ""}>
+            {index + 1}. {title}
+          </li>
         ))}
       </ol>
     </Card>
