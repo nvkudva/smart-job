@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import * as salaryData from "../../ai/salary.ts";
 import type { SalaryComponents, SalaryEstimate, SalaryRange } from "../../types.ts";
 import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
@@ -44,9 +44,23 @@ type Source = SalaryEstimate["sources"][number];
 const viewerSandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox";
 
 function SourceViewer({ source, onClose }: { source: Source; onClose: () => void }) {
+  // the frame is cross-origin, so its history is unreadable; the panel's own history records the frame's navigations, and every load is one step
+  const [depth, setDepth] = useState(0);
+  const isGoingBack = useRef(false);
+  const onLoad = () => {
+    setDepth((current) => current + (isGoingBack.current ? -1 : 1));
+    isGoingBack.current = false;
+  };
+  const goBack = () => {
+    isGoingBack.current = true;
+    history.back();
+  };
   return (
     <div class="source-viewer" role="dialog" aria-label={source.title}>
       <div class="viewer-bar">
+        <Button disabled={depth < 2} onClick={goBack} aria-label="Back">
+          ← Back
+        </Button>
         <strong class="viewer-title" title={source.url}>
           {source.title.replace(salaryData.lookupPrefix, "")}
         </strong>
@@ -56,7 +70,7 @@ function SourceViewer({ source, onClose }: { source: Source; onClose: () => void
         <Button onClick={onClose}>Close</Button>
       </div>
       <p class="muted small viewer-hint">Blank page, captcha or sign-in wall? Use “Open in tab”: some sites refuse to load inside the panel.</p>
-      <iframe class="viewer-frame" src={source.url} sandbox={viewerSandbox} referrerpolicy="no-referrer" title={source.title} />
+      <iframe class="viewer-frame" src={source.url} sandbox={viewerSandbox} referrerpolicy="no-referrer" title={source.title} onLoad={onLoad} />
     </div>
   );
 }
