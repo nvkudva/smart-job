@@ -579,6 +579,9 @@ textarea:focus {
   letter-spacing: 0.4px;
   margin-bottom: 3px;
 }
+.block .chip {
+  font-size: inherit;
+}
 .block ul {
   margin: 0;
   padding-left: 18px;
@@ -597,18 +600,9 @@ textarea:focus {
   color: var(--mid);
 }
 .blockers h4,
-.blockers li {
-  color: var(--bad);
-}
-.fold > summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-.fold[open] > summary {
-  margin-bottom: 4px;
+.blockers li,
+.blockers li.no span {
+  color: color-mix(in srgb, var(--bad) 60%, var(--muted));
 }
 .salary-range {
   display: flex;

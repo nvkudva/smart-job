@@ -1,4 +1,3 @@
-import type { ComponentChildren } from "preact";
 import type { JobAnalysis, MustHaveMet, Seniority } from "../../types.ts";
 import { Card } from "../shared/controls.tsx";
 
@@ -58,12 +57,16 @@ function MarkList({ title, items, verdictOf, extraClass = "" }: { title?: string
   );
 }
 
-function SkillsRow({ title, skills }: { title: string; skills: string[] }) {
+function SkillsRow({ title, skills, chipClass = "" }: { title: string; skills: string[]; chipClass?: string }) {
   if (!skills.length) return null;
   return (
     <div class="block">
       <h4>{title}</h4>
-      <p>{skills.join(", ")}</p>
+      <div class="chips">
+        {skills.map((skill) => (
+          <span class={`chip ${chipClass}`}>{skill}</span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -78,15 +81,6 @@ function evidenceLine(analysis: JobAnalysis): string {
   return [`${covered} of ${met.length} must-haves${partly ? ` (+${partly} partly)` : ""}`, analysis.seniority && seniorityNote[analysis.seniority]].filter(Boolean).join(" · ");
 }
 
-function Fold({ title, children }: { title: string; children: ComponentChildren }) {
-  return (
-    <details class="fold">
-      <summary>{title}</summary>
-      {children}
-    </details>
-  );
-}
-
 function Overview({ analysis }: { analysis: JobAnalysis }) {
   if (analysis.overview) {
     return (
@@ -96,7 +90,7 @@ function Overview({ analysis }: { analysis: JobAnalysis }) {
       </>
     );
   }
-  if (analysis.highlights) return <BulletList title="Highlights" items={analysis.highlights} />;
+  if (analysis.highlights) return <BulletList items={analysis.highlights} />;
   return analysis.summary ? <p>{analysis.summary}</p> : null;
 }
 
@@ -115,20 +109,18 @@ export function AnalysisView({ analysis }: { analysis: JobAnalysis }) {
           {evidence && <div class="muted small">{evidence}</div>}
         </div>
       </div>
+      <Overview analysis={analysis} />
       <MarkList title="Dealbreakers" items={blockers} verdictOf={() => "no"} extraClass="blockers" />
       <BulletList title="Why apply" items={analysis.strengths} />
       <BulletList title="Watch out" items={analysis.gaps} />
       {analysis.mustHaveMet ? <MarkList title="Must have" items={analysis.mustHave} verdictOf={(_, index) => analysis.mustHaveMet?.[index] ?? "partial"} /> : <BulletList title="Must have" items={analysis.mustHave} />}
-      <Fold title="Nice to have">
-        {analysis.niceToHaveMet ? <MarkList items={analysis.niceToHave} verdictOf={(_, index) => analysis.niceToHaveMet?.[index] ?? "partial"} /> : <BulletList items={analysis.niceToHave} />}
-      </Fold>
-      <Fold title="About the role">
-        <Overview analysis={analysis} />
-      </Fold>
-      <Fold title="Skills">
-        <SkillsRow title="Matching" skills={matched} />
-        <SkillsRow title="Missing" skills={missing} />
-      </Fold>
+      {analysis.niceToHaveMet ? (
+        <MarkList title="Nice to have" items={analysis.niceToHave} verdictOf={(_, index) => analysis.niceToHaveMet?.[index] ?? "partial"} />
+      ) : (
+        <BulletList title="Nice to have" items={analysis.niceToHave} />
+      )}
+      <SkillsRow title="Matching skills" skills={matched} />
+      <SkillsRow title="Missing skills" skills={missing} chipClass="warn" />
     </Card>
   );
 }
