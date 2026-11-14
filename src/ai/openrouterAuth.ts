@@ -2,11 +2,13 @@ import type { ProviderSettings } from "../types.ts";
 import * as llm from "./llm.ts";
 import * as models from "./models.ts";
 
+// The router spreads requests over whichever free models are up, so one rate-limited upstream (Gemma on Google AI Studio) does not block the user.
+const freeRouter = "openrouter/free";
 // shortcut: hand-picked from the free list on 2026-11-14; a model that disappears falls back to the first free one, review when free models rotate.
-const preferredFreeModels = ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"];
+const preferredFreeModels = [freeRouter, "google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"];
 
 export function pickFreeModel(ids: string[]): string {
-  const freeIds = ids.filter((id) => id.endsWith(":free"));
+  const freeIds = ids.filter((id) => id.endsWith(":free") || id === freeRouter);
   return preferredFreeModels.find((id) => freeIds.includes(id)) ?? freeIds[0] ?? "";
 }
 

@@ -166,6 +166,9 @@ main {
   align-items: center;
   gap: 8px;
 }
+.row > .field {
+  flex: 1;
+}
 .row.wrap {
   flex-wrap: wrap;
 }

@@ -21,7 +21,7 @@ export const presets: Record<string, ProviderSettings> = {
   DeepSeek: { kind: "openai", baseUrl: "https://api.deepseek.com/v1", apiKey: "", model: "deepseek-chat" },
   Gemini: { kind: "openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", apiKey: "", model: "gemini-2.5-flash" },
   Groq: { kind: "openai", baseUrl: "https://api.groq.com/openai/v1", apiKey: "", model: "llama-3.3-70b-versatile" },
-  OpenRouter: { kind: "openai", baseUrl: "https://openrouter.ai/api/v1", apiKey: "", model: "openai/gpt-4.1-mini" },
+  OpenRouter: { kind: "openai", baseUrl: "https://openrouter.ai/api/v1", apiKey: "", model: "openrouter/free" },
   Ollama: { kind: "openai", baseUrl: "http://localhost:11434/v1", apiKey: "", model: "qwen2.5:7b" },
   "LM Studio": { kind: "openai", baseUrl: "http://localhost:1234/v1", apiKey: "", model: "qwen3.6-35b-a3b-splash" },
 };
@@ -34,6 +34,13 @@ export const keyPages: Record<string, string> = {
   Gemini: "https://aistudio.google.com/apikey",
   Groq: "https://console.groq.com/keys",
   OpenRouter: "https://openrouter.ai/settings/keys",
+};
+
+// shortcut: rough figures from third-party trackers (Nov 2026), providers change them without notice; recheck against each provider's rate-limit page.
+export const freeLimits: Record<string, string> = {
+  OpenRouter: "free, ~50 requests/day",
+  Gemini: "free, limits vary",
+  Groq: "free, ~30 requests/min",
 };
 
 /** The preset whose server the provider points at, matched on host so a tweaked path or trailing slash still counts. */

@@ -7,6 +7,10 @@ test("pickFreeModel prefers a known good free model and ignores paid ones", () =
   expect(openrouterAuth.pickFreeModel(ids)).toBe("google/gemma-4-31b-it:free");
 });
 
+test("pickFreeModel prefers the free router over any single model", () => {
+  expect(openrouterAuth.pickFreeModel(["google/gemma-4-31b-it:free", "openrouter/free"])).toBe("openrouter/free");
+});
+
 test("pickFreeModel falls back to any free model, or empty when none", () => {
   expect(openrouterAuth.pickFreeModel(["openai/gpt-4.1-mini", "a/other:free"])).toBe("a/other:free");
   expect(openrouterAuth.pickFreeModel(["openai/gpt-4.1-mini"])).toBe("");
