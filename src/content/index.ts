@@ -29,6 +29,9 @@ async function respond(request: ContentRequest): Promise<unknown> {
     case "clearHighlights":
       form.clearHighlights();
       return { ok: true };
+    case "markUnknown":
+      form.markUnknown(request.unknown, request.shouldScroll);
+      return { ok: true };
     case "focusField":
       return { ok: form.focus(request.id) };
     case "storeCredential":

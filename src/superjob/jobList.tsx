@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import { scoreTone } from "../panel/job/analysisView.tsx";
+import { ScoreRing } from "../panel/job/analysisView.tsx";
 import type { JobAnalysis, TrackedJob } from "../types.ts";
 import type { FoundJob } from "./jobSources.ts";
 import * as posting from "./posting.ts";
@@ -24,7 +24,7 @@ function toneIndex(name: string): number {
   return sum % 4;
 }
 
-export function Logo({ job, size }: { job: FoundJob; size: "row" | "head" }) {
+export function Logo({ job, size }: { job: FoundJob; size: "row" }) {
   const [hasFailed, setHasFailed] = useState(false);
   const initial = (job.company.trim()[0] ?? "?").toUpperCase();
   if (!job.logoUrl || hasFailed) {
@@ -35,15 +35,6 @@ export function Logo({ job, size }: { job: FoundJob; size: "row" | "head" }) {
     );
   }
   return <img class={`sj-logo ${size}`} src={job.logoUrl} alt="" loading="lazy" referrerpolicy="no-referrer" onError={() => setHasFailed(true)} />;
-}
-
-export function ScoreBadge({ score }: { score: number }) {
-  return (
-    <span class={`sj-score ${scoreTone(score)}`} title={`Match score ${score} out of 100`}>
-      <span class="sr-only">Match score </span>
-      {score}
-    </span>
-  );
 }
 
 export function StarIcon() {
@@ -79,7 +70,7 @@ function JobRow({ job, isSelected, isOpened, score, isSaved, onSelect }: JobRowP
           </span>
         </span>
         <span class="sj-row-flags">
-          {score !== null && <ScoreBadge score={score} />}
+          {score !== null && <ScoreRing score={score} />}
           {isSaved && (
             <span class="sj-saved" title="Saved">
               <StarIcon />

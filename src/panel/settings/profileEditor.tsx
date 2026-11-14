@@ -12,7 +12,8 @@ const groups: { title: string; note?: string; fields: (FieldSpec | FieldSpec[])[
   {
     title: "Contact",
     fields: [
-      [{ key: "firstName", label: "First name" }, { key: "lastName", label: "Last name" }],
+      [{ key: "firstName", label: "First name" }, { key: "middleName", label: "Middle name" }],
+      { key: "lastName", label: "Last name" },
       { key: "email", label: "Email", type: "email" },
       [{ key: "phoneCountryCode", label: "Country code (+1)" }, { key: "phone", label: "Phone", type: "tel" }],
       { key: "address", label: "Address" },
@@ -119,13 +120,14 @@ function RowList<T extends object>({ title, items, blank, fields, summarize, onC
   );
 }
 
-const parseSkills = (text: string) => text.split(",").map((skill) => skill.trim()).filter(Boolean);
+const parseList = (text: string) => text.split(",").map((item) => item.trim()).filter(Boolean);
 
 export function ProfileEditor({ initial }: { initial: Profile }) {
   const [profile, setProfile] = useState(initial);
   const [skillsText, setSkillsText] = useState(initial.skills.join(", "));
+  const [otherPhonesText, setOtherPhonesText] = useState(initial.otherPhones.join(", "));
   const [isSaved, setIsSaved] = useState(false);
-  const isDirty = JSON.stringify({ ...profile, skills: parseSkills(skillsText) }) !== JSON.stringify(initial);
+  const isDirty = JSON.stringify({ ...profile, skills: parseList(skillsText), otherPhones: parseList(otherPhonesText) }) !== JSON.stringify(initial);
   const change = (patch: Partial<Profile>) => {
     setProfile({ ...profile, ...patch });
     setIsSaved(false);
@@ -138,7 +140,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
       <Field label={spec.label} type={spec.type} rows={spec.rows} value={String(profile[spec.key])} onValue={(value) => setField(spec.key, spec.isAmount ? format.groupDigits(value, format.localeForCountry(profile.country)) : value)} />
     );
   const save = async () => {
-    await storage.set("profile", { ...profile, skills: parseSkills(skillsText) });
+    await storage.set("profile", { ...profile, skills: parseList(skillsText), otherPhones: parseList(otherPhonesText) });
     setIsSaved(true);
   };
 
@@ -149,6 +151,16 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           {group.note && <p class="muted small">{group.note}</p>}
           <div class="stack tight">
             {group.fields.map((entry) => (Array.isArray(entry) ? <div class="grid2">{entry.map(renderProfileField)}</div> : renderProfileField(entry)))}
+            {group.title === "Contact" && (
+              <Field
+                label="Other phone numbers (comma separated)"
+                value={otherPhonesText}
+                onValue={(value) => {
+                  setOtherPhonesText(value);
+                  setIsSaved(false);
+                }}
+              />
+            )}
           </div>
         </Card>
       ))}

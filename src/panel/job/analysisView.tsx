@@ -5,7 +5,7 @@ export function scoreTone(score: number): string {
   return score >= 70 ? "good" : score >= 45 ? "mid" : "bad";
 }
 
-function ScoreRing({ score }: { score: number }) {
+export function ScoreRing({ score }: { score: number }) {
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, score));

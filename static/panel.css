@@ -21,7 +21,7 @@
   --radius-sm: 10px;
   --shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 4px 14px rgb(0 0 0 / 5%);
   --glass: rgb(245 245 247 / 78%);
-  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+  font: calc(13px + var(--font-bump, 0pt))/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -120,7 +120,7 @@ a:hover,
   color: var(--muted);
   padding: 6px 2px 7px;
   font: inherit;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-bump, 0pt));
   font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -134,11 +134,14 @@ a:hover,
   border-bottom-color: var(--accent);
 }
 .superjob-bar {
-  display: flex;
-  padding: 8px 12px 0;
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 10;
 }
 .superjob-bar .btn {
-  flex: 1;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .tabs .dot {
   position: absolute;
@@ -219,7 +222,7 @@ main {
 }
 .card-head h3,
 .card.collapsible summary h3 {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-bump, 0pt));
   font-weight: 600;
   letter-spacing: -0.1px;
 }
@@ -255,14 +258,14 @@ main {
   gap: 10px;
 }
 .section-title {
-  font-size: 15px;
+  font-size: calc(15px + var(--font-bump, 0pt));
   margin-top: 4px;
 }
 .muted {
   color: var(--muted);
 }
 .small {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .clamp {
   display: -webkit-box;
@@ -272,11 +275,11 @@ main {
 }
 .ok-text {
   color: var(--good);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .dirty-text {
   color: var(--mid);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .save-bar {
   position: sticky;
@@ -396,7 +399,7 @@ textarea:focus {
   overflow: hidden;
   background: var(--surface);
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-bump, 0pt));
   line-height: 1.2;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -422,7 +425,7 @@ textarea:focus {
 .field > textarea:not(:placeholder-shown) + span,
 .field > select + span {
   top: 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-bump, 0pt));
 }
 .field > :focus + span {
   color: var(--accent);
@@ -457,7 +460,7 @@ textarea:focus {
 }
 .field-error {
   color: var(--bad);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 
 /* chips + badges */
@@ -471,7 +474,7 @@ textarea:focus {
   color: var(--text);
   border-radius: 999px;
   padding: 2px 9px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
   border: 1px solid transparent;
 }
 .chip.warn {
@@ -480,7 +483,7 @@ textarea:focus {
 .chip.pick {
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
   text-transform: capitalize;
 }
 .chip.pick.active {
@@ -493,7 +496,7 @@ textarea:focus {
   background: var(--chip);
   border-radius: 4px;
   padding: 1px 6px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-bump, 0pt));
   text-transform: capitalize;
 }
 .basis-posted,
@@ -509,16 +512,16 @@ textarea:focus {
 }
 .badge.score {
   font-weight: 700;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-bump, 0pt));
 }
 
 /* job + analysis */
 .job-title {
-  font-size: 15px;
+  font-size: calc(15px + var(--font-bump, 0pt));
   line-height: 1.3;
 }
 .job-title.small-title {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-bump, 0pt));
   font-weight: 600;
 }
 .job-company {
@@ -539,7 +542,7 @@ textarea:focus {
 }
 .job-foot .btn {
   padding: 4px 11px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .score-row {
   display: flex;
@@ -567,7 +570,7 @@ textarea:focus {
 }
 .ring-text {
   fill: var(--text);
-  font-size: 22px;
+  font-size: calc(22px + var(--font-bump, 0pt));
   font-weight: 700;
 }
 .ring.good {
@@ -583,7 +586,7 @@ textarea:focus {
   font-weight: 600;
 }
 .block h4 {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -618,7 +621,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: calc(15px + var(--font-bump, 0pt));
 }
 .links {
   display: flex;
@@ -662,7 +665,7 @@ textarea:focus {
   gap: 8px;
 }
 .row-item h4 {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .bank-row {
   display: flex;
@@ -671,6 +674,11 @@ textarea:focus {
   gap: 8px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
+}
+.resume-row {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 0;
 }
 .file-btn input {
   display: none;
@@ -685,7 +693,7 @@ textarea:focus {
   padding: 0;
   list-style: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .wizard-steps li.active {
   color: var(--accent);
@@ -697,7 +705,7 @@ textarea:focus {
 .chip.role {
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .chip.role.selected {
   border-color: var(--accent);
@@ -715,7 +723,7 @@ textarea:focus {
 .chip.site {
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
   color: var(--accent);
 }
 .chip.site:hover {
@@ -770,7 +778,7 @@ textarea:focus {
 }
 .preview-head h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: calc(18px + var(--font-bump, 0pt));
 }
 .preview-grid {
   display: grid;
@@ -780,7 +788,7 @@ textarea:focus {
 }
 .preview-pane h2 {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: calc(14px + var(--font-bump, 0pt));
 }
 .preview-page {
   position: relative;
@@ -827,7 +835,7 @@ textarea:focus {
   display: grid;
   gap: 2px;
   margin: 6px 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-bump, 0pt));
 }
 .salary-breakdown > div {
   display: flex;

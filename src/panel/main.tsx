@@ -5,6 +5,7 @@ import type { JobPosting } from "../types.ts";
 import * as activeTab from "./job/activeTab.ts";
 import * as aiContext from "./shared/aiContext.ts";
 import { ApplyTab } from "./apply/applyTab.tsx";
+import * as applyPage from "./apply/openApplyPage.ts";
 import { Card, ErrorNote } from "./shared/controls.tsx";
 import { Icon } from "./shared/icons.tsx";
 import { AnalysisTab } from "./job/analysisTab.tsx";
@@ -111,7 +112,10 @@ function App() {
   }
   const currentJob = active.job ?? lastJob;
   const panels: Record<TabName, ComponentChildren> = {
-    Analysis: <AnalysisTab active={active} hasResume={hasResume} onApply={() => setTab("Apply")} />,
+    Analysis: <AnalysisTab active={active} hasResume={hasResume} onApply={() => {
+      setTab("Apply");
+      if (active.tabId) applyPage.open(active.tabId, active.url, currentJob).catch(console.error);
+    }} />,
     Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} />,
     Track: <TrackerTab />,
     Profile: <ProfileTab />,

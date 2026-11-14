@@ -86,8 +86,11 @@ describe("identity and contact", () => {
     expect(fillOne(field({ label: "", name: "name" }))?.value).toBe("Priya Raman");
   });
 
-  test("middle name is skipped, preferred name uses first name", () => {
+  test("middle name is filled only when the profile has one, preferred name uses first name", () => {
     expect(fillOne(field({ label: "Middle Name" }))).toBeUndefined();
+    expect(mapping.map([field({ label: "Middle Name" })], { ...profile, middleName: "Krishna" }, {})[0]?.value).toBe("Krishna");
+    expect(mapping.map([field({ label: "Middle Initial" })], { ...profile, middleName: "Krishna" }, {})[0]?.value).toBe("K");
+    expect(mapping.map([field({ label: "Alternate phone number" })], { ...profile, otherPhones: ["+91 9632544966"] }, {})[0]?.value).toBe("+91 9632544966");
     expect(fillOne(field({ label: "Preferred Name" }))?.value).toBe("Priya");
   });
 

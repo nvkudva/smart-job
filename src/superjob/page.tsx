@@ -94,6 +94,59 @@ interface SearchFormProps {
   onSearch: (role: string) => void;
 }
 
+function SearchIcon() {
+  return (
+    <svg class="sj-search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </svg>
+  );
+}
+
+/** Reads as a line of text under the search bar; a click turns it into an input that settles on Enter, Escape or blur. */
+function LocationLine({ location, onLocation }: { location: string; onLocation: (location: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (isEditing) inputRef.current?.select();
+  }, [isEditing]);
+  if (isEditing) {
+    return (
+      <label class="sj-where is-editing">
+        <PinIcon />
+        <span class="sr-only">Location</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={location}
+          placeholder="City or region"
+          onInput={(event) => onLocation(event.currentTarget.value)}
+          onBlur={() => setIsEditing(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setIsEditing(false);
+          }}
+        />
+      </label>
+    );
+  }
+  return (
+    <button type="button" class="sj-where" onClick={() => setIsEditing(true)}>
+      <PinIcon />
+      <span>{location.trim() ? `Jobs in ${location.trim()}` : "Anywhere"}</span>
+      <span class="sj-where-edit">{location.trim() ? "Change" : "Add a location"}</span>
+    </button>
+  );
+}
+
 function SearchForm({ role, location, onRole, onLocation, onSearch }: SearchFormProps) {
   return (
     <form
@@ -104,17 +157,14 @@ function SearchForm({ role, location, onRole, onLocation, onSearch }: SearchForm
         onSearch(role);
       }}
     >
-      <label class="sj-role">
-        <span class="sr-only">Role</span>
-        <input type="text" value={role} placeholder="Job title, e.g. Product Manager" onInput={(event) => onRole(event.currentTarget.value)} />
-      </label>
-      <label class="sj-where">
-        <span class="sr-only">Location</span>
-        <input type="text" value={location} placeholder="Location" onInput={(event) => onLocation(event.currentTarget.value)} />
-      </label>
-      <button type="submit" class="btn primary">
-        Search
-      </button>
+      <div class="sj-search">
+        <SearchIcon />
+        <input type="text" class="sj-input" value={role} placeholder="Search job titles, e.g. Product Manager" aria-label="Role" onInput={(event) => onRole(event.currentTarget.value)} />
+        <button type="submit" class="sj-go" aria-label="Search">
+          Search
+        </button>
+      </div>
+      <LocationLine location={location} onLocation={onLocation} />
     </form>
   );
 }

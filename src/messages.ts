@@ -8,6 +8,7 @@ export type ContentRequest =
   | { type: "fillFields"; fills: FieldFill[]; resumeFile?: { name: string; base64: string; mimeType: string } }
   | { type: "clickApply" }
   | { type: "clearHighlights" }
+  | { type: "markUnknown"; unknown: { id: string; isRequired: boolean }[]; shouldScroll: boolean }
   | { type: "focusField"; id: string }
   | { type: "storeCredential"; username: string; password: string };
 
@@ -21,6 +22,7 @@ interface ContentResponses {
   fillFields: FillResult[];
   clickApply: ApplyClick;
   clearHighlights: { ok: true };
+  markUnknown: { ok: true };
   focusField: { ok: boolean };
   storeCredential: { ok: boolean };
 }

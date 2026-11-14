@@ -7,11 +7,19 @@ type ResumeFile = { name: string; base64: string; mimeType: string };
 const pickedText = new WeakMap<HTMLElement, string>();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+interface FillHooks {
+  before?: (fill: FieldFill) => Promise<void>;
+  after?: (fill: FieldFill, result: FillResult) => void;
+}
+
 /** Fill sequentially with short pauses so frameworks can re-render between fields. */
-export async function fillAll(fills: FieldFill[], resumeFile?: ResumeFile): Promise<FillResult[]> {
+export async function fillAll(fills: FieldFill[], resumeFile?: ResumeFile, hooks: FillHooks = {}): Promise<FillResult[]> {
   const results: FillResult[] = [];
   for (const fill of fills) {
-    results.push(await fillOne(fill, resumeFile));
+    await hooks.before?.(fill);
+    const result = await fillOne(fill, resumeFile);
+    results.push(result);
+    hooks.after?.(fill, result);
     await sleep(40);
   }
   return results;

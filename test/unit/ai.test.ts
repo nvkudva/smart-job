@@ -134,6 +134,11 @@ describe("extractProfile", () => {
   test("model years respected; garbage tolerated", () => {
     expect(profileExtract.buildProfile({ yearsExperience: "7" }, "").yearsExperience).toBe(7);
     expect(profileExtract.buildProfile(null, "").firstName).toBe("");
+    expect(profileExtract.buildProfile({ github: "GitHub.", linkedin: "LinkedIn" }, "").github).toBe("");
+    expect(profileExtract.buildProfile({ github: "github.com/jane." }, "").github).toBe("https://github.com/jane");
+    const header = "Vijay Kudva +91 9632544966 | +1 6507721555 | +91 96325 44966\nLinks\nhttps://www.linkedin.com/in/nvkudva/\ntel:+44 7700 900123";
+    const contact = profileExtract.buildProfile({ firstName: "Vijay", middleName: "Krishna" }, header);
+    expect([contact.middleName, contact.phone, contact.otherPhones, contact.linkedin]).toEqual(["Krishna", "+91 9632544966", ["+1 6507721555", "+44 7700 900123"], "https://www.linkedin.com/in/nvkudva/"]);
     expect(profileExtract.buildProfile({ experience: "oops", skills: "a, b; c" }, "").skills).toEqual(["a", "b", "c"]);
   });
   test("re-extraction keeps what the user typed when the resume lacks it", () => {

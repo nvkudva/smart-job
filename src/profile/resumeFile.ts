@@ -34,10 +34,20 @@ export function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function readPdfText(bytes: Uint8Array): Promise<string> {
+async function openPdf(bytes: Uint8Array) {
   pdfjs.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("pdf.worker.min.mjs");
   // pdf.js transfers the buffer to its worker, so give it a copy
-  const document = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+  return pdfjs.getDocument({ data: bytes.slice() }).promise;
+}
+
+/** mailto: and tel: links carry the email and extra phone numbers a resume shows only as an icon or a word. */
+function linkOf(annotation: { url?: string; unsafeUrl?: string }): string | null {
+  const url = annotation.url ?? annotation.unsafeUrl;
+  return typeof url === "string" && /^(https?|mailto|tel):/i.test(url) ? url : null;
+}
+
+async function readPdfText(bytes: Uint8Array): Promise<string> {
+  const document = await openPdf(bytes);
   const pages: string[] = [];
   const links = new Set<string>();
   for (let number = 1; number <= document.numPages; number++) {
@@ -45,10 +55,25 @@ async function readPdfText(bytes: Uint8Array): Promise<string> {
     const content = await page.getTextContent();
     pages.push(joinLines(content.items.filter((item): item is typeof item & TextPiece => "str" in item)));
     for (const annotation of await page.getAnnotations()) {
-      if (typeof annotation.url === "string" && /^https?:/i.test(annotation.url)) links.add(annotation.url);
+      const link = linkOf(annotation);
+      if (link) links.add(link);
     }
   }
   return withLinks(pages.join("\n\n"), [...links]);
+}
+
+/** Resume text saved before links were captured lacks them; the stored PDF still has them. */
+export async function addStoredLinks(resume: Resume | null, text: string): Promise<string> {
+  if (!resume?.fileBase64 || resume.mimeType !== "application/pdf") return text;
+  const document = await openPdf(Uint8Array.from(atob(resume.fileBase64), (char) => char.charCodeAt(0)));
+  const links: string[] = [];
+  for (let number = 1; number <= document.numPages; number++) {
+    for (const annotation of await (await document.getPage(number)).getAnnotations()) {
+      const link = linkOf(annotation);
+      if (link) links.push(link);
+    }
+  }
+  return withLinks(text, links);
 }
 
 export async function read(file: File): Promise<Resume> {

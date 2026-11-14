@@ -13,7 +13,7 @@ function openPdf(entry: TailoredResume): void {
 
 function ResumeRow({ entry, canDelete }: { entry: TailoredResume; canDelete: boolean }) {
   return (
-    <div class="bank-row">
+    <div class="bank-row resume-row">
       <div>
         <strong class="small">{entry.name}</strong>
         <div class="muted small">{entry.changeCount > 0 ? `${entry.changeCount} changes` : "Rewritten"}</div>

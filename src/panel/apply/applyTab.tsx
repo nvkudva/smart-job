@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as session from "../../fill/session.ts";
 import type { FillReport, FillReportItem } from "../../fill/session.ts";
 import * as messages from "../../messages.ts";
+import * as storage from "../../storage.ts";
 import * as selection from "../../superjob/selection.ts";
 import type { FieldFill, JobPosting } from "../../types.ts";
 import * as activeTab from "../job/activeTab.ts";
 import { Button, Card, Check, ErrorNote } from "../shared/controls.tsx";
 import { DocumentsSection } from "../documents/documentsSection.tsx";
+import * as applyPage from "./openApplyPage.ts";
 import { ReportRow } from "./reportRow.tsx";
 import * as trackedJobs from "../job/trackedJobs.ts";
 import { useStored } from "../shared/useStored.ts";
@@ -63,12 +65,10 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     if (!tabId) throw new Error("No tab to apply on.");
     stopRequested.current = false;
     setNote("");
-    const click = job && selection.isPage(tabUrl) ? { result: "link" as const, href: job.url } : await session.clickApply(tabId);
-    // opened from here, not from the page: a click sent by the panel has no user activation, so the page's own tab would be popup-blocked
-    const portalTab = click.result === "link" ? await chrome.tabs.create({ url: click.href, openerTabId: tabId }) : undefined;
-    if (click.result !== "none") await sleep(afterClickMs);
+    const { portalTabId, click } = await applyPage.open(tabId, tabUrl, job);
+    if (portalTabId || click.result !== "none") await sleep(afterClickMs);
     for (let poll = 0; poll < maxFormPolls && !stopRequested.current; poll++) {
-      const target: ApplyTarget = portalTab?.id ? { tabId: portalTab.id, url: (await chrome.tabs.get(portalTab.id)).url ?? "" } : await activeTab.readCurrentTab();
+      const target: ApplyTarget = portalTabId ? { tabId: portalTabId, url: (await chrome.tabs.get(portalTabId)).url ?? "" } : await activeTab.readCurrentTab();
       // Start is the user's go-ahead to type the job-site account into sign-up forms for this run only
       const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true }) : null;
       if (next && next.items.length > 0) {
@@ -85,7 +85,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
   const applyTask = useTask(async (items: FillReportItem[]) => {
     if (!tabId || !report) return;
     const fills: FieldFill[] = items.map((item) => ({ id: item.field.id, frameId: item.field.frameId, value: currentValue(item, edits), source: "user" }));
-    const results = await session.apply(tabId, fills, remember, report.items.map((item) => item.field));
+    const results = await session.apply(tabId, fills, remember, report.items.map((item) => item.field), items);
     const changedKeys = new Set(items.map(itemKey));
     const fillByKey = new Map(items.map((item, index) => [itemKey(item), fills[index]!]));
     setReport({
@@ -110,7 +110,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     await trackedJobs.track(job, { ...(portalUrl && { portalUrl }), ...(hasPasswordFill && account?.email && { accountEmail: account.email }) });
   };
 
-  useAutoFillOnFormChange(tabId, { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy, run: fillTask.run });
+  useAutoFillOnFormChange(tabId, { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy || startTask.isBusy, run: fillTask.run });
 
   const changedItems = (report?.items ?? []).filter((item) => itemKey(item) in edits && edits[itemKey(item)] !== (item.fill?.value ?? ""));
   const [note, setNote] = useState("");
@@ -125,6 +125,9 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
             <span class="grow muted small">{note}</span>
             <Button disabled={!tabId} title="Copy every scanned field as JSON for bug reports" onClick={() => tabId && void copyFieldScan(tabId).then(setNote, (error) => setNote(String(error)))}>
               Copy field scan
+            </Button>
+            <Button title="Copy what SmartJob missed, failed or was corrected on, as JSON" onClick={() => void copyFillLog().then(setNote, (error) => setNote(String(error)))}>
+              Copy fill log
             </Button>
             <Button isBusy={fillTask.isBusy} disabled={!tabId || startTask.isBusy} onClick={() => void fillTask.run(true)}>
               {fillTask.isBusy ? "Filling…" : "Fill this page"}
@@ -231,6 +234,13 @@ function ReportList({ report, edits, onEdit, tabId }: { report: FillReport; edit
       })}
     </>
   );
+}
+
+/** Copies the learning log so misses and corrections can be reviewed or used to improve the mapping rules. */
+async function copyFillLog(): Promise<string> {
+  const log = await storage.get("fillLog");
+  await navigator.clipboard.writeText(JSON.stringify(log, null, 1));
+  return `Copied ${log.length} log entries.`;
 }
 
 /** Copies every scanned field as JSON so a user can report what an unsupported form looks like. */

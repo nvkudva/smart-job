@@ -184,8 +184,15 @@ Rules:
 - For fields with "options", the answer must be exactly one of the option texts, copied verbatim.
 - checkbox with no options: "true" or "false". checkbox with options (a group): one or more option texts joined by " | ".
 - For demographic / EEO questions (gender, race, veteran, disability), choose the option meaning "decline to answer" / "prefer not to say" unless the profile states otherwise.
+- SAVED ANSWERS are the candidate's own earlier answers: reuse one when the question asks the same thing, and ignore it when the question differs (another company, country or role).
 - Free-text questions like "why this company/role": first person, 60-120 words, specific to the job context, no cliches ("passionate", "dynamic", "fast-paced").
 - ${noInvention}`;
+
+/** The candidate's own earlier answers to similar questions; the model may reuse them when the question is really the same. */
+function describeSavedAnswers(saved: { question: string; answer: string }[]): string {
+  if (!saved.length) return "";
+  return `\n\nSAVED ANSWERS (the candidate's own earlier answers to similar questions)\n${saved.map((item) => JSON.stringify(item)).join("\n")}`;
+}
 
 function describeFields(fields: FieldDescriptor[]): string {
   const lines = fields.map((field) =>
@@ -252,12 +259,13 @@ export async function answerFields(
   fields: FieldDescriptor[],
   candidate: CandidateContext,
   job: JobPosting | null,
+  savedAnswers: { question: string; answer: string }[] = [],
 ): Promise<Record<string, string>> {
   const answerable = fields.filter((field) => field.kind !== "file");
   if (answerable.length === 0) return {};
   const raw = await llm.chatJson<unknown>(client, {
     system: fieldsSystem,
-    user: `FIELDS (one JSON per line)\n${describeFields(answerable)}\n\nCANDIDATE\n${describeCandidate(candidate)}\n\nJOB\n${job ? describeJob(job) : "(none)"}`,
+    user: `FIELDS (one JSON per line)\n${describeFields(answerable)}${describeSavedAnswers(savedAnswers)}\n\nCANDIDATE\n${describeCandidate(candidate)}\n\nJOB\n${job ? describeJob(job) : "(none)"}`,
     maxTokens: tokenBudget,
   });
   return normalizeAnswers(raw, answerable);

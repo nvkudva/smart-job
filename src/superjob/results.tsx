@@ -3,7 +3,7 @@ import { Button } from "../panel/shared/controls.tsx";
 import { useStored } from "../panel/shared/useStored.ts";
 import type { JobPosting } from "../types.ts";
 import { JobDetail } from "./jobDetail.tsx";
-import { JobList, scoreFor } from "./jobList.tsx";
+import { JobList } from "./jobList.tsx";
 import type { FoundJob } from "./jobSources.ts";
 import * as posting from "./posting.ts";
 import * as selection from "./selection.ts";
@@ -15,7 +15,6 @@ export interface ChosenJob {
   selected: FoundJob | undefined;
   openedIds: ReadonlySet<string>;
   loaded: JobPosting | undefined;
-  windowId: number | undefined;
   select: (id: string) => void;
 }
 
@@ -64,7 +63,7 @@ export function useChosenJob(jobs: FoundJob[]): ChosenJob {
   useEffect(() => {
     if (selected) setOpenedIds((current) => new Set(current).add(selected.id));
   }, [selected?.id]);
-  return { selected, openedIds, loaded, windowId: tab?.windowId, select: setSelectedId };
+  return { selected, openedIds, loaded, select: setSelectedId };
 }
 
 interface ResultsProps {
@@ -84,7 +83,6 @@ export function Results({ jobs, chosen, isLoading, onLoadMore }: ResultsProps) {
   const tracked = useStored("jobs");
   const stored = { analyses: analyses ?? {}, tracked: tracked ?? {} };
   const { selected } = chosen;
-  const selectedId = selected ? posting.idFor(selected) : "";
   return (
     <>
       <section class="sj-list" aria-label="Job list">
@@ -98,7 +96,7 @@ export function Results({ jobs, chosen, isLoading, onLoadMore }: ResultsProps) {
       </section>
       <section class="sj-detail" aria-label="Job details">
         {selected ? (
-          <JobDetail key={selected.id} job={selected} loaded={chosen.loaded} tracked={stored.tracked[chosen.loaded?.id ?? selectedId]} windowId={chosen.windowId} score={scoreFor(selectedId, stored)} />
+          <JobDetail key={selected.id} job={selected} />
         ) : (
           <p class="muted sj-empty">{isLoading ? "Searching the portals…" : "Select a job to see its details."}</p>
         )}

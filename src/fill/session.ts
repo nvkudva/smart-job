@@ -3,7 +3,8 @@ import * as tasks from "../ai/tasks.ts";
 import type { ApplyClick } from "../messages.ts";
 import { listFrameIds, sendToFrame } from "../messages.ts";
 import * as storage from "../storage.ts";
-import type { FieldDescriptor, FieldFill, FillResult, JobPosting, Profile, Resume } from "../types.ts";
+import type { AnswerBank, FieldDescriptor, FieldFill, FillResult, JobPosting, Profile, Resume } from "../types.ts";
+import * as learning from "./learning.ts";
 import * as mapping from "./mapping.ts";
 
 export interface FillReportItem {
@@ -40,26 +41,22 @@ export async function clickApply(tabId: number): Promise<ApplyClick> {
   return { result: "none" };
 }
 
-const isSingleCheckbox = (field: FieldDescriptor) => field.kind === "checkbox" && field.options.length < 2;
-
-const CONSENT = /privacy (policy|notice)|terms (of|and) (use|service|conditions)|\bconsent\b|\bi agree\b/i;
-
 const isEmpty = (field: FieldDescriptor) => field.currentValue.trim() === "" || field.currentValue === "false";
 
 function needsAnswer(field: FieldDescriptor): boolean {
   if (field.kind === "file" || field.kind === "password" || !isEmpty(field)) return false;
-  return field.required || QUESTION_KINDS.has(field.kind) || (field.kind === "checkbox" && !isSingleCheckbox(field));
+  return field.required || QUESTION_KINDS.has(field.kind) || (field.kind === "checkbox" && !learning.isSingleCheckbox(field));
 }
 
 async function askAi(
   leftovers: FieldDescriptor[],
-  context: { profile: Profile; resume: Resume | null; job: JobPosting | null },
+  context: { profile: Profile; resume: Resume | null; job: JobPosting | null; answers: AnswerBank },
 ): Promise<{ fills: FieldFill[]; failed: boolean }> {
   if (!leftovers.length) return { fills: [], failed: false };
   try {
     const settings = await storage.get("settings");
     const trimmed = leftovers.map((field) => ({ ...field, options: field.options.slice(0, MAX_AI_OPTIONS) }));
-    const answers = await tasks.answerFields(llm.create(settings.provider), trimmed, { profile: context.profile, resumeText: context.resume?.text ?? "" }, context.job);
+    const answers = await tasks.answerFields(llm.create(settings.provider), trimmed, { profile: context.profile, resumeText: context.resume?.text ?? "" }, context.job, learning.similarAnswers(context.answers, leftovers));
     return { fills: aiFills(leftovers, answers), failed: false };
   } catch (error) {
     console.warn("[SmartJob] AI answers failed", error);
@@ -98,19 +95,64 @@ async function sendFills(tabId: number, fills: FieldFill[], resume: Resume | nul
 
 const keyOf = (item: { frameId: number; id: string }) => `${item.frameId}:${item.id}`;
 
-/** scan all frames → deterministic map → answer bank → AI for leftovers → fill → report. */
+async function hostOf(tabId: number): Promise<string> {
+  try {
+    return new URL((await chrome.tabs.get(tabId)).url ?? "").hostname;
+  } catch {
+    return "";
+  }
+}
+
+/** Clears pills and outlines left by an earlier run, in every frame (a frame without fills this time would otherwise keep them). */
+async function clearHighlights(tabId: number): Promise<void> {
+  const frameIds = await listFrameIds(tabId);
+  await Promise.all(frameIds.map((frameId) => sendToFrame(tabId, frameId, { type: "clearHighlights" })));
+}
+
+/** Fields still needing the user once the pass is done (nothing filled, or the fill failed), in page order. */
+function unknownFields(fields: FieldDescriptor[], results: Map<string, FillResult>): FieldDescriptor[] {
+  return fields.filter((field) => needsAnswer(field) && results.get(keyOf(field))?.ok !== true);
+}
+
+/** After all the known fields are filled: a pill on every unknown one, and a jump to the first. */
+async function pointAtUnknown(tabId: number, unknown: FieldDescriptor[]): Promise<void> {
+  const byFrame = Map.groupBy(unknown, (field) => field.frameId);
+  let shouldScroll = true;
+  for (const [frameId, frameFields] of byFrame) {
+    const marked = frameFields.map((field) => ({ id: field.id, isRequired: field.required }));
+    await sendToFrame(tabId, frameId, { type: "markUnknown", unknown: marked, shouldScroll });
+    shouldScroll = false;
+  }
+}
+
+async function logMisses(tabId: number, unknown: FieldDescriptor[], fills: FieldFill[], results: Map<string, FillResult>): Promise<void> {
+  const fillByKey = new Map(fills.map((fill) => [keyOf(fill), fill]));
+  const entries = unknown.filter(learning.isLoggable).map((field) => {
+    const fill = fillByKey.get(keyOf(field));
+    const result = results.get(keyOf(field));
+    if (!fill) return learning.entryOf(field, "unanswered", "none", "", "");
+    return learning.entryOf(field, "failed", fill.source, fill.value, result?.finalValue ?? "", result?.error ?? "no response from the page");
+  });
+  await learning.log(await hostOf(tabId), entries);
+}
+
+/** scan all frames → deterministic map → answer bank → AI for leftovers → fill one by one → point at what is left → report. */
 export async function run(tabId: number, job: JobPosting | null, options: { useAi: boolean; includeAccount: boolean }): Promise<FillReport> {
+  await clearHighlights(tabId);
   const fields = await scanAllFrames(tabId);
   const [profile, resume, answers, settings] = await Promise.all([storage.get("profile"), storage.get("resume"), storage.get("answers"), storage.get("settings")]);
 
   const fills = mapping.map(fields, profile, answers, resume, options.includeAccount ? settings.account : undefined);
   const filledKeys = new Set(fills.map(keyOf));
-  // agreeing to terms, privacy policies or consent is the user's decision: single checkboxes and consent questions never go to the model
-  const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !isSingleCheckbox(field) && !CONSENT.test(`${field.label} ${field.options.join(" ")}`));
-  const ai = options.useAi ? await askAi(leftovers, { profile, resume, job }) : { fills: [], failed: false };
-  const allFills = [...fills, ...ai.fills];
+  const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !learning.isUserDecision(field));
+  const ai = options.useAi ? await askAi(leftovers, { profile, resume, job, answers }) : { fills: [], failed: false };
+  const fieldOrder = new Map(fields.map((field, index) => [keyOf(field), index]));
+  const allFills = [...fills, ...ai.fills].sort((a, b) => fieldOrder.get(keyOf(a))! - fieldOrder.get(keyOf(b))!);
 
   const results = await sendFills(tabId, allFills, resume);
+  const unknown = unknownFields(fields, results);
+  await pointAtUnknown(tabId, unknown);
+  await logMisses(tabId, unknown, allFills, results);
   return buildReport(fields, allFills, results, ai.failed);
 }
 
@@ -132,24 +174,31 @@ function buildReport(fields: FieldDescriptor[], fills: FieldFill[], results: Map
   return { items, filledCount, needsReviewCount };
 }
 
-/** Re-apply user-edited values (source "user"), optionally saving them to the answer bank. */
-export async function apply(tabId: number, fills: FieldFill[], saveToAnswerBank: boolean, fields: FieldDescriptor[]): Promise<FillResult[]> {
+/** Re-apply user-edited values (source "user"), optionally saving them to the answer bank. `items` are the report rows being edited, so the log can say what we had put there. */
+export async function apply(tabId: number, fills: FieldFill[], saveToAnswerBank: boolean, fields: FieldDescriptor[], items: FillReportItem[] = []): Promise<FillResult[]> {
   const resume = fills.some((fill) => fill.source === "resume") ? await storage.get("resume") : null;
   const results = await sendFills(tabId, fills, resume);
+  await logPanelEdits(tabId, fills, items);
   if (saveToAnswerBank) await saveAnswers(fills, fields);
   return fills.flatMap((fill) => results.get(keyOf(fill)) ?? []);
 }
 
+async function logPanelEdits(tabId: number, fills: FieldFill[], items: FillReportItem[]): Promise<void> {
+  const itemByKey = new Map(items.map((item) => [keyOf(item.field), item]));
+  const entries = fills.flatMap((fill) => {
+    const item = itemByKey.get(keyOf(fill));
+    if (!item || !learning.isLoggable(item.field)) return [];
+    const source = item.fill?.source ?? "none";
+    return [learning.entryOf(item.field, source === "none" ? "learned" : "edited", source, item.fill?.value ?? "", fill.value)];
+  });
+  await learning.log(await hostOf(tabId), entries);
+}
+
 async function saveAnswers(fills: FieldFill[], fields: FieldDescriptor[]): Promise<void> {
   const fieldByKey = new Map(fields.map((field) => [keyOf(field), field]));
-  const now = Date.now();
-  await storage.update("answers", (answers) => {
-    const next = { ...answers };
-    for (const fill of fills) {
-      const field = fieldByKey.get(keyOf(fill));
-      const key = field ? mapping.normalize(field.label) : "";
-      if (key && fill.source === "user" && fill.value.trim() && field?.kind !== "file" && field?.kind !== "password") next[key] = { question: field!.label, answer: fill.value, updatedAt: now };
-    }
-    return next;
+  const edited = fills.flatMap((fill) => {
+    const field = fieldByKey.get(keyOf(fill));
+    return field && fill.source === "user" ? [{ field, value: fill.value }] : [];
   });
+  await learning.rememberAnswers(edited);
 }

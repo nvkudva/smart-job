@@ -11,7 +11,8 @@ import { useTask } from "../shared/useTask.ts";
 
 /** Extracts a profile from the resume text and merges it into the stored one so typed fields survive. */
 export async function saveExtractedProfile(text: string): Promise<void> {
-  const extracted = await aiContext.run(({ client }) => tasks.extractProfile(client, text));
+  const withLinks = await resumeFile.addStoredLinks(await storage.get("resume"), text);
+  const extracted = await aiContext.run(({ client }) => tasks.extractProfile(client, withLinks));
   const previous = await storage.get("profile");
   await storage.set("profile", profileExtract.mergeInto(previous, extracted));
 }
