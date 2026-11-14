@@ -27,8 +27,8 @@ function ModelField({ provider, ids, onProvider }: { provider: ProviderSettings;
   return (
     <>
       <label class="field">
+        <input list={modelListId} placeholder=" " value={provider.model} onInput={(event) => onProvider({ model: event.currentTarget.value })} />
         <span>Model</span>
-        <input list={modelListId} value={provider.model} onInput={(event) => onProvider({ model: event.currentTarget.value })} />
       </label>
       <datalist id={modelListId}>
         {ids.map((id) => (
@@ -76,8 +76,10 @@ export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
 
   return (
     <>
-      <Choice label="Provider" value={presetName} options={[...presetNames, customPreset]} onValue={choosePreset} />
-      <Choice label="API type" value={provider.kind} options={[["openai", "OpenAI-compatible"], ["anthropic", "Anthropic"]]} onValue={(kind) => onProvider({ kind: kind as ProviderSettings["kind"] })} />
+      <div class="grid2">
+        <Choice label="Provider" value={presetName} options={[...presetNames, customPreset]} onValue={choosePreset} />
+        <Choice label="API type" value={provider.kind} options={[["openai", "OpenAI-compatible"], ["anthropic", "Anthropic"]]} onValue={(kind) => onProvider({ kind: kind as ProviderSettings["kind"] })} />
+      </div>
       <Field label="Base URL" value={provider.baseUrl} onValue={(baseUrl) => onProvider({ baseUrl })} />
       <Field label="API key" type="password" value={provider.apiKey} placeholder="Not needed for local models" onValue={(apiKey) => onProvider({ apiKey })} />
       {keyPage && (

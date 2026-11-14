@@ -193,6 +193,12 @@ function noticePeriod({ profile, field }: Context): string | undefined {
   return String(/\bdays?\b/i.test(field.label) ? amount * daysPerUnit : amount);
 }
 
+/** Profile salaries are stored grouped ("1,200,000"); number inputs on job sites reject the commas. */
+function salary(amount: string, { field }: Context): string | undefined {
+  if (!amount) return undefined;
+  return field.kind === "number" ? amount.replace(/,/g, "") : amount;
+}
+
 function cityState({ profile }: Context): string | undefined {
   return [profile.city, profile.state].filter(Boolean).join(", ") || undefined;
 }
@@ -211,8 +217,8 @@ const questionRules: Rule[] = [
   [/disabilit/, ({ profile }) => eeo(profile.disabilityStatus)],
   [/pronoun/, ({ profile }) => profile.pronouns || undefined],
   [/how did you hear|hear(d)? about|where did you (hear|find|learn)|referral source|source of (application|referral)/, hearAbout],
-  [/(current|present|last|existing)( \S+){0,2} (ctc|salary|compensation|pay|package)/, ({ profile }) => profile.currentSalary || undefined],
-  [/salary|compensation|desired pay|pay expectation|expected pay|\bctc\b/, ({ profile }) => profile.salaryExpectation || undefined],
+  [/(current|present|last|existing)( \S+){0,2} (ctc|salary|compensation|pay|package)/, (context) => salary(context.profile.currentSalary, context)],
+  [/salary|compensation|desired pay|pay expectation|expected pay|\bctc\b/, (context) => salary(context.profile.salaryExpectation, context)],
   [/notice period|how soon|when (can|could|would) you (start|join)|available to start|earliest (start|available)|availability|start date/, noticePeriod],
   [/years? of (relevant |professional |work |total )?experience|total experience|how many years/, yearsExperience],
 ];

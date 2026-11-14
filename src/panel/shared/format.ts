@@ -10,6 +10,13 @@ export function money(amount: number, currency: string, locale?: string): string
   }
 }
 
+/** "1200000" → "1,200,000" while typing; text with letters or symbols ("12 LPA", "$90k") is left as typed. */
+export function groupDigits(text: string, locale?: string): string {
+  if (!/^[\d,]+$/.test(text)) return text;
+  const digits = text.replace(/,/g, "");
+  return digits ? new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Number(digits)) : "";
+}
+
 export function moneyRange(min: number | null, max: number | null, currency: string, locale?: string): string {
   if (min !== null && max !== null && min !== max) return `${money(min, currency, locale)} – ${money(max, currency, locale)}`;
   return money((min ?? max)!, currency, locale);

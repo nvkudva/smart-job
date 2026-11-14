@@ -34,8 +34,11 @@ function AiSection({ initial }: { initial: Settings }) {
       </Card>
       <Card title="Job-site account">
         <div class="stack tight">
-          <Field label="Email" type="email" value={draft.account.email} placeholder="Used on sign-up / sign-in pages" onValue={(email) => change({ account: { ...draft.account, email } })} />
-          <Field label="Password" type="password" value={draft.account.password} placeholder="Stored on this device only, never sent to the AI" onValue={(password) => change({ account: { ...draft.account, password } })} />
+          <p class="muted small">Used on sign-up / sign-in pages. Stored on this device only, never sent to the AI.</p>
+          <div class="grid2">
+          <Field label="Email" type="email" value={draft.account.email} onValue={(email) => change({ account: { ...draft.account, email } })} />
+          <Field label="Password" type="password" value={draft.account.password} onValue={(password) => change({ account: { ...draft.account, password } })} />
+          </div>
         </div>
       </Card>
       <SaveBar isDirty={isDirty} isSaved={isSaved} label="Save settings" onSave={() => void save()} />

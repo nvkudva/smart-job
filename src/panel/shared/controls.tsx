@@ -55,13 +55,13 @@ interface FieldProps {
 
 export function Field({ label, value, onValue, type = "text", placeholder, rows }: FieldProps) {
   return (
-    <label class="field">
-      <span>{label}</span>
+    <label class={`field${rows ? " area" : ""}`}>
       {rows ? (
-        <textarea rows={rows} value={value} placeholder={placeholder} onInput={(event) => onValue(event.currentTarget.value)} />
+        <textarea rows={rows} value={value} placeholder={placeholder ?? " "} onInput={(event) => onValue(event.currentTarget.value)} />
       ) : (
-        <input type={type as "text"} value={value} placeholder={placeholder} onInput={(event) => onValue(event.currentTarget.value)} />
+        <input type={type as "text"} value={value} placeholder={placeholder ?? " "} onInput={(event) => onValue(event.currentTarget.value)} />
       )}
+      <span>{label}</span>
     </label>
   );
 }
@@ -71,13 +71,13 @@ export type ChoiceOption = string | readonly [value: string, label: string];
 export function Choice({ label, value, options, onValue }: { label: string; value: string; options: ChoiceOption[]; onValue: (value: string) => void }) {
   return (
     <label class="field">
-      <span>{label}</span>
       <select value={value} onChange={(event) => onValue(event.currentTarget.value)}>
         {options.map((option) => {
           const [optionValue, optionLabel] = typeof option === "string" ? [option, option] : option;
           return <option value={optionValue}>{optionLabel}</option>;
         })}
       </select>
+      <span>{label}</span>
     </label>
   );
 }

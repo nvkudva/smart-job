@@ -3,6 +3,7 @@ import * as roles from "../../ai/roles.ts";
 import * as storage from "../../storage.ts";
 import type { Profile, ProviderSettings, Settings, YesNo } from "../../types.ts";
 import * as aiClient from "../shared/aiClient.ts";
+import * as format from "../shared/format.ts";
 import { Button, Card, Check, Choice, ErrorNote, Field } from "../shared/controls.tsx";
 import { JobSearchLinks } from "../job/jobSearchLinks.tsx";
 import { runImport } from "./linkedinButton.tsx";
@@ -94,21 +95,35 @@ function ReviewForm({ initial, onNext }: { initial: Profile; onNext: () => void 
     <Card title="3. Review your details">
       <div class="stack tight">
         <p class="muted small">Check what was found and fill the blanks a resume cannot give. You can change everything later in Settings.</p>
-        <Field label="First name" value={draft.firstName} onValue={(firstName) => change({ firstName })} />
-        <Field label="Last name" value={draft.lastName} onValue={(lastName) => change({ lastName })} />
-        <Field label="Email" type="email" value={draft.email} onValue={(email) => change({ email })} />
-        <Field label="Phone" type="tel" value={draft.phone} onValue={(phone) => change({ phone })} />
-        <Field label="City" value={draft.city} onValue={(city) => change({ city })} />
-        <Field label="State / region" value={draft.state} onValue={(state) => change({ state })} />
-        <Field label="Country" value={draft.country} onValue={(country) => change({ country })} />
+        <div class="grid2">
+          <Field label="First name" value={draft.firstName} onValue={(firstName) => change({ firstName })} />
+          <Field label="Last name" value={draft.lastName} onValue={(lastName) => change({ lastName })} />
+        </div>
+        <div class="grid2">
+          <Field label="Email" type="email" value={draft.email} onValue={(email) => change({ email })} />
+          <Field label="Phone" type="tel" value={draft.phone} onValue={(phone) => change({ phone })} />
+        </div>
+        <div class="grid2">
+          <Field label="City" value={draft.city} onValue={(city) => change({ city })} />
+          <Field label="State / region" value={draft.state} onValue={(state) => change({ state })} />
+        </div>
+        <div class="grid2">
+          <Field label="Country" value={draft.country} onValue={(country) => change({ country })} />
+          <Field label="Years of experience" type="number" value={String(draft.yearsExperience)} onValue={(value) => change({ yearsExperience: Number(value) || 0 })} />
+        </div>
         <Field label="Current or last title" value={draft.currentTitle} onValue={(currentTitle) => change({ currentTitle })} />
-        <Field label="Years of experience" type="number" value={String(draft.yearsExperience)} onValue={(value) => change({ yearsExperience: Number(value) || 0 })} />
-        {yesNo("Authorized to work", "workAuthorized")}
-        {yesNo("Requires sponsorship", "requiresSponsorship")}
-        {yesNo("Willing to relocate", "willingToRelocate")}
-        <Field label="Current salary / CTC" value={draft.currentSalary} onValue={(currentSalary) => change({ currentSalary })} />
-        <Field label="Salary expectation" value={draft.salaryExpectation} onValue={(salaryExpectation) => change({ salaryExpectation })} />
-        <Field label="Notice period" value={draft.noticePeriod} onValue={(noticePeriod) => change({ noticePeriod })} />
+        <div class="grid2">
+          {yesNo("Authorized to work", "workAuthorized")}
+          {yesNo("Requires sponsorship", "requiresSponsorship")}
+        </div>
+        <div class="grid2">
+          {yesNo("Willing to relocate", "willingToRelocate")}
+          <Field label="Notice period" value={draft.noticePeriod} onValue={(noticePeriod) => change({ noticePeriod })} />
+        </div>
+        <div class="grid2">
+          <Field label="Current salary / CTC" value={draft.currentSalary} onValue={(currentSalary) => change({ currentSalary: format.groupDigits(currentSalary) })} />
+          <Field label="Salary expectation" value={draft.salaryExpectation} onValue={(salaryExpectation) => change({ salaryExpectation: format.groupDigits(salaryExpectation) })} />
+        </div>
         <Button kind="primary" onClick={() => void save()}>
           Save and continue
         </Button>
@@ -164,12 +179,14 @@ function SearchForm({ profile }: { profile: Profile }) {
             </button>
           ))}
         </div>
-        <div class="row">
+        <div class="grid2">
+          <Field label="Location" value={location} onValue={setLocation} />
           <Field label="Add a role" value={custom} onValue={setCustom} />
-          <Button onClick={addCustom}>Add</Button>
         </div>
-        <Field label="Location" value={location} onValue={setLocation} />
-        <Check label="Remote" checked={isRemote} onChecked={setIsRemote} />
+        <div class="row between">
+          <Check label="Remote" checked={isRemote} onChecked={setIsRemote} />
+          <Button onClick={addCustom}>Add role</Button>
+        </div>
         <JobSearchLinks searches={searches} />
         <Button kind="primary" onClick={() => void finish()}>
           Finish

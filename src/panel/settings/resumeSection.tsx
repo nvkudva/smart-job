@@ -60,10 +60,10 @@ export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean
           </FileButton>
         </div>
         <ErrorNote message={readFile.error} />
-        <label class="field">
-          <span>or paste text</span>
+        <label class="field area">
           <textarea
             rows={8}
+            placeholder=" "
             aria-label="Resume text"
             value={text}
             onInput={(event) => {
@@ -72,6 +72,7 @@ export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean
               if (isOnboarding) void saveResume(baseResume(), event.currentTarget.value);
             }}
           />
+          <span>or paste text</span>
         </label>
         {stored?.fileName && stored.fileBase64 && <span class="muted small">Stored file: {stored.fileName} (attached to upload fields)</span>}
         <div class="actions">
