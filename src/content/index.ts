@@ -1,5 +1,6 @@
 // CONTRACT (owned by supervisor): router only. Job extraction lives in job.ts, forms in form/.
 import type { ContentRequest } from "../messages.ts";
+import * as applyButton from "./applyButton.ts";
 import * as job from "./job.ts";
 import * as form from "./form/index.ts";
 
@@ -21,6 +22,8 @@ async function respond(request: ContentRequest): Promise<unknown> {
       return form.scan();
     case "fillFields":
       return form.fill(request.fills, request.resumeFile);
+    case "clickApply":
+      return applyButton.click();
     case "clearHighlights":
       form.clearHighlights();
       return { ok: true };

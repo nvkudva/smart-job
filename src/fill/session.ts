@@ -1,5 +1,6 @@
 import * as llm from "../ai/llm.ts";
 import * as tasks from "../ai/tasks.ts";
+import type { ApplyClick } from "../messages.ts";
 import { listFrameIds, sendToFrame } from "../messages.ts";
 import * as storage from "../storage.ts";
 import type { FieldDescriptor, FieldFill, FillResult, JobPosting, Profile, Resume } from "../types.ts";
@@ -27,6 +28,16 @@ async function scanAllFrames(tabId: number): Promise<FieldDescriptor[]> {
     fields.push(...scanned.map((field) => ({ ...field, frameId })));
   }
   return fields;
+}
+
+/** The first frame (top frame first) that has an Apply control; it is clicked there, or its link is returned. */
+export async function clickApply(tabId: number): Promise<ApplyClick> {
+  const frameIds = [...(await listFrameIds(tabId))].sort((a, b) => (a === 0 ? -1 : b === 0 ? 1 : a - b));
+  for (const frameId of frameIds) {
+    const outcome = await sendToFrame(tabId, frameId, { type: "clickApply" });
+    if (outcome && outcome.result !== "none") return outcome;
+  }
+  return { result: "none" };
 }
 
 const isSingleCheckbox = (field: FieldDescriptor) => field.kind === "checkbox" && field.options.length < 2;

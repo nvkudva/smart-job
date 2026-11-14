@@ -138,6 +138,26 @@ test("apply tab runs a fill and never crashes the panel", async () => {
   await panel.close();
 }, 60000);
 
+test("start applying opens the Apply link, fills the form and does not submit", async () => {
+  await h.seed({
+    settings: { provider: provider(), autoFillOnPageChange: false, autoAnalyze: false, salarySearch: false, account: { email: "", password: "" } },
+    resume,
+    profile: { ...emptyProfile, firstName: "Ada", lastName: "Lovelace", email: "ada@example.com" },
+    jobs: {},
+    analyses: {},
+  });
+  const panel = await openPanelOnJob("apply-job.html");
+  await panel.getByRole("tab", { name: "Apply" }).click();
+  const apply = panel.getByRole("tabpanel", { name: "Apply" });
+  await apply.getByRole("button", { name: "Start applying" }).click();
+  await visible(apply.getByText("Filled. Review it, then submit yourself."), 40000);
+  const portal = h.context.pages().find((candidate) => candidate.url().includes("lever-apply.html"));
+  expect(portal).toBeDefined();
+  expect(await portal!.locator("#name").inputValue()).toBe("Ada Lovelace");
+  expect(await portal!.locator("#email").inputValue()).toBe("ada@example.com");
+  await panel.close();
+}, 90000);
+
 test("setup wizard: provider, profile, review, job searches, then tabs", async () => {
   await h.seed({ setupComplete: false, resume: null, profile: emptyProfile, jobSearches: [] });
   const panel = await h.openPanel();

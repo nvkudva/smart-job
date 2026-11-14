@@ -6,15 +6,20 @@ export type ContentRequest =
   | { type: "extractJob" }
   | { type: "scanFields" }
   | { type: "fillFields"; fills: FieldFill[]; resumeFile?: { name: string; base64: string; mimeType: string } }
+  | { type: "clickApply" }
   | { type: "clearHighlights" }
   | { type: "focusField"; id: string }
   | { type: "storeCredential"; username: string; password: string };
+
+/** Outcome of looking for the job page's Apply control: a link to open, a button already clicked, or nothing. */
+export type ApplyClick = { result: "none" } | { result: "clicked"; label: string } | { result: "link"; href: string; label: string };
 
 export interface ContentResponses {
   ping: { ok: true; url: string; isTop: boolean };
   extractJob: JobPosting | null;
   scanFields: FieldDescriptor[];
   fillFields: FillResult[];
+  clickApply: ApplyClick;
   clearHighlights: { ok: true };
   focusField: { ok: boolean };
   storeCredential: { ok: boolean };

@@ -3,6 +3,7 @@ import * as session from "../../fill/session.ts";
 import type { FillReport, FillReportItem } from "../../fill/session.ts";
 import * as messages from "../../messages.ts";
 import type { FieldFill, JobPosting } from "../../types.ts";
+import * as activeTab from "../job/activeTab.ts";
 import { Button, Card, Check, ErrorNote } from "../shared/controls.tsx";
 import { DocumentsSection } from "../documents/documentsSection.tsx";
 import { ReportRow } from "./reportRow.tsx";
@@ -11,6 +12,15 @@ import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
 
 const autoFillDelayMs = 1200;
+const afterClickMs = 1500;
+const formPollMs = 1000;
+const maxFormPolls = 15;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+interface ApplyTarget {
+  tabId: number | null;
+  url: string;
+}
 const itemKey = (item: FillReportItem) => `${item.field.frameId}:${item.field.id}`;
 
 type Group = "Filled" | "Needs review" | "Skipped";
@@ -40,13 +50,37 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
   const [remember, setRemember] = useState(true);
   const [isMarked, setIsMarked] = useState(false);
 
-  // the account password is filled only on an explicit click, never by auto-fill on a page the user did not choose
+  // the account password is filled only on an explicit click (Fill this page or Start applying), never by auto-fill on a page the user did not choose
   const fillTask = useTask(async (isUserClick: boolean) => {
     if (!tabId) throw new Error("No tab to fill.");
     const next = await session.run(tabId, job, { useAi, includeAccount: isUserClick });
     setReport(next);
     setEdits({});
-    if (isUserClick) await rememberApplication(next);
+    if (isUserClick) await rememberApplication(next, { tabId, url: tabUrl });
+  });
+  const stopRequested = useRef(false);
+  const startTask = useTask(async () => {
+    if (!tabId) throw new Error("No tab to apply on.");
+    stopRequested.current = false;
+    setNote("");
+    const click = await session.clickApply(tabId);
+    // opened from here, not from the page: a click sent by the panel has no user activation, so the page's own tab would be popup-blocked
+    const portalTab = click.result === "link" ? await chrome.tabs.create({ url: click.href, openerTabId: tabId }) : undefined;
+    if (click.result !== "none") await sleep(afterClickMs);
+    for (let poll = 0; poll < maxFormPolls && !stopRequested.current; poll++) {
+      const target: ApplyTarget = portalTab?.id ? { tabId: portalTab.id, url: (await chrome.tabs.get(portalTab.id)).url ?? "" } : await activeTab.readCurrentTab();
+      // Start is the user's go-ahead to type the job-site account into sign-up forms for this run only
+      const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true }) : null;
+      if (next && next.items.length > 0) {
+        setReport(next);
+        setEdits({});
+        await rememberApplication(next, target);
+        setNote("Filled. Review it, then submit yourself.");
+        return;
+      }
+      await sleep(formPollMs);
+    }
+    if (!stopRequested.current) setNote(click.result === "none" ? "No Apply button or form found here." : "No form appeared. Click Apply on the page, then press Fill this page.");
   });
   const applyTask = useTask(async (items: FillReportItem[]) => {
     if (!tabId || !report) return;
@@ -65,14 +99,14 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
   });
 
   /** Keeps where the user applied (and which login) with the tracked job, and offers a created account to the browser's password manager. */
-  const rememberApplication = async (filled: FillReport) => {
+  const rememberApplication = async (filled: FillReport, target: ApplyTarget) => {
     const hasPasswordFill = filled.items.some((item) => item.field.kind === "password" && item.result?.ok);
     const account = settings?.account;
-    if (hasPasswordFill && tabId && account?.email && account.password) {
-      await messages.sendToFrame(tabId, 0, { type: "storeCredential", username: account.email, password: account.password });
+    if (hasPasswordFill && target.tabId && account?.email && account.password) {
+      await messages.sendToFrame(target.tabId, 0, { type: "storeCredential", username: account.email, password: account.password });
     }
     if (!job || filled.filledCount === 0) return;
-    const portalUrl = tabUrl && tabUrl !== job.url ? tabUrl : undefined;
+    const portalUrl = target.url && target.url !== job.url ? target.url : undefined;
     await trackedJobs.track(job, { ...(portalUrl && { portalUrl }), ...(hasPasswordFill && account?.email && { accountEmail: account.email }) });
   };
 
@@ -99,7 +133,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     const frameIds = await messages.listFrameIds(tabId);
     await Promise.all(frameIds.map((frameId) => messages.sendToFrame(tabId, frameId, { type: "clearHighlights" })));
   };
-  const [scanNote, setScanNote] = useState("");
+  const [note, setNote] = useState("");
 
   const markApplied = async () => {
     if (!job) return;
@@ -112,18 +146,25 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
       <Card title="Autofill">
         <div class="stack tight">
           <Check label="Use AI for unanswered questions" checked={useAi} onChecked={setUseAi} />
-          <p class="muted small">SmartJob never submits — review and click Submit yourself.</p>
+          <p class="muted small">Start applying opens the Apply page and fills the form. SmartJob never submits — review and click Submit yourself.</p>
           <div class="actions">
-            <span class="grow muted small">{scanNote}</span>
-            <Button disabled={!tabId} title="Copy every scanned field as JSON for bug reports" onClick={() => tabId && void copyFieldScan(tabId).then(setScanNote, (error) => setScanNote(String(error)))}>
+            <span class="grow muted small">{note}</span>
+            <Button disabled={!tabId} title="Copy every scanned field as JSON for bug reports" onClick={() => tabId && void copyFieldScan(tabId).then(setNote, (error) => setNote(String(error)))}>
               Copy field scan
             </Button>
-            <Button kind="primary" isBusy={fillTask.isBusy} disabled={!tabId} onClick={() => void fillTask.run(true)}>
+            <Button isBusy={fillTask.isBusy} disabled={!tabId || startTask.isBusy} onClick={() => void fillTask.run(true)}>
               {fillTask.isBusy ? "Filling…" : "Fill this page"}
             </Button>
+            {startTask.isBusy ? (
+              <Button onClick={() => (stopRequested.current = true)}>Stop</Button>
+            ) : (
+              <Button kind="primary" disabled={!tabId || fillTask.isBusy} onClick={() => void startTask.run()}>
+                Start applying
+              </Button>
+            )}
           </div>
         </div>
-        <ErrorNote message={fillTask.error} onRetry={() => void fillTask.run(true)} />
+        <ErrorNote message={fillTask.error || startTask.error} onRetry={() => void (startTask.error ? startTask.run() : fillTask.run(true))} />
       </Card>
       {report && (
         <ReportList report={report} edits={edits} onEdit={(key, value) => setEdits({ ...edits, [key]: value })} tabId={tabId} />

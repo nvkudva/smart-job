@@ -19,7 +19,7 @@ export interface ActiveJob extends TabInfo {
   isDetecting: boolean;
 }
 
-async function readCurrentTab(): Promise<TabInfo> {
+export async function readCurrentTab(): Promise<TabInfo> {
   const tab = pinnedTabId
     ? await chrome.tabs.get(pinnedTabId).catch(() => undefined)
     : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
