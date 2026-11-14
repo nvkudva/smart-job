@@ -48,7 +48,7 @@ describe("analyzeJob", () => {
       '<think>scoring</think>Here you go:\n```json\n{"summary": "A backend role.", "mustHave": "Python; AWS", "niceToHave": ["React", "React"], "matchScore": "140", "strengths": ["Python",], "gaps": null,}\n```',
     ]);
     const result = await tasks.analyzeJob(fake, job, candidate);
-    expect(result).toMatchObject({ summary: "A backend role.", mustHave: ["Python", "AWS"], niceToHave: ["React"], matchScore: 100, strengths: ["Python"], gaps: [], verdict: "Strong match" });
+    expect(result).toMatchObject({ summary: "A backend role.", mustHave: ["Python", "AWS"], niceToHave: ["React"], matchScore: 100, strengths: ["Python"], gaps: [], verdict: "Strong match - apply" });
     expect(result.matchedSkills).toContain("Python");
     expect(result.missingSkills).toContain("Terraform");
     expect(result.keywordScore).toBeGreaterThan(0);
@@ -59,13 +59,36 @@ describe("analyzeJob", () => {
     expect(tasks.normalizeAnalysis({ overview: ["flat list"] }).overview).toBeUndefined();
     expect(tasks.normalizeAnalysis({ highlights: ["old"] }).overview).toBeUndefined();
   });
+  test("the score comes from the ratings: weights, seniority, renormalising, blocker cap", () => {
+    const yes = "yes" as const;
+    const no = "no" as const;
+    const partial = "partial" as const;
+    expect(tasks.scoreAnalysis({ mustHaveMet: [yes, yes], niceToHaveMet: [yes], seniority: "match", blockers: [] })).toBe(100);
+    // must 0.75*70 + seniority 1*15 + nice 1*15 = 82.5 of 100
+    expect(tasks.scoreAnalysis({ mustHaveMet: [yes, partial], niceToHaveMet: [yes], seniority: "match", blockers: [] })).toBe(83);
+    // no seniority and no nice-to-have: only the must-have weight counts
+    expect(tasks.scoreAnalysis({ mustHaveMet: [yes, no], blockers: [] })).toBe(50);
+    expect(tasks.scoreAnalysis({ mustHaveMet: [yes, yes], seniority: "under", blockers: [] })).toBe(Math.round(((70 + 0.3 * 15) / 85) * 100));
+    expect(tasks.scoreAnalysis({ mustHaveMet: [yes, yes], seniority: "match", blockers: ["Needs a visa"] })).toBe(44);
+    expect(tasks.scoreAnalysis({ mustHaveMet: [], blockers: [] })).toBeUndefined();
+  });
+  test("a blocker forces skip; without ratings the model's own score or the keyword score is used", () => {
+    expect(tasks.normalizeAnalysis({ mustHave: [{ requirement: "Go", met: "yes" }], blockers: ["Onsite in Berlin"] })).toMatchObject({ matchScore: 44, verdict: "Weak match - skip", blockers: ["Onsite in Berlin"] });
+    expect(tasks.normalizeAnalysis({ mustHave: ["Go"] }, 61)).toMatchObject({ matchScore: 61, verdict: "Possible match - stretch" });
+    expect(tasks.normalizeAnalysis({ mustHave: ["Go"], matchScore: 90 }, 61).matchScore).toBe(90);
+  });
+  test("nice-to-haves can be rated, seniority is an enum, strengths and gaps keep three", () => {
+    const result = tasks.normalizeAnalysis({ niceToHave: [{ requirement: "Preact", met: "yes" }], seniority: "Over", strengths: ["a", "b", "c", "d"], gaps: ["x"], reason: "Strong stack fit" });
+    expect(result).toMatchObject({ niceToHave: ["Preact"], niceToHaveMet: ["yes"], seniority: "over", strengths: ["a", "b", "c"], reason: "Strong stack fit" });
+    expect(tasks.normalizeAnalysis({ seniority: "senior-ish" }).seniority).toBeUndefined();
+  });
   test("retries on non-JSON and truncates long input", async () => {
     const fake = new FakeLlm(["no idea", '{"matchScore": 30}']);
     const long = { ...job, description: "x".repeat(20000) };
     const result = await tasks.analyzeJob(fake, long, { ...candidate, resumeText: "y".repeat(20000) });
     expect(fake.requests).toHaveLength(2);
     expect(fake.requests[0]!.user.length).toBeLessThan(13500);
-    expect(result).toMatchObject({ matchScore: 30, verdict: "Weak match", summary: "" });
+    expect(result).toMatchObject({ matchScore: 30, verdict: "Weak match - skip", summary: "" });
   });
   test("throws when the model never returns JSON", async () => {
     await expect(tasks.analyzeJob(new FakeLlm(["nope"]), job, candidate)).rejects.toThrow();
@@ -122,9 +145,9 @@ describe("extractProfile", () => {
     const raw = { currentCompany: "Career break", experience: [{ title: "Sabbatical", company: "", start: "2025-05", end: "present" }, { title: "EM", company: "Uber", start: "2018-12", end: "2025-05" }] };
     expect(profileExtract.buildProfile(raw, "").currentCompany).toBe("Uber");
   });
-  test("must-haves rated by the model keep their verdicts; unknown verdicts read as no", () => {
+  test("must-haves rated by the model keep their verdicts; unreadable verdicts read as partial", () => {
     const rated = tasks.normalizeAnalysis({ mustHave: [{ requirement: "Leads teams", met: "Yes" }, { requirement: "Go", met: "partial" }, { requirement: "Rust", met: "maybe" }] });
-    expect(rated).toMatchObject({ mustHave: ["Leads teams", "Go", "Rust"], mustHaveMet: ["yes", "partial", "no"] });
+    expect(rated).toMatchObject({ mustHave: ["Leads teams", "Go", "Rust"], mustHaveMet: ["yes", "partial", "partial"] });
   });
   test("normalizeMonth", () => {
     expect(profileExtract.normalizeMonth("Mar 2021")).toBe("2021-03");

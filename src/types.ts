@@ -148,6 +148,7 @@ export interface CompanyPerks {
 }
 
 export type MustHaveMet = "yes" | "partial" | "no";
+export type Seniority = "under" | "match" | "over";
 
 export interface JobAnalysis {
   /** paragraph from analyses cached before highlights existed; new analyses leave it empty */
@@ -160,9 +161,17 @@ export interface JobAnalysis {
   /** the model's verdict per mustHave item, same order; absent in analyses cached before it existed */
   mustHaveMet?: MustHaveMet[];
   niceToHave: string[];
-  /** 0-100 from LLM */
+  /** same order as niceToHave; absent when the model gave plain strings or in older analyses */
+  niceToHaveMet?: MustHaveMet[];
+  /** the candidate's level against the role; absent in older analyses */
+  seniority?: Seniority;
+  /** hard conditions the candidate clearly fails (visa, location, clearance...); a blocker caps the score at skip level */
+  blockers?: string[];
+  /** one line naming the deciding fact; absent in older analyses */
+  reason?: string;
+  /** 0-100, computed from the per-requirement ratings (the model's own number only in analyses where it rated none) */
   matchScore: number;
-  /** 0-100 deterministic keyword overlap */
+  /** 0-100 deterministic keyword overlap; used as a fallback score, not shown */
   keywordScore: number;
   matchedSkills: string[];
   missingSkills: string[];

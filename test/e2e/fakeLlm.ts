@@ -1,12 +1,13 @@
 /** Fake OpenAI-compatible server: canned replies picked by keywords in the system prompt. */
 const analysis = {
-  summary: "Build browser extensions with TypeScript.",
-  mustHave: ["TypeScript experience", "Testing with Playwright"],
-  niceToHave: ["Preact"],
-  matchScore: 82,
+  mustHave: [{ requirement: "TypeScript experience", met: "yes" }, { requirement: "Testing with Playwright", met: "partial" }],
+  niceToHave: [{ requirement: "Preact", met: "yes" }],
+  seniority: "match",
+  blockers: [],
   strengths: ["Strong TypeScript background"],
   gaps: ["No Playwright on resume"],
-  verdict: "Strong match - apply",
+  reason: "Core stack matches; Playwright is the only gap",
+  overview: { company: [], position: ["You get to build browser extensions with TypeScript"] },
 };
 const salary = { min: 120000, max: 150000, currency: "USD", period: "year", note: "Fake estimate" };
 const profile = {

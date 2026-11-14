@@ -1,5 +1,5 @@
 // CONTRACT (owned by supervisor): signatures are fixed; implementations by the AI worker.
-import type { FieldDescriptor, JobAnalysis, JobPosting, MustHaveMet, Profile, SalaryEstimate } from "../types.ts";
+import type { FieldDescriptor, JobAnalysis, JobPosting, MustHaveMet, Profile, SalaryEstimate, Seniority } from "../types.ts";
 import * as llm from "./llm.ts";
 import * as normalize from "./normalize.ts";
 const { tokenBudget } = normalize;
@@ -33,6 +33,9 @@ export function describeCandidate(candidate: CandidateContext): string {
   const name = `${profile.firstName} ${profile.lastName}`.trim();
   const facts = [
     name && `Name: ${name}`,
+    (profile.city || profile.country) && `Location: ${[profile.city, profile.country].filter(Boolean).join(", ")}`,
+    profile.workAuthorized && `Authorized to work in their country: ${profile.workAuthorized}`,
+    profile.requiresSponsorship && `Needs visa sponsorship: ${profile.requiresSponsorship}`,
     profile.currentTitle && `Current role: ${profile.currentTitle}${profile.currentCompany ? ` at ${profile.currentCompany}` : ""}`,
     profile.yearsExperience > 0 && `Years of experience: ${profile.yearsExperience}`,
     profile.skills.length > 0 && `Skills: ${profile.skills.join(", ")}`,
@@ -46,45 +49,80 @@ export function describeCandidate(candidate: CandidateContext): string {
 // ---------- analyzeJob ----------
 
 const analysisSystem = `You are a recruiter assessing how well a candidate fits a job. Reply with JSON:
-{"overview": {"company": [0-3 short sentences], "position": [2-3 short sentences]}, "mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
+{"mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "seniority": "under" | "match" | "over", "blockers": [short phrases], "strengths": [up to 3 short phrases], "gaps": [up to 3 short phrases], "reason": "one line, at most 15 words", "overview": {"company": [0-3 short sentences], "position": [2-3 short sentences]}}
+mustHave: the 3-7 requirements the posting marks as required, in its order. niceToHave: its preferred extras.
+"met" judges the candidate's whole background (resume and LinkedIn), not exact wording: an engineering manager meets "2+ years leading teams".
+seniority: the candidate's level against the role ("under" = too junior, "over" = clearly more senior than the role).
+blockers: only hard conditions the posting states that the candidate's data clearly fails (work authorization, location or onsite, security clearance, license, required language). Unknown is not a blocker; usually empty.
+strengths and gaps: the 3 that most affect the decision, citing specifics, never repeating a requirement's wording. reason: the single deciding fact.
 overview says why this job might interest the candidate, written to them as "you", one fact from the posting per sentence, at most 12 words each, starting "You'd" or "You get to".
 company: what they would join (what it builds, stage or size, domain, customers), e.g. "You'd join a Series B payments company serving retailers". Leave it empty when the posting says nothing about the company.
 position: what they would own or do (scope, team, product, impact), e.g. "You get to lead design and development of the platform end to end". Prefer facts that match or stretch the candidate's background.
-Leave out requirements (mustHave covers them), pay and perks (they have their own sections), fit judgments (strengths and gaps cover them) and hype words like "exciting".
-Scoring rubric for matchScore: must-have requirements covered = up to 60 points, experience level/seniority fit = up to 25, nice-to-have covered = up to 15. Be honest; do not inflate.
-"met" judges the candidate's whole background (resume and LinkedIn), not exact wording: an engineering manager meets "2+ years leading teams".
-strengths and gaps compare the candidate to the job, citing specifics. ${noInvention}`;
+Leave out requirements, pay and perks (they have their own sections), fit judgments (strengths and gaps cover them) and hype words like "exciting". ${noInvention}`;
 
 const MET_VALUES: MustHaveMet[] = ["yes", "partial", "no"];
+const SENIORITY_VALUES: Seniority[] = ["under", "match", "over"];
+const MET_POINTS: Record<MustHaveMet, number> = { yes: 1, partial: 0.5, no: 0 };
+const SENIORITY_POINTS: Record<Seniority, number> = { match: 1, over: 0.7, under: 0.3 };
+const WEIGHTS = { mustHave: 70, seniority: 15, niceToHave: 15 };
+const BLOCKER_CAP = 44;
 
-/** Small models answer either plain strings or {requirement, met} objects. */
-function normalizeMustHave(raw: unknown): { mustHave: string[]; mustHaveMet?: MustHaveMet[] } {
-  const items = Array.isArray(raw) ? raw.slice(0, 12) : [];
-  const isRated = items.some((item) => item && typeof item === "object");
-  if (!isRated) return { mustHave: normalize.asStringList(raw, 12) };
-  const rated = items.map((item) => normalize.asRecord(item)).filter((item) => normalize.asString(item.requirement));
+/** Small models answer either plain strings or {requirement, met} objects. An unreadable verdict counts as partial. */
+function normalizeRated(raw: unknown, limit: number): { items: string[]; met?: MustHaveMet[] } {
+  const entries = Array.isArray(raw) ? raw.slice(0, limit) : [];
+  const isRated = entries.some((item) => item && typeof item === "object");
+  if (!isRated) return { items: normalize.asStringList(raw, limit) };
+  const rated = entries.map((item) => normalize.asRecord(item)).filter((item) => normalize.asString(item.requirement));
   return {
-    mustHave: rated.map((item) => normalize.asString(item.requirement)),
-    mustHaveMet: rated.map((item) => MET_VALUES.find((value) => value === normalize.asString(item.met).toLowerCase()) ?? "no"),
+    items: rated.map((item) => normalize.asString(item.requirement)),
+    met: rated.map((item) => MET_VALUES.find((value) => value === normalize.asString(item.met).toLowerCase()) ?? "partial"),
   };
 }
 
-export function normalizeAnalysis(raw: unknown): Omit<JobAnalysis, "salary" | "analyzedAt" | "keywordScore" | "matchedSkills" | "missingSkills"> {
+const average = (met: MustHaveMet[]) => met.reduce((sum, value) => sum + MET_POINTS[value], 0) / met.length;
+
+/** The headline 0-100, computed from the per-requirement ratings so it is stable across runs. Undefined when nothing is rated. */
+export function scoreAnalysis(rated: { mustHaveMet?: MustHaveMet[]; niceToHaveMet?: MustHaveMet[]; seniority?: Seniority; blockers: string[] }): number | undefined {
+  if (!rated.mustHaveMet?.length) return undefined;
+  const parts: [weight: number, ratio: number][] = [[WEIGHTS.mustHave, average(rated.mustHaveMet)]];
+  if (rated.seniority) parts.push([WEIGHTS.seniority, SENIORITY_POINTS[rated.seniority]]);
+  if (rated.niceToHaveMet?.length) parts.push([WEIGHTS.niceToHave, average(rated.niceToHaveMet)]);
+  const totalWeight = parts.reduce((sum, [weight]) => sum + weight, 0);
+  const score = Math.round((parts.reduce((sum, [weight, ratio]) => sum + weight * ratio, 0) / totalWeight) * 100);
+  return rated.blockers.length ? Math.min(score, BLOCKER_CAP) : score;
+}
+
+export function verdictFor(score: number): string {
+  return score >= 70 ? "Strong match - apply" : score >= 45 ? "Possible match - stretch" : "Weak match - skip";
+}
+
+/** fallbackScore is used when the model rated no must-haves and gave no score of its own. */
+export function normalizeAnalysis(raw: unknown, fallbackScore = 0): Omit<JobAnalysis, "salary" | "analyzedAt" | "keywordScore" | "matchedSkills" | "missingSkills"> {
   const data = normalize.asRecord(raw);
-  const score = normalize.asScore(data.matchScore);
-  const mustHave = normalizeMustHave(data.mustHave);
-  const niceToHave = normalize.asStringList(data.niceToHave, 10);
+  const mustHave = normalizeRated(data.mustHave, 12);
+  const niceToHave = normalizeRated(data.niceToHave, 10);
+  const seniority = SENIORITY_VALUES.find((value) => value === normalize.asString(data.seniority).toLowerCase());
+  const blockers = normalize.asStringList(data.blockers, 3);
   const rawOverview = normalize.asRecord(data.overview);
   const overview = { company: normalize.asStringList(rawOverview.company, 3), position: normalize.asStringList(rawOverview.position, 3) };
+  const computed = scoreAnalysis({ mustHaveMet: mustHave.met, niceToHaveMet: niceToHave.met, seniority, blockers });
+  const ownScore = data.matchScore === undefined ? fallbackScore : normalize.asScore(data.matchScore);
+  const base = computed ?? ownScore;
+  const score = blockers.length ? Math.min(base, BLOCKER_CAP) : base;
   return {
     summary: normalize.asString(data.summary),
     overview: overview.company.length || overview.position.length ? overview : undefined,
-    ...mustHave,
-    niceToHave,
+    mustHave: mustHave.items,
+    mustHaveMet: mustHave.met,
+    niceToHave: niceToHave.items,
+    niceToHaveMet: niceToHave.met,
+    seniority,
+    blockers,
+    reason: normalize.asString(data.reason),
     matchScore: score,
-    strengths: normalize.asStringList(data.strengths, 6),
-    gaps: normalize.asStringList(data.gaps, 6),
-    verdict: normalize.asString(data.verdict) || (score >= 70 ? "Strong match" : score >= 45 ? "Possible match" : "Weak match"),
+    strengths: normalize.asStringList(data.strengths, 3),
+    gaps: normalize.asStringList(data.gaps, 3),
+    verdict: verdictFor(score),
   };
 }
 
@@ -99,7 +137,7 @@ export async function analyzeJob(
     maxTokens: tokenBudget,
   });
   const keywords = keywordMatch(`${job.title}\n${job.description}`, candidate);
-  return { ...normalizeAnalysis(raw), keywordScore: keywords.score, matchedSkills: keywords.matched, missingSkills: keywords.missing };
+  return { ...normalizeAnalysis(raw, keywords.score), keywordScore: keywords.score, matchedSkills: keywords.matched, missingSkills: keywords.missing };
 }
 
 // ---------- keywordMatch ----------

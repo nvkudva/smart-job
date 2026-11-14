@@ -1,4 +1,5 @@
-import type { JobAnalysis, MustHaveMet } from "../../types.ts";
+import type { ComponentChildren } from "preact";
+import type { JobAnalysis, MustHaveMet, Seniority } from "../../types.ts";
 import { Card } from "../shared/controls.tsx";
 
 function scoreTone(score: number): string {
@@ -24,16 +25,11 @@ const metMark: Record<MustHaveMet, string> = { yes: "✓", partial: "◐", no: "
 const metLabel: Record<MustHaveMet, string> = { yes: "covered", partial: "partly covered", no: "not matched" };
 const metClass: Record<MustHaveMet, string> = { yes: "ok", partial: "partial", no: "no" };
 
-function isCovered(requirement: string, matchedSkills: string[]): boolean {
-  const text = requirement.toLowerCase();
-  return matchedSkills.some((skill) => text.includes(skill.toLowerCase()));
-}
-
-function BulletList({ title, items }: { title: string; items: string[] }) {
+function BulletList({ title, items }: { title?: string; items: string[] }) {
   if (!items.length) return null;
   return (
     <div class="block">
-      <h4>{title}</h4>
+      {title && <h4>{title}</h4>}
       <ul>
         {items.map((item) => (
           <li>{item}</li>
@@ -43,11 +39,11 @@ function BulletList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function MarkList({ title, items, verdictOf }: { title: string; items: string[]; verdictOf: (item: string, index: number) => MustHaveMet }) {
+function MarkList({ title, items, verdictOf, extraClass = "" }: { title?: string; items: string[]; verdictOf: (item: string, index: number) => MustHaveMet; extraClass?: string }) {
   if (!items.length) return null;
   return (
-    <div class="block">
-      <h4>{title}</h4>
+    <div class={`block ${extraClass}`}>
+      {title && <h4>{title}</h4>}
       <ul class="checklist">
         {items.map((item, index) => {
           const met = verdictOf(item, index);
@@ -72,38 +68,67 @@ function SkillsRow({ title, skills }: { title: string; skills: string[] }) {
   );
 }
 
+const seniorityNote: Record<Seniority, string> = { under: "level: below the role", match: "level: fits", over: "level: above the role" };
+
+function evidenceLine(analysis: JobAnalysis): string {
+  const met = analysis.mustHaveMet ?? [];
+  if (!met.length) return "";
+  const covered = met.filter((value) => value === "yes").length;
+  const partly = met.filter((value) => value === "partial").length;
+  return [`${covered} of ${met.length} must-haves${partly ? ` (+${partly} partly)` : ""}`, analysis.seniority && seniorityNote[analysis.seniority]].filter(Boolean).join(" · ");
+}
+
+function Fold({ title, children }: { title: string; children: ComponentChildren }) {
+  return (
+    <details class="fold">
+      <summary>{title}</summary>
+      {children}
+    </details>
+  );
+}
+
+function Overview({ analysis }: { analysis: JobAnalysis }) {
+  if (analysis.overview) {
+    return (
+      <>
+        <BulletList title="Company" items={analysis.overview.company} />
+        <BulletList title="Position" items={analysis.overview.position} />
+      </>
+    );
+  }
+  if (analysis.highlights) return <BulletList title="Highlights" items={analysis.highlights} />;
+  return analysis.summary ? <p>{analysis.summary}</p> : null;
+}
+
 export function AnalysisView({ analysis }: { analysis: JobAnalysis }) {
   const matched = analysis.matchedSkills ?? [];
+  const missing = analysis.missingSkills ?? [];
+  const evidence = evidenceLine(analysis);
+  const blockers = analysis.blockers ?? [];
   return (
     <Card title="Match">
       <div class="score-row">
         <ScoreRing score={analysis.matchScore} />
         <div>
           <div class="verdict">{analysis.verdict}</div>
-          <div class="muted">
-            AI {analysis.matchScore} · Keywords {analysis.keywordScore}
-          </div>
-          <div class="bar">
-            <span class={scoreTone(analysis.keywordScore)} style={{ width: `${analysis.keywordScore}%` }} />
-          </div>
+          {analysis.reason && <div>{analysis.reason}</div>}
+          {evidence && <div class="muted small">{evidence}</div>}
         </div>
       </div>
-      {analysis.overview ? (
-        <>
-          <BulletList title="Company overview" items={analysis.overview.company} />
-          <BulletList title="Position overview" items={analysis.overview.position} />
-        </>
-      ) : analysis.highlights ? (
-        <BulletList title="Highlights" items={analysis.highlights} />
-      ) : (
-        <p>{analysis.summary}</p>
-      )}
-      <MarkList title="Must have" items={analysis.mustHave} verdictOf={(item, index) => analysis.mustHaveMet?.[index] ?? (isCovered(item, matched) ? "yes" : "no")} />
-      <MarkList title="Nice to have" items={analysis.niceToHave} verdictOf={(item) => (isCovered(item, matched) ? "yes" : "no")} />
-      <MarkList title="Strengths" items={analysis.strengths} verdictOf={() => "yes"} />
-      <MarkList title="Gaps" items={analysis.gaps} verdictOf={() => "no"} />
-      <SkillsRow title="Matching skills" skills={matched} />
-      <SkillsRow title="Missing skills" skills={analysis.missingSkills ?? []} />
+      <MarkList title="Dealbreakers" items={blockers} verdictOf={() => "no"} extraClass="blockers" />
+      <BulletList title="Why apply" items={analysis.strengths} />
+      <BulletList title="Watch out" items={analysis.gaps} />
+      {analysis.mustHaveMet ? <MarkList title="Must have" items={analysis.mustHave} verdictOf={(_, index) => analysis.mustHaveMet?.[index] ?? "partial"} /> : <BulletList title="Must have" items={analysis.mustHave} />}
+      <Fold title="Nice to have">
+        {analysis.niceToHaveMet ? <MarkList items={analysis.niceToHave} verdictOf={(_, index) => analysis.niceToHaveMet?.[index] ?? "partial"} /> : <BulletList items={analysis.niceToHave} />}
+      </Fold>
+      <Fold title="About the role">
+        <Overview analysis={analysis} />
+      </Fold>
+      <Fold title="Skills">
+        <SkillsRow title="Matching" skills={matched} />
+        <SkillsRow title="Missing" skills={missing} />
+      </Fold>
     </Card>
   );
 }

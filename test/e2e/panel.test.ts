@@ -104,7 +104,7 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
   await visible(panel.getByRole("tabpanel", { name: "Track" }).getByText("Panel Test Engineer"));
   const tracked = Object.values((await stored(panel, "jobs")) as Record<string, { status: string; analysis: { matchScore: number } }>);
   expect(tracked).toHaveLength(1);
-  expect(tracked[0]!.analysis.matchScore).toBe(82);
+  expect(tracked[0]!.analysis.matchScore).toBe(83);
 
   await panel.getByRole("tab", { name: "Analysis" }).click();
   await panel.getByRole("button", { name: "Apply", exact: true }).click();
