@@ -1,6 +1,7 @@
-import { cp, mkdir } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 
 const outdir = "dist";
+await rm(outdir, { recursive: true, force: true }); // a clean dist keeps dev-only files out of the zip
 await mkdir(outdir, { recursive: true });
 
 const entries = [
