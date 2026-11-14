@@ -152,7 +152,9 @@ export type MustHaveMet = "yes" | "partial" | "no";
 export interface JobAnalysis {
   /** paragraph from analyses cached before highlights existed; new analyses leave it empty */
   summary: string;
-  /** short keyword phrases: what the role works with and what is interesting about it, minus anything already in mustHave / niceToHave */
+  /** "you"-addressed sentences on the company and the position; absent in analyses cached before it existed */
+  overview?: { company: string[]; position: string[] };
+  /** legacy keyword phrases from analyses cached before overview existed */
   highlights?: string[];
   mustHave: string[];
   /** the model's verdict per mustHave item, same order; absent in analyses cached before it existed */

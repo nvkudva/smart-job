@@ -88,7 +88,16 @@ export function AnalysisView({ analysis }: { analysis: JobAnalysis }) {
           </div>
         </div>
       </div>
-      {analysis.highlights ? <BulletList title="Highlights" items={analysis.highlights} /> : <p>{analysis.summary}</p>}
+      {analysis.overview ? (
+        <>
+          <BulletList title="Company overview" items={analysis.overview.company} />
+          <BulletList title="Position overview" items={analysis.overview.position} />
+        </>
+      ) : analysis.highlights ? (
+        <BulletList title="Highlights" items={analysis.highlights} />
+      ) : (
+        <p>{analysis.summary}</p>
+      )}
       <MarkList title="Must have" items={analysis.mustHave} verdictOf={(item, index) => analysis.mustHaveMet?.[index] ?? (isCovered(item, matched) ? "yes" : "no")} />
       <MarkList title="Nice to have" items={analysis.niceToHave} verdictOf={(item) => (isCovered(item, matched) ? "yes" : "no")} />
       <MarkList title="Strengths" items={analysis.strengths} verdictOf={() => "yes"} />

@@ -46,8 +46,11 @@ export function describeCandidate(candidate: CandidateContext): string {
 // ---------- analyzeJob ----------
 
 const analysisSystem = `You are a recruiter assessing how well a candidate fits a job. Reply with JSON:
-{"highlights": [2-6 keyword phrases of 1-4 words], "mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
-highlights name what the person would work with (stack, domain, scale) and what is interesting about this job. Never repeat a mustHave or niceToHave item, and never write sentences.
+{"overview": {"company": [0-3 short sentences], "position": [2-3 short sentences]}, "mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
+overview says why this job might interest the candidate, written to them as "you", one fact from the posting per sentence, at most 12 words each, starting "You'd" or "You get to".
+company: what they would join (what it builds, stage or size, domain, customers), e.g. "You'd join a Series B payments company serving retailers". Leave it empty when the posting says nothing about the company.
+position: what they would own or do (scope, team, product, impact), e.g. "You get to lead design and development of the platform end to end". Prefer facts that match or stretch the candidate's background.
+Leave out requirements (mustHave covers them), pay and perks (they have their own sections), fit judgments (strengths and gaps cover them) and hype words like "exciting".
 Scoring rubric for matchScore: must-have requirements covered = up to 60 points, experience level/seniority fit = up to 25, nice-to-have covered = up to 15. Be honest; do not inflate.
 "met" judges the candidate's whole background (resume and LinkedIn), not exact wording: an engineering manager meets "2+ years leading teams".
 strengths and gaps compare the candidate to the job, citing specifics. ${noInvention}`;
@@ -66,21 +69,16 @@ function normalizeMustHave(raw: unknown): { mustHave: string[]; mustHaveMet?: Mu
   };
 }
 
-function isSameTopic(left: string, right: string): boolean {
-  const a = left.toLowerCase();
-  const b = right.toLowerCase();
-  return a.includes(b) || b.includes(a);
-}
-
 export function normalizeAnalysis(raw: unknown): Omit<JobAnalysis, "salary" | "analyzedAt" | "keywordScore" | "matchedSkills" | "missingSkills"> {
   const data = normalize.asRecord(raw);
   const score = normalize.asScore(data.matchScore);
   const mustHave = normalizeMustHave(data.mustHave);
   const niceToHave = normalize.asStringList(data.niceToHave, 10);
-  const alreadyListed = [...mustHave.mustHave, ...niceToHave];
+  const rawOverview = normalize.asRecord(data.overview);
+  const overview = { company: normalize.asStringList(rawOverview.company, 3), position: normalize.asStringList(rawOverview.position, 3) };
   return {
     summary: normalize.asString(data.summary),
-    highlights: normalize.asStringList(data.highlights, 6).filter((item) => !alreadyListed.some((listed) => isSameTopic(item, listed))),
+    overview: overview.company.length || overview.position.length ? overview : undefined,
     ...mustHave,
     niceToHave,
     matchScore: score,
