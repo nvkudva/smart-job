@@ -38,3 +38,7 @@
 - [ ] Feedback: local wrangler dev needs "" in REPOS origins (DNR rule strips Origin for localhost)
 - [ ] Feedback: verify one real report (asset branch upload, labels auto-created, ?raw=true image renders in private issue)
 - [ ] Feedback: build widget to JS + publish (npm/GitHub) so non-Bun projects can import it
+- [x] V2 Super Job page: multi-portal search (LinkedIn, Naukri, Foundit, Shine, Instahyre), summary pane, inline listing frame
+- [ ] Super Job: check the AI summary live with a reachable model (only the no-AI fallback text was seen)
+- [ ] Super Job: portals for countries other than India (only LinkedIn today)
+- [ ] Super Job: Foundit per-job link (listing link opens the search page)

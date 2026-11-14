@@ -129,6 +129,11 @@ function App() {
           </button>
         ))}
       </nav>
+      <div class="superjob-bar">
+        <button type="button" class="btn primary" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("superjob.html") })}>
+          Super Job ↗
+        </button>
+      </div>
       <main>
         {isResumeLoaded && !hasResume && <Onboarding onProfile={() => setTab("Profile")} isOnProfile={tab === "Profile"} />}
         {/* all tabs stay mounted so a running fill or draft survives tab switches */}
