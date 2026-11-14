@@ -119,7 +119,7 @@ async function fetchWithRateLimitRetry(url: string, init: RequestInit & { signal
 }
 
 /** Local thinking models (Qwen 3.x) spend minutes reasoning; Ollama honours "none", LM Studio only shortens on "low". Cloud non-reasoning models reject the field, so local only. */
-export function localReasoningOption(baseUrl: string): { reasoning_effort?: string } {
+function localReasoningOption(baseUrl: string): { reasoning_effort?: string } {
   if (!/\/\/(localhost|127\.0\.0\.1)[:/]/.test(baseUrl)) return {};
   return { reasoning_effort: baseUrl.includes(":11434") ? "none" : "low" };
 }

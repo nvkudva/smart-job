@@ -48,7 +48,7 @@ export function perkLines(description: string): string {
   return kept.join("\n");
 }
 
-export function buildPrompt(job: JobPosting, results: SearchResult[]): string {
+function buildPrompt(job: JobPosting, results: SearchResult[]): string {
   const snippets = results.map((result, index) => `[${index + 1}] ${result.title}\n${result.url}\n${normalize.truncate(result.snippet, 350)}`);
   const web = snippets.length ? `\n\nSearch results:\n${snippets.join("\n\n")}` : "";
   return `Company: ${job.company}\nJob: ${job.title}, ${job.location || "location unknown"}\n\nJob posting (perk lines only):\n${normalize.truncate(perkLines(job.description), 3000)}${web}`;

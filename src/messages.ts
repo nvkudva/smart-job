@@ -14,7 +14,7 @@ export type ContentRequest =
 /** Outcome of looking for the job page's Apply control: a link to open, a button already clicked, or nothing. */
 export type ApplyClick = { result: "none" } | { result: "clicked"; label: string } | { result: "link"; href: string; label: string };
 
-export interface ContentResponses {
+interface ContentResponses {
   ping: { ok: true; url: string; isTop: boolean };
   extractJob: JobPosting | null;
   scanFields: FieldDescriptor[];

@@ -92,7 +92,7 @@ function contentStreams(page: PDFPage): PDFRawStream[] {
   return streams.filter((stream): stream is PDFRawStream => stream instanceof PDFRawStream);
 }
 
-export type Removal = Pick<strip.StripResult, "hits" | "inserted">;
+type Removal = Pick<strip.StripResult, "hits" | "inserted">;
 
 /** Deletes the original text-showing operators of the given line boxes and writes their new text in the same place; returns which boxes lost text and which got theirs. */
 export function removeText(page: PDFPage, boxes: strip.LineBox[]): Removal {

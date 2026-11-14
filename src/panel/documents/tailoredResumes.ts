@@ -4,7 +4,7 @@ import type { JobPosting, TailoredResume } from "../../types.ts";
 const maxSaved = 100;
 
 /** "Acme - Senior Engineer - Resume (13 Nov 2026)": says which job it was made for, in the viewer's date format. */
-export function nameFor(job: JobPosting, at: number): string {
+function nameFor(job: JobPosting, at: number): string {
   const date = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(at);
   const label = [job.company, job.title].filter(Boolean).join(" - ") || "Job";
   return `${label} - Resume (${date})`;

@@ -131,7 +131,7 @@ function operandCount(operator: string): number {
   return operator === '"' ? 3 : 1;
 }
 
-function pieceOf(operator: string, operands: tokens.Token[]): tokens.Token[] {
+function pieceOf(operands: tokens.Token[]): tokens.Token[] {
   const last = operands.at(-1);
   if (!last) return [];
   return last.kind === "array" ? last.items : [last];
@@ -211,7 +211,7 @@ function handleShow(state: Graphics, operator: string, operands: tokens.Token[],
   const before = { tm: state.tm, lineMatrix: state.lineMatrix };
   prepareShow(state, operator, operands);
   const origin = glyphOrigin(state);
-  const shift = show(state, pieceOf(operator, operands));
+  const shift = show(state, pieceOf(operands));
   const hit = boxAt(scan.boxes, origin.x, origin.y);
   if (hit < 0) return null;
   scan.hits[hit] = true;

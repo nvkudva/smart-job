@@ -5,7 +5,7 @@ import type { CandidateContext } from "../../ai/tasks.ts";
 import * as storage from "../../storage.ts";
 import type { Settings } from "../../types.ts";
 
-export type AiStatus = "unknown" | "ok" | "error";
+type AiStatus = "unknown" | "ok" | "error";
 
 let status: AiStatus = "unknown";
 const listeners = new Set<(next: AiStatus) => void>();
@@ -47,7 +47,7 @@ export function useRateLimited(): [boolean, () => void] {
   return [current, () => setRateLimited(false)];
 }
 
-export interface AiContext {
+interface AiContext {
   client: llm.LlmClient;
   candidate: CandidateContext;
   settings: Settings;
