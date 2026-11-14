@@ -42,3 +42,8 @@
 - [ ] Super Job: check the AI summary live with a reachable model (only the no-AI fallback text was seen)
 - [ ] Super Job: portals for countries other than India (only LinkedIn today)
 - [ ] Super Job: Foundit per-job link (listing link opens the search page)
+- [x] Super Job: side panel reads the selected job (analysis, shortlist, apply) with ids matching the real sites
+- [x] Super Job: job-board UI (logos, match score, saved star, portal filters, Summary / Description / Original tabs, Apply / Save / Analyze)
+- [ ] Super Job: try "Analyze match" and Apply in real Chrome with the real side panel (only tested with the panel opened as a tab)
+- [ ] Super Job: "Load more" paging per portal
+- [ ] Fix pre-existing e2e failure: setup wizard test matches "4. Job searches" twice

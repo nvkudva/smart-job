@@ -8,7 +8,8 @@ import { useStored } from "../panel/shared/useStored.ts";
 import type { Profile } from "../types.ts";
 import type { FoundJob, SearchQuery } from "./jobSources.ts";
 import * as jobSources from "./jobSources.ts";
-import { Results } from "./results.tsx";
+import { filterByPortals } from "./jobList.tsx";
+import { Results, useChosenJob } from "./results.tsx";
 
 interface SourceStatus {
   name: string;
@@ -67,81 +68,99 @@ function useSearch(country: string) {
 }
 
 interface SearchFormProps {
-  initialLocation: string;
-  suggestedRoles: string[];
-  isCompact: boolean;
-  onSearch: (query: SearchQuery) => void;
+  role: string;
+  location: string;
+  onRole: (role: string) => void;
+  onLocation: (location: string) => void;
+  onSearch: (role: string) => void;
 }
 
-function SearchForm({ initialLocation, suggestedRoles, isCompact, onSearch }: SearchFormProps) {
-  const [role, setRole] = useState("");
-  const [location, setLocation] = useState(initialLocation);
-  const search = (wantedRole: string) => {
-    const trimmed = wantedRole.trim();
-    if (trimmed) onSearch({ role: trimmed, location: location.trim() });
-  };
+function SearchForm({ role, location, onRole, onLocation, onSearch }: SearchFormProps) {
   return (
     <form
       class="sj-form"
       role="search"
       onSubmit={(event) => {
         event.preventDefault();
-        search(role);
+        onSearch(role);
       }}
     >
       <label class="sj-role">
         <span class="sr-only">Role</span>
-        <input type="text" value={role} placeholder="Job title, e.g. Product Manager" onInput={(event) => setRole(event.currentTarget.value)} />
+        <input type="text" value={role} placeholder="Job title, e.g. Product Manager" onInput={(event) => onRole(event.currentTarget.value)} />
       </label>
       <label class="sj-where">
         <span class="sr-only">Location</span>
-        <input type="text" value={location} placeholder="Location" onInput={(event) => setLocation(event.currentTarget.value)} />
+        <input type="text" value={location} placeholder="Location" onInput={(event) => onLocation(event.currentTarget.value)} />
       </label>
       <button type="submit" class="btn primary">
         Search
       </button>
-      {!isCompact && (
-        <div class="chips sj-suggestions">
-          {suggestedRoles.map((suggested) => (
-            <button
-              type="button"
-              class="chip role"
-              onClick={() => {
-                setRole(suggested);
-                search(suggested);
-              }}
-            >
-              {suggested}
-            </button>
-          ))}
-        </div>
-      )}
     </form>
   );
 }
 
-function SourceStatuses({ statuses }: { statuses: SourceStatus[] }) {
+function RoleChips({ roles: suggestedRoles, onPick }: { roles: string[]; onPick: (role: string) => void }) {
+  if (!suggestedRoles.length) return null;
   return (
-    <ul class="chips sj-status" aria-label="Portals">
-      {statuses.map((status) => (
-        <li class={`chip${status.error ? " warn" : ""}`}>
-          {status.name}
-          {status.isLoading && <Spinner />}
-          {status.error && `: ${status.error}`}
-          {!status.isLoading && !status.error && ` · ${status.count}`}
-        </li>
+    <div class="sj-roles" role="group" aria-label="Suggested roles">
+      {suggestedRoles.map((suggested) => (
+        <button type="button" class="sj-role-chip" onClick={() => onPick(suggested)}>
+          {suggested}
+        </button>
       ))}
-    </ul>
+    </div>
   );
 }
 
-function Body({ jobs, statuses, country }: { jobs: FoundJob[]; statuses: SourceStatus[]; country: string }) {
+interface PortalFiltersProps {
+  statuses: SourceStatus[];
+  hiddenPortals: ReadonlySet<string>;
+  jobCount: number;
+  onToggle: (name: string) => void;
+}
+
+function PortalFilters({ statuses, hiddenPortals, jobCount, onToggle }: PortalFiltersProps) {
+  return (
+    <div class="sj-filters">
+      <ul class="sj-status" aria-label="Portals">
+        {statuses.map((status) => (
+          <li>
+            <button type="button" class={`chip pick${hiddenPortals.has(status.name) ? "" : " active"}${status.error ? " warn" : ""}`} aria-pressed={!hiddenPortals.has(status.name)} onClick={() => onToggle(status.name)}>
+              {status.name}
+              {status.isLoading && <Spinner />}
+              {!status.isLoading && !status.error && <span class="sj-chip-count">{status.count}</span>}
+              {status.error && (
+                <span class="sj-chip-error" title={status.error}>
+                  {status.error}
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p class="sj-total" aria-live="polite">
+        {jobCount} {jobCount === 1 ? "job" : "jobs"}
+      </p>
+    </div>
+  );
+}
+
+interface BodyProps {
+  jobs: FoundJob[];
+  visibleJobs: FoundJob[];
+  statuses: SourceStatus[];
+  country: string;
+  chosen: ReturnType<typeof useChosenJob>;
+}
+
+function Body({ jobs, visibleJobs, statuses, country, chosen }: BodyProps) {
   if (!statuses.length) return <p class="muted sj-note">No job portals cover {country || "your country"} yet.</p>;
-  const isSettled = statuses.every((status) => !status.isLoading);
-  if (isSettled && !jobs.length) return <p class="muted sj-note">No jobs found for that search.</p>;
+  const isLoading = statuses.some((status) => status.isLoading);
+  if (!isLoading && !jobs.length) return <p class="muted sj-note">No jobs found for that search.</p>;
   return (
     <div class="sj-body">
-      <Results jobs={jobs} />
+      <Results jobs={visibleJobs} chosen={chosen} isLoading={isLoading} />
     </div>
   );
 }
@@ -155,16 +174,43 @@ function App() {
 function Page({ profile }: { profile: Profile }) {
   const suggestedRoles = useSuggestedRoles(profile);
   const search = useSearch(profile.country);
+  const [role, setRole] = useState("");
+  const [location, setLocation] = useState(profile.city);
+  const [hiddenPortals, setHiddenPortals] = useState<ReadonlySet<string>>(new Set());
+  const visibleJobs = filterByPortals(search.jobs, hiddenPortals);
+  const chosen = useChosenJob(visibleJobs);
   const hasSearched = search.query !== null;
+  const runSearch = (wantedRole: string) => {
+    const trimmed = wantedRole.trim();
+    if (!trimmed) return;
+    setHiddenPortals(new Set());
+    search.start({ role: trimmed, location: location.trim() });
+  };
+  const togglePortal = (name: string) => {
+    const next = new Set(hiddenPortals);
+    if (!next.delete(name)) next.add(name);
+    setHiddenPortals(next);
+  };
   return (
     <div class={`sj ${hasSearched ? "sj-results-mode" : "sj-home"}`}>
       <header class="sj-top">
-        <h1 class="sj-brand">Super Job</h1>
-        <SearchForm initialLocation={profile.city} suggestedRoles={suggestedRoles} isCompact={hasSearched} onSearch={search.start} />
-        {hasSearched && <SourceStatuses statuses={search.statuses} />}
-        {hasSearched && !profile.country.trim() && <p class="muted small">Add your country in Profile to also search local job portals.</p>}
+        <div class="sj-bar">
+          <h1 class="sj-brand">Super Job</h1>
+          <SearchForm role={role} location={location} onRole={setRole} onLocation={setLocation} onSearch={runSearch} />
+        </div>
+        <div class="sj-sub">
+          <RoleChips
+            roles={suggestedRoles}
+            onPick={(picked) => {
+              setRole(picked);
+              runSearch(picked);
+            }}
+          />
+          {hasSearched && <PortalFilters statuses={search.statuses} hiddenPortals={hiddenPortals} jobCount={visibleJobs.length} onToggle={togglePortal} />}
+        </div>
+        {hasSearched && !profile.country.trim() && <p class="muted small sj-hint">Add your country in Profile to also search local job portals.</p>}
       </header>
-      {hasSearched && <Body jobs={search.jobs} statuses={search.statuses} country={profile.country} />}
+      {hasSearched && <Body jobs={search.jobs} visibleJobs={visibleJobs} statuses={search.statuses} country={profile.country} chosen={chosen} />}
     </div>
   );
 }

@@ -73,7 +73,7 @@ function JobCard({ job, tracked, state, onApply, onShortlist }: JobCardProps) {
   );
 }
 
-function canUnshortlist(tracked: TrackedJob): boolean {
+export function canUnshortlist(tracked: TrackedJob): boolean {
   return tracked.status === "saved" && !tracked.notes && !tracked.coverLetter;
 }
 

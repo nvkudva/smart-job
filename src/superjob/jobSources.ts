@@ -19,6 +19,8 @@ export interface FoundJob {
   location: string;
   /** the original listing on the portal */
   url: string;
+  /** true when the portal gives listings no link of their own, so url is only its search page */
+  isSearchUrl?: boolean;
   /** as the portal words it ("3 days ago"), "" when unknown */
   posted: string;
   salary: string;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as messages from "../../messages.ts";
+import * as selection from "../../superjob/selection.ts";
 import type { JobPosting } from "../../types.ts";
 
 /** `?tabId=<id>` pins the tracked tab (used by e2e tests, where the panel itself is opened as a tab). */
@@ -107,12 +108,35 @@ function useDetectedJob(tab: TabInfo, version: number): { job: JobPosting | null
   return { job, isDetecting };
 }
 
+const isSuperJobTab = (tab: TabInfo) => !!tab.tabId && selection.isPage(tab.url);
+
+/** On the Super Job page content scripts never run, so the page publishes its selected job instead. */
+function usePublishedJob(tab: TabInfo): { job: JobPosting | null; isDetecting: boolean } {
+  const [published, setPublished] = useState<selection.Selection | null>(null);
+  const isOnPage = isSuperJobTab(tab);
+  useEffect(() => {
+    setPublished(null);
+    if (!tab.tabId || !isOnPage) return;
+    const tabId = tab.tabId;
+    let isAlive = true;
+    const refresh = () => void selection.read(tabId).then((next) => isAlive && setPublished(next));
+    refresh();
+    const stopListening = selection.onChange(refresh);
+    return () => {
+      isAlive = false;
+      stopListening();
+    };
+  }, [tab.tabId, isOnPage]);
+  return { job: published?.job ?? null, isDetecting: published?.isLoading ?? false };
+}
+
 export function use(): ActiveJob {
   const { tab, version } = useTrackedTab();
   const detected = useDetectedJob(tab, version);
+  const published = usePublishedJob(tab);
   let host = "";
   try {
     host = new URL(tab.url).host;
   } catch {}
-  return { ...tab, host, ...detected };
+  return { ...tab, host, ...(isSuperJobTab(tab) ? published : detected) };
 }

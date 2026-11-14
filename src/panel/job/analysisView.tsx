@@ -1,7 +1,7 @@
 import type { JobAnalysis, MustHaveMet, Seniority } from "../../types.ts";
 import { Card } from "../shared/controls.tsx";
 
-function scoreTone(score: number): string {
+export function scoreTone(score: number): string {
   return score >= 70 ? "good" : score >= 45 ? "mid" : "bad";
 }
 

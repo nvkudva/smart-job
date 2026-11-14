@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as session from "../../fill/session.ts";
 import type { FillReport, FillReportItem } from "../../fill/session.ts";
 import * as messages from "../../messages.ts";
+import * as selection from "../../superjob/selection.ts";
 import type { FieldFill, JobPosting } from "../../types.ts";
 import * as activeTab from "../job/activeTab.ts";
 import { Button, Card, Check, ErrorNote } from "../shared/controls.tsx";
@@ -62,7 +63,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     if (!tabId) throw new Error("No tab to apply on.");
     stopRequested.current = false;
     setNote("");
-    const click = await session.clickApply(tabId);
+    const click = job && selection.isPage(tabUrl) ? { result: "link" as const, href: job.url } : await session.clickApply(tabId);
     // opened from here, not from the page: a click sent by the panel has no user activation, so the page's own tab would be popup-blocked
     const portalTab = click.result === "link" ? await chrome.tabs.create({ url: click.href, openerTabId: tabId }) : undefined;
     if (click.result !== "none") await sleep(afterClickMs);
@@ -105,7 +106,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
       await messages.sendToFrame(target.tabId, 0, { type: "storeCredential", username: account.email, password: account.password });
     }
     if (!job || filled.filledCount === 0) return;
-    const portalUrl = target.url && target.url !== job.url ? target.url : undefined;
+    const portalUrl = target.url && target.url !== job.url && !selection.isPage(target.url) ? target.url : undefined;
     await trackedJobs.track(job, { ...(portalUrl && { portalUrl }), ...(hasPasswordFill && account?.email && { accountEmail: account.email }) });
   };
 

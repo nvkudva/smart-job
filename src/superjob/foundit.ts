@@ -32,6 +32,7 @@ function parseCard(card: Element, listUrl: string): FoundJob | undefined {
     company: plainText.line(card.querySelector(".companyName")),
     location: plainText.line(card.querySelector(".details.location")),
     url: listUrl,
+    isSearchUrl: true,
     posted: plainText.line(card.querySelector(".timeText")).replace(/^Posted /, ""),
     salary: "",
     snippet: experience ? `Experience: ${experience}` : "",

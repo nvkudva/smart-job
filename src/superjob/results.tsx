@@ -1,143 +1,119 @@
-import { useEffect, useState } from "preact/hooks";
-import * as normalize from "../ai/normalize.ts";
+import { useEffect, useRef, useState } from "preact/hooks";
 import * as aiClient from "../panel/shared/aiClient.ts";
-import { Spinner } from "../panel/shared/controls.tsx";
+import { useStored } from "../panel/shared/useStored.ts";
+import type { JobPosting } from "../types.ts";
+import { JobDetail, hasFullDescription } from "./jobDetail.tsx";
+import type { Summary } from "./jobDetail.tsx";
+import { JobList, scoreFor } from "./jobList.tsx";
 import type { FoundJob } from "./jobSources.ts";
-import * as jobSources from "./jobSources.ts";
-import * as summary from "./summary.ts";
+import * as posting from "./posting.ts";
+import * as selection from "./selection.ts";
+import * as summaryAi from "./summary.ts";
 
-const viewerSandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox";
-const maxFallbackChars = 1200;
+/** Arrow-key browsing must not open a background tab for every job it passes. */
+const loadDelayMs = 400;
 
-interface Summary {
-  isLoading: boolean;
-  bullets: string[];
-  /** raw description or snippet, shown when the model gave no bullets */
-  text: string;
+export interface ChosenJob {
+  selected: FoundJob | undefined;
+  openedIds: ReadonlySet<string>;
+  loaded: JobPosting | undefined;
+  summary: Summary | undefined;
+  windowId: number | undefined;
+  select: (id: string) => void;
 }
 
-async function loadSummary(job: FoundJob): Promise<Summary> {
-  const description = await jobSources.describe(job).catch(() => "");
-  const text = description.trim() || job.snippet;
-  if (!text) return { isLoading: false, bullets: [], text: "" };
-  const fallback = normalize.truncate(normalize.compact(text), maxFallbackChars);
-  try {
-    const bullets = await aiClient.withClient((client) => summary.summarize(client, job, text));
-    return { isLoading: false, bullets, text: fallback };
-  } catch {
-    return { isLoading: false, bullets: [], text: fallback };
-  }
+function useCurrentTab(): chrome.tabs.Tab | undefined {
+  const [tab, setTab] = useState<chrome.tabs.Tab>();
+  useEffect(() => {
+    void chrome.tabs.getCurrent().then(setTab);
+  }, []);
+  return tab;
 }
 
-function useSummaries(job: FoundJob | undefined): Summary | undefined {
+/** Loads the selected posting after a short pause and tells the side panel; a load for a job no longer selected is cached but never published. */
+function usePostings(selected: FoundJob | undefined, tabId: number | undefined): Record<string, JobPosting> {
+  const [postings, setPostings] = useState<Record<string, JobPosting>>({});
+  const cache = useRef(postings);
+  cache.current = postings;
+  useEffect(() => {
+    if (tabId === undefined) return;
+    const publish = (job: JobPosting | null, isLoading: boolean) => void selection.publish(tabId, { job, isLoading });
+    if (!selected) return publish(null, false);
+    const cached = cache.current[selected.id];
+    if (cached) return publish(cached, false);
+    publish(null, true);
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      const loaded = await posting.load(selected);
+      setPostings((current) => ({ ...current, [selected.id]: loaded }));
+      if (isCurrent) publish(loaded, false);
+    }, loadDelayMs);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [selected?.id, tabId]);
+  return postings;
+}
+
+function useSummaries(job: FoundJob | undefined, loaded: JobPosting | undefined): Summary | undefined {
   const [summaries, setSummaries] = useState<Record<string, Summary>>({});
   useEffect(() => {
-    if (!job || summaries[job.id]) return;
+    if (!job || !loaded || summaries[job.id] || !hasFullDescription(job, loaded)) return;
     const id = job.id;
-    setSummaries((current) => ({ ...current, [id]: { isLoading: true, bullets: [], text: "" } }));
-    void loadSummary(job).then((loaded) => setSummaries((current) => ({ ...current, [id]: loaded })));
-  }, [job?.id]);
-  return job && summaries[job.id];
+    setSummaries((current) => ({ ...current, [id]: { isLoading: true, bullets: [] } }));
+    void aiClient
+      .withClient((client) => summaryAi.summarize(client, job, loaded.description))
+      .catch(() => [] as string[])
+      .then((bullets) => setSummaries((current) => ({ ...current, [id]: { isLoading: false, bullets } })));
+  }, [job?.id, loaded]);
+  return job ? summaries[job.id] : undefined;
 }
 
-function JobCard({ job, isSelected, onSelect }: { job: FoundJob; isSelected: boolean; onSelect: () => void }) {
-  return (
-    <li>
-      <button type="button" class="sj-card" aria-current={isSelected ? "true" : undefined} onClick={onSelect}>
-        <strong class="sj-card-title">{job.title}</strong>
-        <span>{job.company}</span>
-        <span class="muted small">{[job.location, job.posted].filter(Boolean).join(" · ")}</span>
-        {job.salary && <span class="small">{job.salary}</span>}
-        <span class="badge">{job.source}</span>
-      </button>
-    </li>
-  );
-}
-
-function JobList({ jobs, selectedId, onSelect }: { jobs: FoundJob[]; selectedId: string; onSelect: (id: string) => void }) {
-  return (
-    <ul class="sj-cards" aria-label="Jobs">
-      {jobs.map((job) => (
-        <JobCard job={job} isSelected={job.id === selectedId} onSelect={() => onSelect(job.id)} />
-      ))}
-    </ul>
-  );
-}
-
-function SummaryBody({ loaded }: { loaded: Summary | undefined }) {
-  if (!loaded || loaded.isLoading) {
-    return (
-      <p class="muted">
-        <Spinner /> Summarising…
-      </p>
-    );
-  }
-  if (loaded.bullets.length) {
-    return (
-      <ul class="sj-bullets">
-        {loaded.bullets.map((bullet) => (
-          <li>{bullet}</li>
-        ))}
-      </ul>
-    );
-  }
-  return <p class="sj-fallback muted">{loaded.text || "No description available for this listing."}</p>;
-}
-
-function ListingViewer({ job, onBack }: { job: FoundJob; onBack: () => void }) {
-  return (
-    <div class="sj-viewer">
-      <div class="sj-viewer-bar">
-        <button type="button" class="btn" onClick={onBack}>
-          Back to summary
-        </button>
-        <a class="btn primary" href={job.url} target="_blank" rel="noreferrer">
-          Open in new tab ↗
-        </a>
-      </div>
-      <iframe class="sj-frame" src={job.url} sandbox={viewerSandbox} referrerpolicy="no-referrer" title={`${job.title} listing`} />
-    </div>
-  );
-}
-
-function JobDetail({ job, loaded }: { job: FoundJob; loaded: Summary | undefined }) {
-  const [isViewing, setIsViewing] = useState(false);
-  if (isViewing) return <ListingViewer job={job} onBack={() => setIsViewing(false)} />;
-  return (
-    <article class="sj-detail-body">
-      <h2>{job.title}</h2>
-      <p>{job.company}</p>
-      <p class="muted small">{[job.location, job.salary, job.posted].filter(Boolean).join(" · ")}</p>
-      <p>
-        <span class="badge">{job.source}</span>
-      </p>
-      <a
-        class="sj-original"
-        href={job.url}
-        onClick={(event) => {
-          event.preventDefault();
-          setIsViewing(true);
-        }}
-      >
-        Original listing: {job.url}
-      </a>
-      <h3>Summary</h3>
-      <SummaryBody loaded={loaded} />
-    </article>
-  );
-}
-
-export function Results({ jobs }: { jobs: FoundJob[] }) {
+/** Owns which job is shown and what the side panel is told about it; also runs for the home state so the panel never shows a stale job. */
+export function useChosenJob(jobs: FoundJob[]): ChosenJob {
+  const tab = useCurrentTab();
   const [selectedId, setSelectedId] = useState("");
+  const [openedIds, setOpenedIds] = useState<ReadonlySet<string>>(new Set());
   const selected = jobs.find((job) => job.id === selectedId) ?? jobs[0];
-  const loaded = useSummaries(selected);
+  const postings = usePostings(selected, tab?.id);
+  const loaded = selected && postings[selected.id];
+  const summary = useSummaries(selected, loaded);
+  useEffect(() => {
+    if (selected) setOpenedIds((current) => new Set(current).add(selected.id));
+  }, [selected?.id]);
+  return { selected, openedIds, loaded, summary, windowId: tab?.windowId, select: setSelectedId };
+}
+
+interface ResultsProps {
+  jobs: FoundJob[];
+  chosen: ChosenJob;
+  isLoading: boolean;
+}
+
+function ListNote({ isLoading }: { isLoading: boolean }) {
+  if (isLoading) return null;
+  return <p class="muted sj-note">No jobs from the portals you have switched on. Switch a portal back on above.</p>;
+}
+
+export function Results({ jobs, chosen, isLoading }: ResultsProps) {
+  const analyses = useStored("analyses");
+  const tracked = useStored("jobs");
+  const stored = { analyses: analyses ?? {}, tracked: tracked ?? {} };
+  const { selected } = chosen;
+  const selectedId = selected ? posting.idFor(selected) : "";
   return (
     <>
       <section class="sj-list" aria-label="Job list">
-        <JobList jobs={jobs} selectedId={selected?.id ?? ""} onSelect={setSelectedId} />
+        <JobList jobs={jobs} selectedId={selected?.id ?? ""} openedIds={chosen.openedIds} stored={stored} isLoading={isLoading} onSelect={chosen.select} />
+        {!jobs.length && <ListNote isLoading={isLoading} />}
       </section>
       <section class="sj-detail" aria-label="Job details">
-        {selected ? <JobDetail key={selected.id} job={selected} loaded={loaded} /> : <p class="muted sj-empty">Select a job to see its summary.</p>}
+        {selected ? (
+          <JobDetail key={selected.id} job={selected} loaded={chosen.loaded} tracked={stored.tracked[chosen.loaded?.id ?? selectedId]} windowId={chosen.windowId} score={scoreFor(selectedId, stored)} summary={chosen.summary} />
+        ) : (
+          <p class="muted sj-empty">{isLoading ? "Searching the portals…" : "Select a job to see its details."}</p>
+        )}
       </section>
     </>
   );
