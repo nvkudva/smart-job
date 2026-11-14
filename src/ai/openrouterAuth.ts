@@ -42,7 +42,9 @@ async function exchangeForKey(code: string, verifier: string): Promise<string> {
     body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
   });
   if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${(await response.text()).slice(0, 200)}`);
-  return (await response.json()).key as string;
+  const key = (await response.json()).key;
+  if (typeof key !== "string" || !key) throw new Error("OpenRouter sent no key.");
+  return key;
 }
 
 /** Opens OpenRouter sign-in or sign-up and returns provider settings holding a fresh key and a free model; null when the user closes the window. */

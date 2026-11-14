@@ -15,8 +15,11 @@ const state: any = { ctx, page: ctx.pages()[0] ?? (await ctx.newPage()), panel: 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 Bun.serve({
   port: 9555,
+  hostname: "127.0.0.1",
   idleTimeout: 255,
   async fetch(req) {
+    // a web page always sends Origin on a POST; the driver's own callers (curl, scripts) never do
+    if (req.headers.has("origin")) return new Response("forbidden", { status: 403 });
     const code = await req.text();
     try {
       const fn = new Function("s", "sleep", `return (async () => { const {ctx}=s; let page=s.page; ${code} })()`);

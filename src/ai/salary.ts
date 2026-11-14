@@ -500,7 +500,8 @@ export function parseLevelsPage(html: string, job: JobPosting, url: string): Sal
 }
 
 async function levelsEstimate(job: JobPosting, fetchPage: typeof fetch): Promise<SalaryEstimate | null> {
-  if (!job.company) return null;
+  // Levels.fyi pages carry US data only
+  if (!job.company || currencyForLocation(job.location) !== "USD") return null;
   const url = levelsUrl(job);
   try {
     const response = await fetchPage(url, { headers: { accept: "text/html" } });

@@ -116,10 +116,17 @@ describe("estimate", () => {
     ] };
     const levelsHtml = `<meta name="description" content="Software Engineer compensation in United States at Stripe ranges"><script type="application/ld+json">${JSON.stringify(ld)}</script>`;
     const fake = new FakeLlm(["{}"]);
-    const result = await salary.estimate(fake, { ...job, salaryText: "$120,000 - $150,000 a year" }, { webSearch: true }, page(levelsHtml));
+    const usJob = { ...job, location: "San Francisco, CA", salaryText: "$120,000 - $150,000 a year" };
+    const result = await salary.estimate(fake, usJob, { webSearch: true }, page(levelsHtml));
     expect(result).toMatchObject({ basis: "web", currency: "USD", posted: { min: 120000 }, components: { base: { min: 151500, max: 225000 }, bonus: { min: 19000, max: 31750 }, stock: { min: 49900, max: 180000 } } });
     expect(result.note).toContain("United States");
     expect(fake.requests).toHaveLength(0);
+  });
+
+  test("Levels.fyi US data is not used for a non-US job", async () => {
+    const levelsHtml = `<script type="application/ld+json">${JSON.stringify({ name: "Senior Engineer", estimatedSalary: [{ name: "total", currency: "USD", percentile25: "216550", median: "284000", percentile75: "405000" }] })}</script>`;
+    const result = await salary.estimate(new FakeLlm(["{}"]), { ...job, salaryText: "" }, { webSearch: true }, page(levelsHtml));
+    expect(result.note ?? "").not.toContain("Levels.fyi: typical range");
   });
 
   test("web extraction with messy model output", async () => {

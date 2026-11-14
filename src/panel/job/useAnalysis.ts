@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as perksData from "../../ai/perks.ts";
 import * as tasks from "../../ai/tasks.ts";
 import * as storage from "../../storage.ts";
+import type { StoreShape } from "../../storage.ts";
 import type { CompanyPerks, JobAnalysis, JobPosting, SalaryEstimate } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
 import * as trackedJobs from "./trackedJobs.ts";
@@ -32,11 +33,17 @@ export function useAnalysis(job: JobPosting | null, hasResume: boolean) {
     return result;
   });
 
-  async function analyze() {
+  /** `known` holds salary and perks stored from an earlier run whose analysis failed, so they are not paid for twice. */
+  async function runAll(known?: StoreShape["lookups"][string]) {
     if (!job) return;
-    const [nextAnalysis, nextSalary, nextPerks] = await Promise.all([analysisTask.run(job), salaryTask.run(job), perksTask.run(job)]);
-    if (nextAnalysis) await trackedJobs.saveAnalysis(job, { ...nextAnalysis, salary: nextSalary ?? null, perks: nextPerks ?? null });
+    const [nextAnalysis, nextSalary, nextPerks] = await Promise.all([analysisTask.run(job), known?.salary ?? salaryTask.run(job), known?.perks ?? perksTask.run(job)]);
+    if (nextAnalysis) return trackedJobs.saveAnalysis(job, { ...nextAnalysis, salary: nextSalary ?? null, perks: nextPerks ?? null });
+    if (nextSalary || nextPerks) {
+      await storage.update("lookups", (lookups) => ({ ...lookups, [job.id]: { salary: nextSalary ?? null, perks: nextPerks ?? null } }));
+    }
   }
+
+  const analyze = () => runAll();
 
   async function estimate() {
     if (!job) return;
@@ -61,14 +68,21 @@ export function useAnalysis(job: JobPosting | null, hasResume: boolean) {
     if (!job) return;
     let isAlive = true;
     void (async () => {
-      const [jobs, analyses, settings] = await Promise.all([storage.get("jobs"), storage.get("analyses"), storage.get("settings")]);
+      const [jobs, analyses, lookups, settings] = await Promise.all([storage.get("jobs"), storage.get("analyses"), storage.get("lookups"), storage.get("settings")]);
       if (!isAlive) return;
       const cached = jobs[job.id]?.analysis ?? analyses[job.id];
       if (cached) {
         setAnalysis(cached);
         setSalary(cached.salary);
         setPerks(cached.perks ?? null);
-      } else if (settings.autoAnalyze && hasResume) void analyze();
+      } else {
+        const known = lookups[job.id];
+        if (known) {
+          setSalary(known.salary);
+          setPerks(known.perks);
+        }
+        if (settings.autoAnalyze && hasResume) void runAll(known);
+      }
     })();
     return () => {
       isAlive = false;

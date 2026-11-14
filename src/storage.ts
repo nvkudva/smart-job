@@ -1,4 +1,5 @@
-import type { AnswerBank, JobAnalysis, JobSearch, Profile, Resume, Settings, TailoredResume, TrackedJob } from "./types.ts";
+import * as llm from "./ai/llm.ts";
+import type { AnswerBank, CompanyPerks, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
 
 export interface StoreShape {
   settings: Settings;
@@ -8,6 +9,8 @@ export interface StoreShape {
   jobs: Record<string, TrackedJob>;
   /** analysis cache for jobs not (yet) shortlisted, keyed by JobPosting.id */
   analyses: Record<string, JobAnalysis>;
+  /** salary and perks that succeeded when the analysis itself failed, keyed by JobPosting.id */
+  lookups: Record<string, { salary: SalaryEstimate | null; perks: CompanyPerks | null }>;
   answers: AnswerBank;
   /** false shows the setup wizard; absent means "decide from existing data" (see isSetupComplete) */
   setupComplete: boolean;
@@ -69,6 +72,7 @@ const defaults: StoreShape = {
   resume: null,
   jobs: {},
   analyses: {},
+  lookups: {},
   answers: {},
   setupComplete: false,
   linkedinImportedAt: 0,
@@ -130,16 +134,51 @@ export async function loadSetupComplete(): Promise<boolean> {
   return isComplete;
 }
 
+/** The API key and job-site password are left out because export files get attached to bug reports and synced to cloud folders. */
 export async function exportAll(): Promise<string> {
-  return JSON.stringify(await chrome.storage.local.get(null), null, 2);
+  const everything = await chrome.storage.local.get(null);
+  const settings = everything.settings as Settings | undefined;
+  if (settings) everything.settings = { ...settings, provider: { ...settings.provider, apiKey: "" }, account: { ...settings.account, password: "" } };
+  return JSON.stringify(everything, null, 2);
 }
 
-/** Only known keys are written, so a wrong or hand-edited file cannot plant stray data. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+/** The value must look like the key's default: object, array, boolean or number (resume may also be null). */
+function hasExpectedShape(key: keyof StoreShape, value: unknown): boolean {
+  const expected = defaults[key];
+  if (expected === null) return value === null || isPlainObject(value);
+  if (Array.isArray(expected)) return Array.isArray(value);
+  if (typeof expected === "object") return isPlainObject(value);
+  return typeof value === typeof expected;
+}
+
+/** A planted base URL would send the resume and key to someone else's server, so only known providers and local servers pass. */
+function isTrustedProvider(settings: Record<string, unknown>): boolean {
+  const provider = settings.provider;
+  if (provider === undefined) return true;
+  if (!isPlainObject(provider) || typeof provider.baseUrl !== "string" || typeof provider.kind !== "string") return false;
+  if (llm.presetFor(provider as unknown as Settings["provider"])) return true;
+  try {
+    return ["localhost", "127.0.0.1"].includes(new URL(provider.baseUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Only known keys with the right basic shape are written, so a wrong or hand-edited file cannot plant stray data or crash the panel. */
 export async function importAll(json: string): Promise<void> {
   const parsed: unknown = JSON.parse(json);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Not a SmartJob export file.");
+  if (!isPlainObject(parsed)) throw new Error("Not a SmartJob export file.");
   const known = Object.entries(parsed).filter(([key]) => key in defaults);
   if (known.length === 0) throw new Error("This file has no SmartJob data.");
+  for (const [key, value] of known) {
+    if (!hasExpectedShape(key as keyof StoreShape, value)) throw new Error(`The "${key}" data in this file has the wrong format.`);
+  }
+  const settings = parsed.settings;
+  if (isPlainObject(settings) && !isTrustedProvider(settings)) throw new Error("This file points the AI provider at an unknown server. Edit the base URL to a known provider or a local server and try again.");
   await chrome.storage.local.set(Object.fromEntries(known));
 }
 

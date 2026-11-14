@@ -10,7 +10,12 @@ import { useStored } from "../shared/useStored.ts";
 const statuses: JobStatus[] = ["saved", "applied", "interview", "offer", "rejected"];
 const notesSaveDelayMs = 500;
 
-const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+/** A leading = + - @ tab or CR would make Excel/Sheets run the cell as a formula, so those get a ' in front. */
+const csvCell = (value: string | number) => {
+  const text = String(value);
+  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${safe.replace(/"/g, '""')}"`;
+};
 
 function toCsv(entries: TrackedJob[], resumes: TailoredResume[]): string {
   const header = ["Title", "Company", "Location", "Status", "Match", "Salary", "Posting URL", "Application portal", "Login email", "Applied", "Tailored resumes", "Cover letter", "Notes", "Saved"];

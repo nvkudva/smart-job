@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useState } from "preact/hooks";
 import * as llm from "../../ai/llm.ts";
 import type { CandidateContext } from "../../ai/tasks.ts";
@@ -23,7 +24,11 @@ export function useStatus(): AiStatus {
   return current;
 }
 
-const rateLimitPattern = /\b429\b|rate.?limit|too many requests|quota/i;
+/** `LLM 429:` is what llm.ts writes for OpenAI-style endpoints; Anthropic's SDK throws its own error class. */
+function isRateLimitError(failure: unknown): boolean {
+  return failure instanceof Anthropic.RateLimitError || /^(Error: )?LLM 429:/.test(String(failure));
+}
+
 let isRateLimited = false;
 const rateLimitListeners = new Set<(next: boolean) => void>();
 
@@ -59,7 +64,7 @@ export async function run<T>(task: (context: AiContext) => Promise<T>): Promise<
     return result;
   } catch (failure) {
     report("error");
-    if (rateLimitPattern.test(String(failure))) setRateLimited(true);
+    if (isRateLimitError(failure)) setRateLimited(true);
     throw failure;
   }
 }

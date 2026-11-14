@@ -4,8 +4,9 @@ const backing: Record<string, unknown> = {};
 (globalThis as unknown as { chrome: unknown }).chrome = {
   storage: {
     local: {
-      get: async (key: string) => {
+      get: async (key: string | null) => {
         await new Promise((resolve) => setTimeout(resolve, 1));
+        if (key === null) return structuredClone(backing);
         return key in backing ? { [key]: structuredClone(backing[key]) } : {};
       },
       set: async (values: Record<string, unknown>) => void Object.assign(backing, structuredClone(values)),
@@ -31,4 +32,21 @@ test("import ignores unknown keys and rejects files without SmartJob data", asyn
   expect(backing).toEqual({ setupComplete: true });
   await expect(storage.importAll("[]")).rejects.toThrow();
   await expect(storage.importAll(JSON.stringify({ other: 1 }))).rejects.toThrow();
+});
+
+test("import rejects wrong shapes and unknown provider servers", async () => {
+  await expect(storage.importAll(JSON.stringify({ jobs: [] }))).rejects.toThrow("wrong format");
+  await expect(storage.importAll(JSON.stringify({ settings: "x" }))).rejects.toThrow("wrong format");
+  const evil = { settings: { provider: { kind: "openai", baseUrl: "https://evil.example/v1" } } };
+  await expect(storage.importAll(JSON.stringify(evil))).rejects.toThrow("unknown server");
+  const local = { settings: { provider: { kind: "openai", baseUrl: "http://localhost:1234/v1" } } };
+  await storage.importAll(JSON.stringify(local));
+});
+
+test("export leaves out the API key and account password", async () => {
+  backing.settings = { provider: { kind: "openai", baseUrl: "http://localhost:1234/v1", apiKey: "sk-secret", model: "m" }, account: { email: "a@b.c", password: "hunter2" } };
+  const exported = await storage.exportAll();
+  expect(exported).not.toContain("sk-secret");
+  expect(exported).not.toContain("hunter2");
+  expect(exported).toContain("a@b.c");
 });

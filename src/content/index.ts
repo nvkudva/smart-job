@@ -4,13 +4,15 @@ import * as applyButton from "./applyButton.ts";
 import * as job from "./job.ts";
 import * as form from "./form/index.ts";
 
-chrome.runtime.onMessage.addListener((request: ContentRequest, _sender, sendResponse) => {
-  respond(request).then(sendResponse, (error) => {
-    console.warn("[SmartJob]", error);
-    sendResponse(undefined);
+function listen(): void {
+  chrome.runtime.onMessage.addListener((request: ContentRequest, _sender, sendResponse) => {
+    respond(request).then(sendResponse, (error) => {
+      console.warn("[SmartJob]", error);
+      sendResponse(undefined);
+    });
+    return true;
   });
-  return true;
-});
+}
 
 async function respond(request: ContentRequest): Promise<unknown> {
   switch (request.type) {
@@ -47,5 +49,11 @@ async function storeCredential(username: string, password: string): Promise<bool
   }
 }
 
-form.watchForChanges();
-job.watchForChanges();
+// the panel injects this script into tabs that have none, which can race Chrome's own injection; a second copy would double every listener
+const marker = globalThis as { __smartjob?: boolean };
+if (!marker.__smartjob) {
+  marker.__smartjob = true;
+  listen();
+  form.watchForChanges();
+  job.watchForChanges();
+}

@@ -1,4 +1,3 @@
-import * as feedback from "feedback-widget";
 import { Component, render } from "preact";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
@@ -14,23 +13,6 @@ import { ProfileTab } from "./settings/profileTab.tsx";
 import { SettingsTab } from "./settings/settingsTab.tsx";
 import { TrackerTab } from "./tracker/trackerTab.tsx";
 import { useStored } from "./shared/useStored.ts";
-
-// shortcut: endpoint points at `wrangler dev` and the repo is a placeholder; set both once the worker is deployed.
-const feedbackEndpoint = "http://localhost:8787/";
-const feedbackRepo = "OWNER/smartjob";
-
-/** The job page in the tab, which is usually what a bug report is about. Throws on chrome:// pages; the widget then skips it. */
-async function captureJobPage(): Promise<Blob> {
-  const dataUrl = await chrome.tabs.captureVisibleTab({ format: "jpeg", quality: 70 });
-  return (await fetch(dataUrl)).blob();
-}
-
-const reporter = feedback.create({
-  endpoint: feedbackEndpoint,
-  repo: feedbackRepo,
-  version: chrome.runtime.getManifest().version,
-  captures: { page: captureJobPage, panel: feedback.captureDom },
-});
 
 const tabNames = ["Analysis", "Apply", "Track", "Profile", "Settings"] as const;
 type TabName = (typeof tabNames)[number];
@@ -114,10 +96,6 @@ function App() {
 
   useEffect(() => void (isResumeLoaded && !hasResume && setTab("Profile")), [isResumeLoaded]);
   useEffect(() => void (active.job && setLastJob(active.job)), [active.job]);
-  useEffect(() => {
-    const job = active.job ?? lastJob;
-    reporter.setContext({ tab, site: active.host, page: active.url, job: job?.title, company: job?.company });
-  }, [tab, active.host, active.url, active.job, lastJob]);
 
   if (isSetupComplete === undefined) return null;
   if (!isSetupComplete) {

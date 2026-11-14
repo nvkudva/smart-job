@@ -183,24 +183,3 @@ test("setup wizard: provider, profile, review, job searches, then tabs", async (
   expect(await stored(panel, "setupComplete")).toBe(true);
   await panel.close();
 }, 60000);
-
-test("feedback button sends a report with page and panel screenshots", async () => {
-  const panel = await openPanelOnJob("panel-job.html");
-  await visible(panel.locator(".job-title").first());
-  let sent = "";
-  await panel.route("http://localhost:8787/**", async (route) => {
-    sent = route.request().postDataBuffer()?.toString("latin1") ?? "";
-    await route.fulfill({ status: 201, contentType: "application/json", body: '{"url":"x"}' });
-  });
-  await panel.getByRole("button", { name: "Report a bug or idea" }).click();
-  await visible(panel.getByRole("dialog"));
-  expect(await panel.locator("#shots img").count()).toBe(2);
-  await panel.getByLabel("Details").fill("Autofill skipped the phone field");
-  await panel.getByRole("button", { name: "Send", exact: true }).click();
-  await visible(panel.getByText("Thanks! Your report was sent."));
-  expect(sent).toContain("Autofill skipped the phone field");
-  expect(sent).toContain('filename="page.jpg"');
-  expect(sent).toContain('filename="panel.jpg"');
-  expect(sent).toContain("Panel Test Engineer");
-  await panel.close();
-}, 30000);

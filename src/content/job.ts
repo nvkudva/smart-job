@@ -64,7 +64,7 @@ function meta(doc: Document, property: string): string {
 function fromJsonLd(doc: Document): Fields | null {
   for (const script of Array.from(doc.querySelectorAll('script[type="application/ld+json"]'))) {
     const posting = findPosting(parseJson(script.textContent ?? ""));
-    if (posting) return readPosting(posting, doc);
+    if (posting) return readPosting(posting);
   }
   return null;
 }
@@ -88,23 +88,24 @@ function findPosting(node: unknown): Json | null {
   return findPosting(record["@graph"]);
 }
 
-function readPosting(posting: Json, doc: Document): Fields {
+function readPosting(posting: Json): Fields {
   return {
-    title: htmlToText(String(posting.title ?? posting.name ?? ""), doc).replace(/\n+/g, " "),
+    title: htmlToText(String(posting.title ?? posting.name ?? "")).replace(/\n+/g, " "),
     company: nameOf(posting.hiringOrganization),
     location: locationOf(posting),
-    description: htmlToText(String(posting.description ?? ""), doc),
+    description: htmlToText(String(posting.description ?? "")),
     salaryText: salaryOf(posting.baseSalary),
     employmentType: [posting.employmentType ?? []].flat().join(", "),
     source: "jsonld",
   };
 }
 
-function htmlToText(html: string, doc: Document): string {
-  const holder = doc.createElement("div");
-  holder.innerHTML = html;
+/** Parsed in a separate inert document so images and inline handlers in the listing never load or run. */
+function htmlToText(html: string): string {
+  const parse = (markup: string) => new DOMParser().parseFromString(markup, "text/html").body;
+  let holder = parse(html);
   // some boards double-escape the HTML ("&lt;p&gt;")
-  if (!holder.children.length && /<\w+/.test(holder.textContent ?? "")) holder.innerHTML = holder.textContent ?? "";
+  if (!holder.children.length && /<\w+/.test(holder.textContent ?? "")) holder = parse(holder.textContent ?? "");
   return sites.toText(holder);
 }
 
