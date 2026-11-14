@@ -141,10 +141,19 @@ export interface SalaryEstimate {
   components?: SalaryComponents;
 }
 
+/** perks and benefits stated by the posting or found on the web, grouped by category in the panel */
+export interface CompanyPerks {
+  items: { category: string; text: string }[];
+  sources: { title: string; url: string }[];
+}
+
 export type MustHaveMet = "yes" | "partial" | "no";
 
 export interface JobAnalysis {
+  /** paragraph from analyses cached before highlights existed; new analyses leave it empty */
   summary: string;
+  /** short keyword phrases: what the role works with and what is interesting about it, minus anything already in mustHave / niceToHave */
+  highlights?: string[];
   mustHave: string[];
   /** the model's verdict per mustHave item, same order; absent in analyses cached before it existed */
   mustHaveMet?: MustHaveMet[];
@@ -159,6 +168,8 @@ export interface JobAnalysis {
   gaps: string[];
   verdict: string;
   salary: SalaryEstimate | null;
+  /** absent in analyses cached before perks existed */
+  perks?: CompanyPerks | null;
   analyzedAt: number;
 }
 

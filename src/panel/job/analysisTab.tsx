@@ -1,6 +1,7 @@
 import type { ActiveJob } from "./activeTab.ts";
 import { AnalysisView } from "./analysisView.tsx";
 import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
+import { PerksSection } from "./perks.tsx";
 import { SalarySection } from "./salary.tsx";
 import * as trackedJobs from "./trackedJobs.ts";
 import { useAnalysis } from "./useAnalysis.ts";
@@ -84,7 +85,7 @@ export function AnalysisTab({ active, hasResume, onApply }: AnalysisTabProps) {
 
   const tracked = jobs?.[job.id];
   const toggleShortlist = async () => {
-    if (!tracked) await trackedJobs.track(job, { analysis: state.analysis ? { ...state.analysis, salary: state.salary } : null });
+    if (!tracked) await trackedJobs.track(job, { analysis: state.analysis ? { ...state.analysis, salary: state.salary, perks: state.perks } : null });
     else if (canUnshortlist(tracked)) await trackedJobs.untrack(job.id);
   };
   return (
@@ -100,6 +101,7 @@ export function AnalysisTab({ active, hasResume, onApply }: AnalysisTabProps) {
       )}
       {state.analysis && !state.isAnalyzing && <AnalysisView analysis={state.analysis} />}
       <SalarySection salary={state.salary} isLoading={state.isEstimating} error={state.salaryError} onEstimate={state.estimate} />
+      <PerksSection perks={state.perks} isLoading={state.isFindingPerks} error={state.perksError} onFind={state.findPerks} />
     </div>
   );
 }

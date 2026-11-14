@@ -46,7 +46,8 @@ export function describeCandidate(candidate: CandidateContext): string {
 // ---------- analyzeJob ----------
 
 const analysisSystem = `You are a recruiter assessing how well a candidate fits a job. Reply with JSON:
-{"summary": "3-5 sentences about the role", "mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
+{"highlights": [2-6 keyword phrases of 1-4 words], "mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [short phrases], "matchScore": 0-100, "strengths": [short phrases], "gaps": [short phrases], "verdict": "one line, e.g. Strong match - apply"}
+highlights name what the person would work with (stack, domain, scale) and what is interesting about this job. Never repeat a mustHave or niceToHave item, and never write sentences.
 Scoring rubric for matchScore: must-have requirements covered = up to 60 points, experience level/seniority fit = up to 25, nice-to-have covered = up to 15. Be honest; do not inflate.
 "met" judges the candidate's whole background (resume and LinkedIn), not exact wording: an engineering manager meets "2+ years leading teams".
 strengths and gaps compare the candidate to the job, citing specifics. ${noInvention}`;
@@ -65,13 +66,23 @@ function normalizeMustHave(raw: unknown): { mustHave: string[]; mustHaveMet?: Mu
   };
 }
 
+function isSameTopic(left: string, right: string): boolean {
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  return a.includes(b) || b.includes(a);
+}
+
 export function normalizeAnalysis(raw: unknown): Omit<JobAnalysis, "salary" | "analyzedAt" | "keywordScore" | "matchedSkills" | "missingSkills"> {
   const data = normalize.asRecord(raw);
   const score = normalize.asScore(data.matchScore);
+  const mustHave = normalizeMustHave(data.mustHave);
+  const niceToHave = normalize.asStringList(data.niceToHave, 10);
+  const alreadyListed = [...mustHave.mustHave, ...niceToHave];
   return {
     summary: normalize.asString(data.summary),
-    ...normalizeMustHave(data.mustHave),
-    niceToHave: normalize.asStringList(data.niceToHave, 10),
+    highlights: normalize.asStringList(data.highlights, 6).filter((item) => !alreadyListed.some((listed) => isSameTopic(item, listed))),
+    ...mustHave,
+    niceToHave,
     matchScore: score,
     strengths: normalize.asStringList(data.strengths, 6),
     gaps: normalize.asStringList(data.gaps, 6),

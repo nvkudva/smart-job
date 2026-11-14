@@ -306,7 +306,7 @@ export function parseBingResults(html: string): SearchResult[] {
   return results;
 }
 
-async function fetchResults(url: string, parse: (html: string) => SearchResult[], fetchPage: typeof fetch): Promise<SearchResult[]> {
+export async function fetchResults(url: string, parse: (html: string) => SearchResult[], fetchPage: typeof fetch): Promise<SearchResult[]> {
   try {
     const response = await fetchPage(url, { headers: { accept: "text/html" } });
     if (!response.ok) return [];

@@ -61,20 +61,27 @@ function SourceViewer({ source, onClose }: { source: Source; onClose: () => void
   );
 }
 
+function siteName(source: Source): string {
+  try {
+    return new URL(source.url).hostname.replace(/^www\./, "");
+  } catch {
+    return source.title;
+  }
+}
+
 function SourceLinks({ title, sources, onOpen }: { title: string; sources: Source[]; onOpen: (source: Source) => void }) {
-  if (sources.length === 0) return null;
+  const oneBySite = sources.filter((source, index) => sources.findIndex((other) => siteName(other) === siteName(source)) === index);
+  if (oneBySite.length === 0) return null;
   return (
     <div class="block">
       <h4>{title}</h4>
-      <ul class="source-list">
-        {sources.map((source) => (
-          <li>
-            <button type="button" class="link" title={source.url} onClick={() => onOpen(source)}>
-              {source.title.replace(salaryData.lookupPrefix, "")}
-            </button>
-          </li>
+      <div class="chips">
+        {oneBySite.map((source) => (
+          <button type="button" class="chip site" title={source.title.replace(salaryData.lookupPrefix, "")} onClick={() => onOpen(source)}>
+            {siteName(source)}
+          </button>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

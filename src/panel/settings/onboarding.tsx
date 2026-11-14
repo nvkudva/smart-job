@@ -121,8 +121,8 @@ function ReviewForm({ initial, onNext }: { initial: Profile; onNext: () => void 
           <Field label="Notice period" value={draft.noticePeriod} onValue={(noticePeriod) => change({ noticePeriod })} />
         </div>
         <div class="grid2">
-          <Field label="Current salary / CTC" value={draft.currentSalary} onValue={(currentSalary) => change({ currentSalary: format.groupDigits(currentSalary) })} />
-          <Field label="Salary expectation" value={draft.salaryExpectation} onValue={(salaryExpectation) => change({ salaryExpectation: format.groupDigits(salaryExpectation) })} />
+          <Field label="Current salary / CTC" value={draft.currentSalary} onValue={(currentSalary) => change({ currentSalary: format.groupDigits(currentSalary, format.localeForCountry(draft.country)) })} />
+          <Field label="Salary expectation" value={draft.salaryExpectation} onValue={(salaryExpectation) => change({ salaryExpectation: format.groupDigits(salaryExpectation, format.localeForCountry(draft.country)) })} />
         </div>
         <Button kind="primary" onClick={() => void save()}>
           Save and continue

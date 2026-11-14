@@ -53,6 +53,10 @@ describe("analyzeJob", () => {
     expect(result.missingSkills).toContain("Terraform");
     expect(result.keywordScore).toBeGreaterThan(0);
   });
+  test("highlights drop anything already listed as must-have or nice-to-have", () => {
+    const result = tasks.normalizeAnalysis({ highlights: ["python", "Payments domain", "Kubernetes at scale", "React"], mustHave: ["Python 3+ years"], niceToHave: ["Kubernetes"] });
+    expect(result.highlights).toEqual(["Payments domain", "React"]);
+  });
   test("retries on non-JSON and truncates long input", async () => {
     const fake = new FakeLlm(["no idea", '{"matchScore": 30}']);
     const long = { ...job, description: "x".repeat(20000) };

@@ -136,14 +136,3 @@ export function SaveBar({ isDirty, isSaved, label, onSave }: { isDirty: boolean;
     </div>
   );
 }
-
-export function Chips({ items, kind = "" }: { items: string[]; kind?: string }) {
-  if (!items.length) return null;
-  return (
-    <div class="chips">
-      {items.map((item) => (
-        <span class={`chip ${kind}`}>{item}</span>
-      ))}
-    </div>
-  );
-}

@@ -29,7 +29,7 @@ function AiSection({ initial }: { initial: Settings }) {
         <div class="stack tight">
           <Check label="Analyze jobs automatically" checked={draft.autoAnalyze} onChecked={(autoAnalyze) => change({ autoAnalyze })} />
           <Check label="Re-fill automatically when the page changes" checked={draft.autoFillOnPageChange} onChecked={(autoFillOnPageChange) => change({ autoFillOnPageChange })} />
-          <Check label="Search the web for salary data" checked={draft.salarySearch} onChecked={(salarySearch) => change({ salarySearch })} />
+          <Check label="Search the web for salary and perks data" checked={draft.salarySearch} onChecked={(salarySearch) => change({ salarySearch })} />
         </div>
       </Card>
       <Card title="Job-site account">

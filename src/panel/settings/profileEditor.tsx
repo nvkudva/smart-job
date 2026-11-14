@@ -135,7 +135,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
     spec.isYesNo ? (
       <Choice label={spec.label} value={String(profile[spec.key])} options={[...yesNoOptions]} onValue={(value) => setField(spec.key, value)} />
     ) : (
-      <Field label={spec.label} type={spec.type} rows={spec.rows} value={String(profile[spec.key])} onValue={(value) => setField(spec.key, spec.isAmount ? format.groupDigits(value) : value)} />
+      <Field label={spec.label} type={spec.type} rows={spec.rows} value={String(profile[spec.key])} onValue={(value) => setField(spec.key, spec.isAmount ? format.groupDigits(value, format.localeForCountry(profile.country)) : value)} />
     );
   const save = async () => {
     await storage.set("profile", { ...profile, skills: parseSkills(skillsText) });

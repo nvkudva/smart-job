@@ -10,6 +10,11 @@ export function money(amount: number, currency: string, locale?: string): string
   }
 }
 
+/** Indian digit grouping (12,00,000) when the profile country is India; otherwise the browser's own. */
+export function localeForCountry(country: string): string | undefined {
+  return /^\s*(india|in|bharat)\s*$/i.test(country) ? "en-IN" : undefined;
+}
+
 /** "1200000" → "1,200,000" while typing; text with letters or symbols ("12 LPA", "$90k") is left as typed. */
 export function groupDigits(text: string, locale?: string): string {
   if (!/^[\d,]+$/.test(text)) return text;
