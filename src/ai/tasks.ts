@@ -23,7 +23,7 @@ const noInvention = "Use only facts that appear in the resume or profile. Never 
 
 // ---------- prompt context ----------
 
-export function describeJob(job: JobPosting): string {
+function describeJob(job: JobPosting): string {
   const header = [`Title: ${job.title}`, `Company: ${job.company}`, job.location && `Location: ${job.location}`, job.employmentType && `Type: ${job.employmentType}`];
   return `${header.filter(Boolean).join("\n")}\n\nDescription:\n${normalize.truncate(normalize.compact(job.description), jobLimit)}`;
 }
@@ -92,7 +92,7 @@ export function scoreAnalysis(rated: { mustHaveMet?: MustHaveMet[]; niceToHaveMe
   return rated.blockers.length ? Math.min(score, BLOCKER_CAP) : score;
 }
 
-export function verdictFor(score: number): string {
+function verdictFor(score: number): string {
   return score >= 70 ? "Strong match - apply" : score >= 45 ? "Possible match - stretch" : "Weak match - skip";
 }
 
@@ -187,7 +187,7 @@ Rules:
 - Free-text questions like "why this company/role": first person, 60-120 words, specific to the job context, no cliches ("passionate", "dynamic", "fast-paced").
 - ${noInvention}`;
 
-export function describeFields(fields: FieldDescriptor[]): string {
+function describeFields(fields: FieldDescriptor[]): string {
   const lines = fields.map((field) =>
     JSON.stringify({
       id: field.id,
@@ -267,7 +267,7 @@ export async function answerFields(
 
 const questionSystem = `You answer a job application question on behalf of the candidate. First person, concrete, no cliches, no preamble, no quotation marks. Answer only with the answer text; 60-120 words unless the question needs a shorter answer (a number, yes/no). ${noInvention}`;
 
-export function cleanText(text: string): string {
+function cleanText(text: string): string {
   return text.replace(/^```\w*\n?|\n?```$/g, "").replace(/^["“](.*)["”]$/s, "$1").trim();
 }
 
@@ -286,7 +286,7 @@ export async function answerQuestion(
 }
 
 /** Replaces [Company]-style placeholders with real values, and drops any other bracketed placeholder. */
-export function removePlaceholders(letter: string, job: JobPosting): string {
+function removePlaceholders(letter: string, job: JobPosting): string {
   return letter
     .replace(/\[[^\]\n]*company[^\]\n]*\]/gi, job.company)
     .replace(/^\s*\[[^\]\n]+\]\s*$/gm, "")
@@ -354,7 +354,7 @@ Rules:
 - Never add skills, tools, metrics or responsibilities that are not in the original resume.
 - List each rewritten line in "changes".`;
 
-export function normalizeTailoring(raw: unknown, candidate: CandidateContext): { markdown: string; changes: { before: string; after: string; reason: string }[] } {
+function normalizeTailoring(raw: unknown, candidate: CandidateContext): { markdown: string; changes: { before: string; after: string; reason: string }[] } {
   const data = normalize.asRecord(raw);
   const markdown = typeof data.markdown === "string" && data.markdown.trim() ? data.markdown.trim() : candidate.resumeText;
   const changes = (Array.isArray(data.changes) ? data.changes : [])
@@ -431,7 +431,7 @@ export async function tailorPdf(
 }
 
 /** The model keeps adding the job's skills (e.g. "Backend systems") despite the prompt; a rewrite naming a skill the candidate never mentions is dropped. */
-export function addsSkill(placement: rewrite.Placement, candidate: CandidateContext): boolean {
+function addsSkill(placement: rewrite.Placement, candidate: CandidateContext): boolean {
   const known = `${candidate.profile.skills.join("\n")}\n${candidate.resumeText}\n${candidate.profile.linkedinSummary ?? ""}`;
   const original = placement.block.text;
   return skills.skillsIn(placement.lines.join(" ")).some((skill) => !skills.hasSkill(skill, known) && !skills.hasSkill(skill, original));

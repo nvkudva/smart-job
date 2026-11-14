@@ -25,7 +25,7 @@ export interface TextLine {
 }
 
 /** 0-1 channels, as pdf-lib expects */
-export interface Rgb {
+interface Rgb {
   r: number;
   g: number;
   b: number;
@@ -378,7 +378,7 @@ function sampleRuns(context: CanvasRenderingContext2D, view: PageView, block: Bl
   return inkColor(buffers);
 }
 
-export function colorize(context: CanvasRenderingContext2D, viewport: PageView, block: Block): void {
+function colorize(context: CanvasRenderingContext2D, viewport: PageView, block: Block): void {
   const all = block.lines.flatMap((line): [TextLine, TextRun][] => line.runs.map((run) => [line, run]));
   const emphasized = all.filter(([, run]) => run.face.isBold !== block.face.isBold);
   const plain = all.filter(([, run]) => run.face.isBold === block.face.isBold);

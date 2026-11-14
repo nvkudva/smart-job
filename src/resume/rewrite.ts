@@ -33,7 +33,7 @@ const lineTolerance = 0.5;
 
 // ---------- prompt side ----------
 
-export function capacity(block: layout.Block): { lineCount: number; maxChars: number } {
+function capacity(block: layout.Block): { lineCount: number; maxChars: number } {
   const lineCount = block.lines.length;
   const drawnWidth = block.lines.reduce((sum, line) => sum + line.right - line.left, 0);
   const charCount = block.lines.reduce((sum, line) => sum + layout.lineText(line).length, 0);
@@ -118,7 +118,7 @@ export function faceFor(block: layout.Block, word: string): layout.FontFace {
   return isEmphasized ? { ...block.face, isBold: true } : block.face;
 }
 
-export function fontScale(block: layout.Block, measurer: Measurer): number {
+function fontScale(block: layout.Block, measurer: Measurer): number {
   const originalWidth = block.lines.reduce((sum, line) => sum + line.right - line.left, 0);
   const standInWidth = block.lines.reduce((sum, line) => sum + measurer.width(layout.lineText(line), block.face, block.fontSize), 0);
   return normalize.clamp(originalWidth / Math.max(1, standInWidth), minScale, 1);

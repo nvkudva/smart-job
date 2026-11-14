@@ -96,7 +96,7 @@ function grantNote(years: number): string {
 type Parts = Pick<SalaryComponents, "base" | "bonus" | "stock">;
 
 /** Total is the stated one when it covers the parts, else their sum; one lone part without a stated total is just the plain range. */
-export function assembleComponents(parts: Parts, statedTotal: SalaryRange | null): SalaryComponents | null {
+function assembleComponents(parts: Parts, statedTotal: SalaryRange | null): SalaryComponents | null {
   const known = Object.values(parts).filter((range): range is SalaryRange => range !== null);
   if (!known.length) return null;
   const sum = { min: known.reduce((all, range) => all + range.min, 0), max: known.reduce((all, range) => all + range.max, 0) };
@@ -276,7 +276,7 @@ export function pickResults(results: SearchResult[], limit = 8): SearchResult[] 
 
 // ---------- Bing HTML ----------
 
-export function bingSearchUrl(job: JobPosting): string {
+function bingSearchUrl(job: JobPosting): string {
   const query = `${job.title} ${job.company} salary ${job.location}`.replace(/\s+/g, " ").trim();
   return `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en`;
 }
@@ -337,7 +337,7 @@ const extractionSystem = `Read the search snippets and report the pay for the jo
 - If no snippet has a salary figure, use null for min and max.
 Be brief; do not deliberate.`;
 
-export function buildExtractionPrompt(job: JobPosting, results: SearchResult[], currency: string): string {
+function buildExtractionPrompt(job: JobPosting, results: SearchResult[], currency: string): string {
   const snippets = results.map((result, index) => `[${index + 1}] ${result.title}\n${result.url}\n${normalize.truncate(result.snippet, 350)}`);
   return `Job: ${job.title} at ${job.company}, ${job.location || "location unknown"}. Expected currency: ${currency}.\n\nSearch results:\n${snippets.join("\n\n")}`;
 }
@@ -372,7 +372,7 @@ function fromModel(data: Record<string, unknown>, fields: Pick<SalaryEstimate, "
   return withModelComponents({ min, max, period, ...fields }, data);
 }
 
-export function normalizeExtraction(raw: unknown, results: SearchResult[], location: string): SalaryEstimate | null {
+function normalizeExtraction(raw: unknown, results: SearchResult[], location: string): SalaryEstimate | null {
   const data = normalize.asRecord(raw);
   const fields = { basis: "web" as const, currency: currencyOf(data, location), note: normalize.asString(data.note) || "Extracted from web search results.", sources: citedResults(data, results).map(({ title, url }) => ({ title, url })) };
   const estimate = fromModel(data, fields);
@@ -439,7 +439,7 @@ export function levelsUrl(job: JobPosting): string {
 const glassdoorDomains: Record<string, string> = { INR: "co.in", GBP: "co.uk", CAD: "ca", AUD: "com.au" };
 
 /** Glassdoor's salary search URL embeds the keyword length; the country domain narrows results to the job's market. */
-export function glassdoorUrl(job: JobPosting): string {
+function glassdoorUrl(job: JobPosting): string {
   const keyword = `${job.company} ${job.title}`.replace(/\([^)]*\)/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().slice(0, 80);
   const domain = glassdoorDomains[currencyForLocation(job.location)] ?? "com";
   return `https://www.glassdoor.${domain}/Salaries/${keyword.replace(/ /g, "-")}-salary-SRCH_KO0,${keyword.length}.htm`;
@@ -478,7 +478,7 @@ function levelsRange(distribution?: LevelsDistribution): { min: number; max: num
 }
 
 /** Levels.fyi role pages carry schema.org pay distributions (total, base, equity, bonus); the typical range is the 25th to 75th percentile. */
-export function parseLevelsPage(html: string, job: JobPosting, url: string): SalaryEstimate | null {
+function parseLevelsPage(html: string, job: JobPosting, url: string): SalaryEstimate | null {
   const blocks = [...html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)];
   for (const [, body] of blocks) {
     let page: { estimatedSalary?: LevelsDistribution[]; name?: string };

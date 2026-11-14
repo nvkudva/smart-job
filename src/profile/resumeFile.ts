@@ -8,7 +8,7 @@ interface TextPiece {
 }
 
 /** Joins pdf.js text items into lines: break on hasEOL or when the baseline moves. */
-export function joinLines(items: TextPiece[]): string {
+function joinLines(items: TextPiece[]): string {
   let text = "";
   let lastY: number | null = null;
   for (const item of items) {

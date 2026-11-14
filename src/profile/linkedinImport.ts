@@ -100,7 +100,7 @@ async function visitAll(tabId: number, startUrl: string, onStatus: StatusListene
   return { pages, profileUrl: root };
 }
 
-export async function collect(startUrl: string, onStatus: StatusListener) {
+async function collect(startUrl: string, onStatus: StatusListener) {
   const tab = await chrome.tabs.create({ url: startUrl, active: false });
   const tabId = tab.id!;
   try {

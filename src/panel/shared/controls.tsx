@@ -66,7 +66,7 @@ export function Field({ label, value, onValue, type = "text", placeholder, rows 
   );
 }
 
-export type ChoiceOption = string | readonly [value: string, label: string];
+type ChoiceOption = string | readonly [value: string, label: string];
 
 export function Choice({ label, value, options, onValue }: { label: string; value: string; options: ChoiceOption[]; onValue: (value: string) => void }) {
   return (

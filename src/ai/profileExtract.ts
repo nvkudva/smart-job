@@ -14,14 +14,14 @@ Rules: copy facts exactly as written in the resume; never invent anything. Use "
 
 // ---------- deterministic pass ----------
 
-export interface ContactDetails {
+interface ContactDetails {
   email: string;
   phone: string;
   linkedin: string;
   github: string;
 }
 
-export function extractContacts(text: string): ContactDetails {
+function extractContacts(text: string): ContactDetails {
   const email = text.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0] ?? "";
   const linkedin = text.match(/(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[\w\-%]+\/?/i)?.[0] ?? "";
   const github = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/(?!orgs\b)[\w-]+/i)?.[0] ?? "";

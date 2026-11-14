@@ -12,7 +12,7 @@ export const summaryLimit = 2500;
 const pageLimit = 6000;
 const skillLimit = 80;
 
-export const linkedinSystem = `You read the text of a person's own LinkedIn pages (main profile, experience, education, skills, certifications, recent activity). Reply with JSON:
+const linkedinSystem = `You read the text of a person's own LinkedIn pages (main profile, experience, education, skills, certifications, recent activity). Reply with JSON:
 {"name","headline","summary","city","state","country","github","portfolio","website","yearsExperience":number,"skills":[string],
 "experience":[{"title","company","location","start":"YYYY-MM","end":"YYYY-MM or empty if current","current":boolean,"description":"key bullets joined by newlines"}],
 "education":[{"school","degree","field","start":"YYYY-MM","end":"YYYY-MM","gpa"}],

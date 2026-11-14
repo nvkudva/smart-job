@@ -114,7 +114,7 @@ export function onChange(listener: (changedKeys: (keyof StoreShape)[]) => void):
   return () => chrome.storage.onChanged.removeListener(handler);
 }
 
-export interface SetupEvidence {
+interface SetupEvidence {
   setupComplete?: boolean;
   settings?: unknown;
   profile?: Partial<Profile>;

@@ -4,7 +4,7 @@ import * as normalize from "./normalize.ts";
 
 const maxRoles = 8;
 
-export const rolesSystem = `You suggest job titles a candidate should search for. Reply with JSON: {"roles":[string]}
+const rolesSystem = `You suggest job titles a candidate should search for. Reply with JSON: {"roles":[string]}
 Rules: 5 to 8 standard job titles as they appear in job postings, most relevant first.
 1. First the title the candidate states they want, only if the objective / summary names a concrete title ("Senior leadership role" is not one); otherwise their latest employed title as it appears in postings (drop internal levels like "II": "Engineering Manager II" → "Engineering Manager").
 2. Then exactly the next two levels up that same ladder, one step at a time (Engineering Manager → Senior Engineering Manager → Director of Engineering). Never skip levels.
