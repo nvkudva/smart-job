@@ -5,6 +5,7 @@ import type { FoundJob, SearchQuery, Source } from "./jobSources.ts";
 const name = "Instahyre";
 const searchUrl = "https://www.instahyre.com/api/v1/job_search";
 const maxJobs = 25;
+const pageSize = 15;
 const cityNames: Record<string, string> = { bengaluru: "Bangalore", gurugram: "Gurgaon" };
 
 interface Posting {
@@ -41,10 +42,10 @@ export function parseList(raw: string): FoundJob[] {
   return (data.objects ?? []).slice(0, maxJobs).map(toJob);
 }
 
-async function search(query: SearchQuery): Promise<FoundJob[]> {
+async function search(query: SearchQuery, page: number): Promise<FoundJob[]> {
   const city = cityOf(query.location);
   const place = city ? `&jobLocations=${encodeURIComponent(city)}` : "";
-  const url = `${searchUrl}?company_size=0&job_type=0${place}&skills=${encodeURIComponent(query.role)}&offset=0`;
+  const url = `${searchUrl}?company_size=0&job_type=0${place}&skills=${encodeURIComponent(query.role)}&offset=${page * pageSize}`;
   return parseList(await http.text(name, url));
 }
 

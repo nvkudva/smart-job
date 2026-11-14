@@ -33,7 +33,8 @@ export interface Source {
   name: string;
   /** lower-case country names this portal serves; empty means every country */
   countries: string[];
-  search(query: SearchQuery): Promise<FoundJob[]>;
+  /** page is 0-based; a page with no jobs means the portal has no more */
+  search(query: SearchQuery, page: number): Promise<FoundJob[]>;
   /** full description text of one listing; rejects when the portal blocks the read */
   describe(job: FoundJob): Promise<string>;
 }

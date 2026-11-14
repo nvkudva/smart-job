@@ -3,6 +3,7 @@ import type { FoundJob, SearchQuery, Source } from "./jobSources.ts";
 import * as plainText from "./plainText.ts";
 
 const name = "LinkedIn";
+const pageSize = 10;
 const listUrl = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search";
 const detailUrl = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/";
 
@@ -44,8 +45,8 @@ export function parseDescription(raw: string): string {
   return markup ? plainText.block(markup) : "";
 }
 
-async function search(query: SearchQuery): Promise<FoundJob[]> {
-  const params = `keywords=${encodeURIComponent(query.role)}&location=${encodeURIComponent(query.location)}&start=0`;
+async function search(query: SearchQuery, page: number): Promise<FoundJob[]> {
+  const params = `keywords=${encodeURIComponent(query.role)}&location=${encodeURIComponent(query.location)}&start=${page * pageSize}`;
   return parseList(await http.text(name, `${listUrl}?${params}`));
 }
 

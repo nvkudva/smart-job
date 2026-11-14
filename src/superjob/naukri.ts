@@ -45,9 +45,10 @@ export function parseDescription(raw: string): string {
   return plainText.block(container);
 }
 
-function search(query: SearchQuery): Promise<FoundJob[]> {
+function search(query: SearchQuery, page: number): Promise<FoundJob[]> {
   const place = query.location.trim() ? `-in-${slug.of(query.location)}` : "";
-  const url = `${origin}/${slug.of(query.role)}-jobs${place}`;
+  const pageSuffix = page ? `-${page + 1}` : "";
+  const url = `${origin}/${slug.of(query.role)}-jobs${place}${pageSuffix}`;
   return hiddenTab.read(name, url, cardSelector, listSelector).then(parseList);
 }
 

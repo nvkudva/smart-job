@@ -6,6 +6,7 @@ const name = "Foundit";
 const searchUrl = "https://www.foundit.in/srp/results";
 const cardSelector = ".cardContainer";
 const listSelector = ".srpCardContainer";
+const pageSize = 15;
 
 /** Runs inside the search page: selects the card (the page loads its description on click) and returns the description pane. Must stay self-contained. */
 async function readJobPane(cardId: string): Promise<string> {
@@ -57,9 +58,10 @@ export function parseDescription(raw: string): string {
   return pane ? plainText.block(pane) : "";
 }
 
-async function search(query: SearchQuery): Promise<FoundJob[]> {
+async function search(query: SearchQuery, page: number): Promise<FoundJob[]> {
   const place = query.location.trim() ? `&locations=${encodeURIComponent(query.location.trim())}` : "";
-  const url = `${searchUrl}?query=${encodeURIComponent(query.role)}${place}`;
+  const offset = page ? `&start=${page * pageSize}&limit=${pageSize}` : "";
+  const url = `${searchUrl}?query=${encodeURIComponent(query.role)}${place}${offset}`;
   return parseList(await hiddenTab.read(name, url, cardSelector, listSelector), url);
 }
 

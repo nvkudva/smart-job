@@ -45,9 +45,9 @@ export function parseList(raw: string): FoundJob[] {
 
 export const parseDescription = jobPosting.description;
 
-async function search(query: SearchQuery): Promise<FoundJob[]> {
+async function search(query: SearchQuery, page: number): Promise<FoundJob[]> {
   const place = query.location.trim() ? `-in-${slug.of(query.location)}` : "";
-  return parseList(await http.text(name, `${origin}/job-search/${slug.of(query.role)}-jobs${place}`));
+  return parseList(await http.text(name, `${origin}/job-search/${slug.of(query.role)}-jobs${place}${page ? `-${page + 1}` : ""}`));
 }
 
 async function describe(job: FoundJob): Promise<string> {

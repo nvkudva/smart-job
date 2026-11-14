@@ -16,6 +16,8 @@ interface SourceStatus {
   isLoading: boolean;
   count: number;
   error: string;
+  /** false once a page came back empty or failed */
+  hasMore: boolean;
 }
 
 function useSuggestedRoles(profile: Profile): string[] {
@@ -39,32 +41,49 @@ function useSearch(country: string) {
   const [jobs, setJobs] = useState<FoundJob[]>([]);
   const [statuses, setStatuses] = useState<SourceStatus[]>([]);
   const latestSearch = useRef(0);
+  const nextPage = useRef<Record<string, number>>({});
 
-  const start = (next: SearchQuery) => {
-    const searchId = ++latestSearch.current;
-    const sources = jobSources.forCountry(country);
+  const fetchPage = (sources: jobSources.Source[], searchQuery: SearchQuery, searchId: number) => {
     const settle = (name: string, change: Partial<SourceStatus>) => {
       if (searchId !== latestSearch.current) return;
       setStatuses((current) => current.map((status) => (status.name === name ? { ...status, isLoading: false, ...change } : status)));
     };
-    setQuery(next);
-    setJobs([]);
-    setStatuses(sources.map((source) => ({ name: source.name, isLoading: true, count: 0, error: "" })));
     for (const source of sources) {
-      source.search(next).then(
+      const page = nextPage.current[source.name] ?? 0;
+      source.search(searchQuery, page).then(
         (found) => {
           if (searchId !== latestSearch.current) return;
+          nextPage.current[source.name] = page + 1;
           setJobs((current) => {
             const knownIds = new Set(current.map((job) => job.id));
             return [...current, ...found.filter((job) => !knownIds.has(job.id))];
           });
-          settle(source.name, { count: found.length });
+          setStatuses((current) => current.map((status) => (status.name === source.name ? { ...status, count: status.count + found.length } : status)));
+          settle(source.name, { hasMore: found.length > 0 });
         },
-        (failure) => settle(source.name, { error: failure instanceof Error ? failure.message : String(failure) }),
+        (failure) => settle(source.name, { error: failure instanceof Error ? failure.message : String(failure), hasMore: false }),
       );
     }
   };
-  return { query, jobs, statuses, start };
+
+  const start = (next: SearchQuery) => {
+    const searchId = ++latestSearch.current;
+    const sources = jobSources.forCountry(country);
+    nextPage.current = {};
+    setQuery(next);
+    setJobs([]);
+    setStatuses(sources.map((source) => ({ name: source.name, isLoading: true, count: 0, error: "", hasMore: true })));
+    fetchPage(sources, next, searchId);
+  };
+
+  const loadMore = (hiddenPortals: ReadonlySet<string>) => {
+    if (!query) return;
+    const sources = jobSources.forCountry(country).filter((source) => !hiddenPortals.has(source.name) && statuses.find((status) => status.name === source.name)?.hasMore);
+    const names = new Set(sources.map((source) => source.name));
+    setStatuses((current) => current.map((status) => (names.has(status.name) ? { ...status, isLoading: true } : status)));
+    fetchPage(sources, query, latestSearch.current);
+  };
+  return { query, jobs, statuses, start, loadMore };
 }
 
 interface SearchFormProps {
@@ -152,15 +171,16 @@ interface BodyProps {
   statuses: SourceStatus[];
   country: string;
   chosen: ReturnType<typeof useChosenJob>;
+  onLoadMore: (() => void) | undefined;
 }
 
-function Body({ jobs, visibleJobs, statuses, country, chosen }: BodyProps) {
+function Body({ jobs, visibleJobs, statuses, country, chosen, onLoadMore }: BodyProps) {
   if (!statuses.length) return <p class="muted sj-note">No job portals cover {country || "your country"} yet.</p>;
   const isLoading = statuses.some((status) => status.isLoading);
   if (!isLoading && !jobs.length) return <p class="muted sj-note">No jobs found for that search.</p>;
   return (
     <div class="sj-body">
-      <Results jobs={visibleJobs} chosen={chosen} isLoading={isLoading} />
+      <Results jobs={visibleJobs} chosen={chosen} isLoading={isLoading} onLoadMore={onLoadMore} />
     </div>
   );
 }
@@ -180,6 +200,8 @@ function Page({ profile }: { profile: Profile }) {
   const visibleJobs = filterByPortals(search.jobs, hiddenPortals);
   const chosen = useChosenJob(visibleJobs);
   const hasSearched = search.query !== null;
+  const isLoadingAny = search.statuses.some((status) => status.isLoading);
+  const canLoadMore = search.statuses.some((status) => status.hasMore && !hiddenPortals.has(status.name));
   const runSearch = (wantedRole: string) => {
     const trimmed = wantedRole.trim();
     if (!trimmed) return;
@@ -210,7 +232,7 @@ function Page({ profile }: { profile: Profile }) {
         </div>
         {hasSearched && !profile.country.trim() && <p class="muted small sj-hint">Add your country in Profile to also search local job portals.</p>}
       </header>
-      {hasSearched && <Body jobs={search.jobs} visibleJobs={visibleJobs} statuses={search.statuses} country={profile.country} chosen={chosen} />}
+      {hasSearched && <Body jobs={search.jobs} visibleJobs={visibleJobs} statuses={search.statuses} country={profile.country} chosen={chosen} onLoadMore={canLoadMore && !isLoadingAny ? () => search.loadMore(hiddenPortals) : undefined} />}
     </div>
   );
 }

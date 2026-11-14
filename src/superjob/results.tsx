@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import * as aiClient from "../panel/shared/aiClient.ts";
+import { Button } from "../panel/shared/controls.tsx";
 import { useStored } from "../panel/shared/useStored.ts";
 import type { JobPosting } from "../types.ts";
-import { JobDetail, hasFullDescription } from "./jobDetail.tsx";
-import type { Summary } from "./jobDetail.tsx";
+import { JobDetail } from "./jobDetail.tsx";
 import { JobList, scoreFor } from "./jobList.tsx";
 import type { FoundJob } from "./jobSources.ts";
 import * as posting from "./posting.ts";
 import * as selection from "./selection.ts";
-import * as summaryAi from "./summary.ts";
 
 /** Arrow-key browsing must not open a background tab for every job it passes. */
 const loadDelayMs = 400;
@@ -17,7 +15,6 @@ export interface ChosenJob {
   selected: FoundJob | undefined;
   openedIds: ReadonlySet<string>;
   loaded: JobPosting | undefined;
-  summary: Summary | undefined;
   windowId: number | undefined;
   select: (id: string) => void;
 }
@@ -56,20 +53,6 @@ function usePostings(selected: FoundJob | undefined, tabId: number | undefined):
   return postings;
 }
 
-function useSummaries(job: FoundJob | undefined, loaded: JobPosting | undefined): Summary | undefined {
-  const [summaries, setSummaries] = useState<Record<string, Summary>>({});
-  useEffect(() => {
-    if (!job || !loaded || summaries[job.id] || !hasFullDescription(job, loaded)) return;
-    const id = job.id;
-    setSummaries((current) => ({ ...current, [id]: { isLoading: true, bullets: [] } }));
-    void aiClient
-      .withClient((client) => summaryAi.summarize(client, job, loaded.description))
-      .catch(() => [] as string[])
-      .then((bullets) => setSummaries((current) => ({ ...current, [id]: { isLoading: false, bullets } })));
-  }, [job?.id, loaded]);
-  return job ? summaries[job.id] : undefined;
-}
-
 /** Owns which job is shown and what the side panel is told about it; also runs for the home state so the panel never shows a stale job. */
 export function useChosenJob(jobs: FoundJob[]): ChosenJob {
   const tab = useCurrentTab();
@@ -78,17 +61,17 @@ export function useChosenJob(jobs: FoundJob[]): ChosenJob {
   const selected = jobs.find((job) => job.id === selectedId) ?? jobs[0];
   const postings = usePostings(selected, tab?.id);
   const loaded = selected && postings[selected.id];
-  const summary = useSummaries(selected, loaded);
   useEffect(() => {
     if (selected) setOpenedIds((current) => new Set(current).add(selected.id));
   }, [selected?.id]);
-  return { selected, openedIds, loaded, summary, windowId: tab?.windowId, select: setSelectedId };
+  return { selected, openedIds, loaded, windowId: tab?.windowId, select: setSelectedId };
 }
 
 interface ResultsProps {
   jobs: FoundJob[];
   chosen: ChosenJob;
   isLoading: boolean;
+  onLoadMore: (() => void) | undefined;
 }
 
 function ListNote({ isLoading }: { isLoading: boolean }) {
@@ -96,7 +79,7 @@ function ListNote({ isLoading }: { isLoading: boolean }) {
   return <p class="muted sj-note">No jobs from the portals you have switched on. Switch a portal back on above.</p>;
 }
 
-export function Results({ jobs, chosen, isLoading }: ResultsProps) {
+export function Results({ jobs, chosen, isLoading, onLoadMore }: ResultsProps) {
   const analyses = useStored("analyses");
   const tracked = useStored("jobs");
   const stored = { analyses: analyses ?? {}, tracked: tracked ?? {} };
@@ -107,10 +90,15 @@ export function Results({ jobs, chosen, isLoading }: ResultsProps) {
       <section class="sj-list" aria-label="Job list">
         <JobList jobs={jobs} selectedId={selected?.id ?? ""} openedIds={chosen.openedIds} stored={stored} isLoading={isLoading} onSelect={chosen.select} />
         {!jobs.length && <ListNote isLoading={isLoading} />}
+        {onLoadMore && (
+          <div class="sj-more">
+            <Button onClick={onLoadMore}>Load more</Button>
+          </div>
+        )}
       </section>
       <section class="sj-detail" aria-label="Job details">
         {selected ? (
-          <JobDetail key={selected.id} job={selected} loaded={chosen.loaded} tracked={stored.tracked[chosen.loaded?.id ?? selectedId]} windowId={chosen.windowId} score={scoreFor(selectedId, stored)} summary={chosen.summary} />
+          <JobDetail key={selected.id} job={selected} loaded={chosen.loaded} tracked={stored.tracked[chosen.loaded?.id ?? selectedId]} windowId={chosen.windowId} score={scoreFor(selectedId, stored)} />
         ) : (
           <p class="muted sj-empty">{isLoading ? "Searching the portals…" : "Select a job to see its details."}</p>
         )}
