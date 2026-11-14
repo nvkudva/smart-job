@@ -25,7 +25,7 @@ const noInvention = "Use only facts that appear in the resume or profile. Never 
 
 export function describeJob(job: JobPosting): string {
   const header = [`Title: ${job.title}`, `Company: ${job.company}`, job.location && `Location: ${job.location}`, job.employmentType && `Type: ${job.employmentType}`];
-  return `${header.filter(Boolean).join("\n")}\n\nDescription:\n${normalize.truncate(job.description, jobLimit)}`;
+  return `${header.filter(Boolean).join("\n")}\n\nDescription:\n${normalize.truncate(normalize.compact(job.description), jobLimit)}`;
 }
 
 export function describeCandidate(candidate: CandidateContext): string {
@@ -42,8 +42,8 @@ export function describeCandidate(candidate: CandidateContext): string {
   ];
   const resume = candidate.resumeText.trim() || profile.experience.map((job) => `${job.title}, ${job.company}: ${job.description}`).join("\n");
   const linkedin = (profile.linkedinSummary ?? "").trim();
-  const linkedinSection = linkedin ? `\n\nLinkedIn profile:\n${normalize.truncate(linkedin, linkedinLimit)}` : "";
-  return `${facts.filter(Boolean).join("\n")}\n\nResume:\n${normalize.truncate(resume, resumeLimit)}${linkedinSection}`;
+  const linkedinSection = linkedin ? `\n\nLinkedIn profile:\n${normalize.truncate(normalize.compact(linkedin), linkedinLimit)}` : "";
+  return `${facts.filter(Boolean).join("\n")}\n\nResume:\n${normalize.truncate(normalize.compact(resume), resumeLimit)}${linkedinSection}`;
 }
 
 // ---------- analyzeJob ----------

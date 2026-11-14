@@ -56,6 +56,35 @@ function AiDot() {
   return <span class={`dot ${status}`} role="img" aria-label={statusLabel[status]} title={statusLabel[status]} />;
 }
 
+/** Shown when the AI provider reports a rate limit, with a shortcut to Settings where another endpoint can be picked. */
+function RateLimitToast({ onSwitch }: { onSwitch: () => void }) {
+  const [isRateLimited, dismiss] = aiContext.useRateLimited();
+  useEffect(() => {
+    if (!isRateLimited) return;
+    const timer = setTimeout(dismiss, 20000);
+    return () => clearTimeout(timer);
+  }, [isRateLimited]);
+  if (!isRateLimited) return null;
+  return (
+    <div class="toast" role="alert">
+      <span>The AI provider is rate limited. Switch to another endpoint?</span>
+      <button
+        type="button"
+        class="btn primary"
+        onClick={() => {
+          dismiss();
+          onSwitch();
+        }}
+      >
+        Switch
+      </button>
+      <button type="button" class="btn ghost" aria-label="Dismiss" title="Dismiss" onClick={dismiss}>
+        <Icon name="Close" />
+      </button>
+    </div>
+  );
+}
+
 function Onboarding({ onProfile, isOnProfile }: { onProfile: () => void; isOnProfile: boolean }) {
   return (
     <Card title="Welcome to SmartJob">
@@ -131,6 +160,7 @@ function App() {
           </section>
         ))}
       </main>
+      <RateLimitToast onSwitch={() => setTab("Settings")} />
     </div>
   );
 }

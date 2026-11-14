@@ -69,7 +69,7 @@ function openAiCompatibleClient(settings: ProviderSettings): LlmClient {
       const headers: Record<string, string> = { "content-type": "application/json" };
       if (settings.apiKey) headers.authorization = `Bearer ${settings.apiKey}`;
       const system = request.json ? `${request.system}\n\nRespond with a single valid JSON object only. No prose, no markdown fences.` : request.system;
-      const response = await fetch(`${settings.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      const init = {
         method: "POST",
         headers,
         signal: request.signal,
@@ -83,12 +83,39 @@ function openAiCompatibleClient(settings: ProviderSettings): LlmClient {
             { role: "user", content: request.user },
           ],
         }),
-      });
-      if (!response.ok) throw new Error(`LLM ${response.status}: ${(await response.text()).slice(0, 300)}`);
+      };
+      const response = await fetchWithRateLimitRetry(`${settings.baseUrl.replace(/\/$/, "")}/chat/completions`, init);
       const body = await response.json();
       return stripThinking(body.choices?.[0]?.message?.content ?? "");
     },
   };
+}
+
+const rateLimitRetries = 2;
+// a longer wait means a daily or monthly quota, which waiting will not fix
+const maxRateLimitWaitMs = 15000;
+
+/** How long the provider asks us to wait, from the Retry-After header or "try again in 942.8ms" / "1m2.5s" in the body; null when it does not say. */
+export function retryDelayMs(retryAfterHeader: string | null, body: string): number | null {
+  const seconds = Number(retryAfterHeader);
+  if (retryAfterHeader && Number.isFinite(seconds)) return seconds * 1000;
+  const stated = body.match(/try again in (?:(\d+)m)?([\d.]+)(ms|s)\b/i);
+  if (!stated) return null;
+  const minutes = Number(stated[1] ?? 0);
+  const amount = Number(stated[2]);
+  return minutes * 60000 + (stated[3]!.toLowerCase() === "ms" ? amount : amount * 1000);
+}
+
+/** Per-minute limits clear within seconds, so a 429 with a short stated wait is retried quietly instead of failing the task. */
+async function fetchWithRateLimitRetry(url: string, init: RequestInit & { signal?: AbortSignal }): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(url, init);
+    if (response.ok) return response;
+    const body = (await response.text()).slice(0, 300);
+    const delay = response.status === 429 ? retryDelayMs(response.headers.get("retry-after"), body) : null;
+    if (delay === null || delay > maxRateLimitWaitMs || attempt >= rateLimitRetries) throw new Error(`LLM ${response.status}: ${body}`);
+    await new Promise((resolve) => setTimeout(resolve, delay + 250));
+  }
 }
 
 /** Local thinking models (Qwen 3.x) spend minutes reasoning; Ollama honours "none", LM Studio only shortens on "low". Cloud non-reasoning models reject the field, so local only. */

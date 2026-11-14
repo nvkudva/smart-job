@@ -23,6 +23,25 @@ export function useStatus(): AiStatus {
   return current;
 }
 
+const rateLimitPattern = /\b429\b|rate.?limit|too many requests|quota/i;
+let isRateLimited = false;
+const rateLimitListeners = new Set<(next: boolean) => void>();
+
+function setRateLimited(next: boolean): void {
+  isRateLimited = next;
+  for (const listener of rateLimitListeners) listener(next);
+}
+
+/** True after a provider answered "rate limited"; the panel offers to switch endpoints until the user dismisses it. */
+export function useRateLimited(): [boolean, () => void] {
+  const [current, setCurrent] = useState(isRateLimited);
+  useEffect(() => {
+    rateLimitListeners.add(setCurrent);
+    return () => void rateLimitListeners.delete(setCurrent);
+  }, []);
+  return [current, () => setRateLimited(false)];
+}
+
 export interface AiContext {
   client: llm.LlmClient;
   candidate: CandidateContext;
@@ -40,6 +59,7 @@ export async function run<T>(task: (context: AiContext) => Promise<T>): Promise<
     return result;
   } catch (failure) {
     report("error");
+    if (rateLimitPattern.test(String(failure))) setRateLimited(true);
     throw failure;
   }
 }

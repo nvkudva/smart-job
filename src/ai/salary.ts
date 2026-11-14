@@ -461,6 +461,55 @@ export function lookupLinks(job: JobPosting): { title: string; url: string }[] {
   return [...companyLinks, ...marketLinks];
 }
 
+// ---------- Levels.fyi pages (structured data, no search engine) ----------
+
+interface LevelsDistribution {
+  name?: string;
+  currency?: string;
+  percentile25?: string | null;
+  median?: string | null;
+  percentile75?: string | null;
+}
+
+function levelsRange(distribution?: LevelsDistribution): { min: number; max: number } | null {
+  const median = Number(distribution?.median);
+  if (!distribution || !Number.isFinite(median) || median <= 0) return null;
+  return { min: Number(distribution.percentile25) || median, max: Number(distribution.percentile75) || median };
+}
+
+/** Levels.fyi role pages carry schema.org pay distributions (total, base, equity, bonus); the typical range is the 25th to 75th percentile. */
+export function parseLevelsPage(html: string, job: JobPosting, url: string): SalaryEstimate | null {
+  const blocks = [...html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)];
+  for (const [, body] of blocks) {
+    let page: { estimatedSalary?: LevelsDistribution[]; name?: string };
+    try {
+      page = JSON.parse(body!);
+    } catch {
+      continue;
+    }
+    const byName = (name: string) => page.estimatedSalary?.find((entry) => entry.name === name);
+    const total = levelsRange(byName("total"));
+    if (!total) continue;
+    const region = html.match(/compensation in ([^"]+?) at /)?.[1];
+    const median = Number(byName("total")!.median).toLocaleString("en-US");
+    const note = `Levels.fyi: typical range (25th to 75th percentile) for ${page.name ?? job.title} at ${job.company}${region ? ` in ${region}` : ""}, across all levels; median total ${median}.`;
+    const data = { currency: byName("total")!.currency, period: "year", total, base: levelsRange(byName("base")), bonus: levelsRange(byName("bonus")), stock: levelsRange(byName("equity")), note };
+    return fromModel(data, { basis: "web", currency: normalize.asString(data.currency).toUpperCase() || "USD", note, sources: [{ title: `Levels.fyi – ${job.title} at ${job.company}`, url }] });
+  }
+  return null;
+}
+
+async function levelsEstimate(job: JobPosting, fetchPage: typeof fetch): Promise<SalaryEstimate | null> {
+  if (!job.company) return null;
+  const url = levelsUrl(job);
+  try {
+    const response = await fetchPage(url, { headers: { accept: "text/html" } });
+    return response.ok ? parseLevelsPage(await response.text(), job, url) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function extractFromWeb(client: llm.LlmClient, job: JobPosting, results: SearchResult[]): Promise<SalaryEstimate | null> {
   if (!results.length) return null;
   try {
@@ -486,12 +535,16 @@ async function estimateWithModel(client: llm.LlmClient, job: JobPosting): Promis
 export async function estimate(client: llm.LlmClient, job: JobPosting, options: { webSearch: boolean }, fetchPage: typeof fetch = fetch): Promise<SalaryEstimate> {
   const links = lookupLinks(job);
   const posted = parseSalaryText(job.salaryText);
-  if (posted) return { ...posted, sources: [...(job.url ? [{ title: "This job posting", url: job.url }] : []), ...links] };
+  const postedSource = posted && job.url ? [{ title: "This job posting", url: job.url }] : [];
   if (options.webSearch) {
-    const results = await searchWeb(job, fetchPage);
-    const web = await extractFromWeb(client, job, results);
-    if (web) return { ...web, sources: [...web.sources, ...links] };
+    // the listing's figure is only the employer's range; market data adds the average, bonus and stock
+    const web = (await levelsEstimate(job, fetchPage)) ?? (await extractFromWeb(client, job, await searchWeb(job, fetchPage)));
+    if (web) {
+      const listed = posted && { min: posted.min, max: posted.max, currency: posted.currency, period: posted.period };
+      return { ...web, ...(listed && { posted: listed }), sources: [...postedSource, ...web.sources, ...links] };
+    }
   }
+  if (posted) return { ...posted, sources: [...postedSource, ...links] };
   const guess = await estimateWithModel(client, job);
   return { ...guess, sources: links };
 }

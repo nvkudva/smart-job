@@ -139,6 +139,8 @@ export interface SalaryEstimate {
   sources: { title: string; url: string }[];
   /** only when the split is known (and at least two figures); min/max then equal components.total per year. Absent in estimates cached before it existed */
   components?: SalaryComponents;
+  /** the figure stated in the listing, kept beside web data so both show */
+  posted?: Pick<SalaryEstimate, "min" | "max" | "currency" | "period">;
 }
 
 /** perks and benefits stated by the posting or found on the web, grouped by category in the panel */

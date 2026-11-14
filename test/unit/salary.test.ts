@@ -99,6 +99,29 @@ describe("estimate", () => {
     expect(result.sources[0]!.url).toBe(job.url);
   });
 
+  test("a posted figure is kept beside web data that adds the pay split", async () => {
+    const fake = new FakeLlm(['{"min": 250000, "max": 400000, "currency": "USD", "period": "year", "base": {"min": 150000, "max": 200000}, "bonus": {"min": 20000, "max": 40000}, "stock": {"min": 80000, "max": 160000}, "total": {"min": 250000, "max": 400000}, "sourceIds": [1]}']);
+    const result = await salary.estimate(fake, { ...job, salaryText: "$120,000 - $150,000 a year" }, { webSearch: true }, page(html));
+    expect(result).toMatchObject({ basis: "web", posted: { min: 120000, max: 150000, currency: "USD", period: "year" } });
+    expect(result.components?.bonus).toEqual({ min: 20000, max: 40000 });
+    expect(result.sources[0]).toEqual({ title: "This job posting", url: job.url });
+  });
+
+  test("Levels.fyi page data gives the pay split without calling the model", async () => {
+    const ld = { name: "Software Engineer", estimatedSalary: [
+      { name: "total", currency: "USD", percentile25: "216550", median: "284000", percentile75: "405000" },
+      { name: "base", currency: "USD", percentile25: "151500", median: "193000", percentile75: "225000" },
+      { name: "equity", currency: "USD", percentile25: "49900", median: "75000", percentile75: "180000" },
+      { name: "bonus", currency: "USD", percentile25: null, median: "19000", percentile75: "31750" },
+    ] };
+    const levelsHtml = `<meta name="description" content="Software Engineer compensation in United States at Stripe ranges"><script type="application/ld+json">${JSON.stringify(ld)}</script>`;
+    const fake = new FakeLlm(["{}"]);
+    const result = await salary.estimate(fake, { ...job, salaryText: "$120,000 - $150,000 a year" }, { webSearch: true }, page(levelsHtml));
+    expect(result).toMatchObject({ basis: "web", currency: "USD", posted: { min: 120000 }, components: { base: { min: 151500, max: 225000 }, bonus: { min: 19000, max: 31750 }, stock: { min: 49900, max: 180000 } } });
+    expect(result.note).toContain("United States");
+    expect(fake.requests).toHaveLength(0);
+  });
+
   test("web extraction with messy model output", async () => {
     const fake = new FakeLlm([
       '<think>hmm</think>Sure!\n```json\n{"min": "250,000", "max": 400000, "currency": "usd", "period": "yearly", "note": "Levels.fyi, same title", "sourceUrls": ["https://www.levels.fyi/companies/stripe/salaries"],}\n```',

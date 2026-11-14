@@ -3,17 +3,25 @@ import * as salaryData from "../../ai/salary.ts";
 import type { SalaryComponents, SalaryEstimate, SalaryRange } from "../../types.ts";
 import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
 import * as format from "../shared/format.ts";
+import { Icon } from "../shared/icons.tsx";
 
 const basisLabel: Record<SalaryEstimate["basis"], string> = { posted: "Posted", web: "Web data", estimate: "Estimate" };
 const periodLabel: Record<string, string> = { year: "/yr", month: "/mo", hour: "/hr", "": "" };
 
+type Figure = Pick<SalaryEstimate, "min" | "max" | "currency" | "period">;
+
+function rangeText(figure: Figure): string {
+  if (figure.min === null && figure.max === null) return "";
+  return `${format.moneyRange(figure.min, figure.max, figure.currency)}${periodLabel[figure.period] ?? ""}`;
+}
+
+/** The listing's own figure when it has one, else the estimate; what the tracker shows. */
 export function formatSalary(salary: SalaryEstimate | null): string {
-  if (!salary || (salary.min === null && salary.max === null)) return "";
-  return `${format.moneyRange(salary.min, salary.max, salary.currency)}${periodLabel[salary.period] ?? ""}`;
+  return salary ? rangeText(salary.posted ?? salary) : "";
 }
 
 function headline(salary: SalaryEstimate): string {
-  const range = formatSalary(salary);
+  const range = rangeText(salary);
   return salary.components && range ? `Total ~${format.moneyRange(salary.components.total.min, salary.components.total.max, salary.currency)} / yr` : range;
 }
 
@@ -58,8 +66,8 @@ function SourceViewer({ source, onClose }: { source: Source; onClose: () => void
   return (
     <div class="source-viewer" role="dialog" aria-label={source.title}>
       <div class="viewer-bar">
-        <Button disabled={depth < 2} onClick={goBack} aria-label="Back">
-          ← Back
+        <Button disabled={depth < 2} onClick={goBack} aria-label="Back" title="Back">
+          <Icon name="Back" />
         </Button>
         <strong class="viewer-title" title={source.url}>
           {source.title.replace(salaryData.lookupPrefix, "")}
@@ -67,9 +75,10 @@ function SourceViewer({ source, onClose }: { source: Source; onClose: () => void
         <a class="btn primary" href={source.url} target="_blank" rel="noreferrer">
           Open in tab ↗
         </a>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose} aria-label="Close" title="Close">
+          <Icon name="Close" />
+        </Button>
       </div>
-      <p class="muted small viewer-hint">Blank page, captcha or sign-in wall? Use “Open in tab”: some sites refuse to load inside the panel.</p>
       <iframe class="viewer-frame" src={source.url} sandbox={viewerSandbox} referrerpolicy="no-referrer" title={source.title} onLoad={onLoad} />
     </div>
   );
@@ -133,6 +142,11 @@ export function SalarySection({ salary, isLoading, error, onEstimate }: SalarySe
             <strong>{range || "No figures found"}</strong>
             {isWebBased ? <SiteChips sources={sources} onOpen={setViewing} /> : <span class={`badge basis-${salary.basis}`}>{basisLabel[salary.basis]}</span>}
           </div>
+          {salary.posted && rangeText(salary.posted) && (
+            <p class="muted">
+              Listed in the job posting: <strong>{rangeText(salary.posted)}</strong>
+            </p>
+          )}
           {salary.components && <Breakdown components={salary.components} currency={salary.currency} />}
           {salary.note && <p class="muted">{salary.note}</p>}
           {!isWebBased && <SourceLinks title="Source" sources={sources} onOpen={setViewing} />}

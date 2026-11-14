@@ -32,10 +32,26 @@ const perksSystem = `List the perks and benefits the company offers, from the jo
 - sourceIds are the [numbers] of the snippets you used; none if you used only the posting.
 - No perks stated: {"perks": [], "sourceIds": []}. Be brief.`;
 
+const benefitsHeading = /benefits?|perks|we offer|what you('|’)ll get|compensation/i;
+const listLinesAfterHeading = 8;
+
+/** Only the lines that mention perks, plus the list under a benefits heading; the rest of the posting is not perk evidence and is read by the analysis anyway. */
+export function perkLines(description: string): string {
+  const kept: string[] = [];
+  let linesLeftUnderHeading = 0;
+  for (const line of normalize.compact(description).split("\n")) {
+    const isHeading = line.length < 80 && benefitsHeading.test(line);
+    const isUnderHeading = linesLeftUnderHeading > 0;
+    linesLeftUnderHeading = isHeading ? listLinesAfterHeading : Math.max(0, linesLeftUnderHeading - 1);
+    if (isHeading || isUnderHeading || perkWords.test(line)) kept.push(line);
+  }
+  return kept.join("\n");
+}
+
 export function buildPrompt(job: JobPosting, results: SearchResult[]): string {
   const snippets = results.map((result, index) => `[${index + 1}] ${result.title}\n${result.url}\n${normalize.truncate(result.snippet, 350)}`);
   const web = snippets.length ? `\n\nSearch results:\n${snippets.join("\n\n")}` : "";
-  return `Company: ${job.company}\nJob: ${job.title}, ${job.location || "location unknown"}\n\nJob posting:\n${normalize.truncate(job.description, 4000)}${web}`;
+  return `Company: ${job.company}\nJob: ${job.title}, ${job.location || "location unknown"}\n\nJob posting (perk lines only):\n${normalize.truncate(perkLines(job.description), 3000)}${web}`;
 }
 
 function categoryOf(value: unknown): string {
@@ -58,6 +74,8 @@ export function normalizePerks(raw: unknown, results: SearchResult[]): CompanyPe
 
 export async function find(client: llm.LlmClient, job: JobPosting, options: { webSearch: boolean }, fetchPage: typeof fetch = fetch): Promise<CompanyPerks> {
   const results = options.webSearch && job.company ? await searchWeb(job.company, fetchPage) : [];
+  // nothing in the posting or the search to read: skip the request, the answer would be empty
+  if (!results.length && !perkLines(job.description) && !perkWords.test(job.location)) return { items: [], sources: [] };
   const raw = await llm.chatJson<unknown>(client, { system: perksSystem, user: buildPrompt(job, results), maxTokens: normalize.tokenBudget });
   return normalizePerks(raw, results);
 }

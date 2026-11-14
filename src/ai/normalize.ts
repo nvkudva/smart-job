@@ -44,6 +44,11 @@ export function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max)}…`;
 }
 
+/** PDF and HTML text extraction leaves runs of spaces and blank lines; they cost tokens and say nothing. */
+export function compact(text: string): string {
+  return text.replace(/[ \t]+/g, " ").replace(/ ?\n ?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /** Lowercase alphanumerics only; used to compare option texts. */
 export function comparable(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();

@@ -1,4 +1,6 @@
 const paths: Record<string, string> = {
+  Back: "M19 12H5M12 19l-7-7 7-7",
+  Close: "M18 6 6 18M6 6l12 12",
   Analysis: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   Apply: "M5 4h14v16H5zM9 9h6M9 13h6M9 17h3",
   Track: "M4 5h16M4 12h16M4 19h16M8 3v4M8 10v4M8 17v4",

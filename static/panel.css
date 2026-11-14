@@ -736,10 +736,6 @@ textarea:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.viewer-hint {
-  margin: 0;
-  padding: 4px 8px;
-}
 .viewer-frame {
   flex: 1;
   width: 100%;
@@ -841,4 +837,23 @@ textarea:focus {
   border-top: 1px solid var(--border);
   padding-top: 2px;
   font-weight: 600;
+}
+
+.toast {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+}
+.toast > span {
+  flex: 1;
 }
