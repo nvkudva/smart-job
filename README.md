@@ -6,8 +6,8 @@
 SmartJob is a Chrome side panel that scores every job against your resume, shows pay and perks, and fills in the application. It never submits for you.</p>
 
 <p align="center">
-  <a href="marketing/smartjob-launch-16x9.mp4"><img src="docs/screenshots/1-match-score.png" alt="Watch the 40 second launch video" width="760"></a><br>
-  <sub>Click to watch the 40 second launch video. All screens use a fictional candidate and company.</sub>
+  <a href="marketing/smartjob-launch-16x9.mp4"><img src="docs/screenshots/1-match-score.png" alt="Watch the 34 second launch video" width="760"></a><br>
+  <sub>Click to watch the 34 second launch video. All screens use a fictional candidate and company.</sub>
 </p>
 
 ## What it does
