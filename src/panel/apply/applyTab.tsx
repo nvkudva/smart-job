@@ -48,7 +48,6 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [useAi, setUseAi] = useState(true);
   const [remember, setRemember] = useState(true);
-  const [isMarked, setIsMarked] = useState(false);
 
   // the account password is filled only on an explicit click (Fill this page or Start applying), never by auto-fill on a page the user did not choose
   const fillTask = useTask(async (isUserClick: boolean) => {
@@ -110,36 +109,10 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     await trackedJobs.track(job, { ...(portalUrl && { portalUrl }), ...(hasPasswordFill && account?.email && { accountEmail: account.email }) });
   };
 
-  const latest = useRef({ autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy, run: fillTask.run });
-  latest.current = { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy, run: fillTask.run };
-  useEffect(() => {
-    if (!tabId) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const onMessage = (message: messages.ContentEvent, sender: chrome.runtime.MessageSender) => {
-      if (message?.type !== "formChanged" || sender.tab?.id !== tabId) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => latest.current.autoFill && !latest.current.isBusy && void latest.current.run(false), autoFillDelayMs);
-    };
-    chrome.runtime.onMessage.addListener(onMessage);
-    return () => {
-      clearTimeout(timer);
-      chrome.runtime.onMessage.removeListener(onMessage);
-    };
-  }, [tabId]);
+  useAutoFillOnFormChange(tabId, { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy, run: fillTask.run });
 
   const changedItems = (report?.items ?? []).filter((item) => itemKey(item) in edits && edits[itemKey(item)] !== (item.fill?.value ?? ""));
-  const clearHighlights = async () => {
-    if (!tabId) return;
-    const frameIds = await messages.listFrameIds(tabId);
-    await Promise.all(frameIds.map((frameId) => messages.sendToFrame(tabId, frameId, { type: "clearHighlights" })));
-  };
   const [note, setNote] = useState("");
-
-  const markApplied = async () => {
-    if (!job) return;
-    await trackedJobs.track(job, { status: "applied", appliedAt: Date.now() });
-    setIsMarked(true);
-  };
 
   return (
     <div class="stack">
@@ -174,24 +147,60 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
           <span class="grow">
             <Check label="Remember my answers" checked={remember} onChecked={setRemember} />
           </span>
-          <Button onClick={() => void clearHighlights()}>Clear highlights</Button>
+          <Button onClick={() => tabId && void clearHighlights(tabId)}>Clear highlights</Button>
           <Button kind="primary" isBusy={applyTask.isBusy} disabled={changedItems.length === 0} onClick={() => void applyTask.run(changedItems)}>
             Apply edits{changedItems.length ? ` (${changedItems.length})` : ""}
           </Button>
         </div>
       )}
       <ErrorNote message={applyTask.error} />
-      <Card title="Application status">
-        <div class="row between">
-          <span class="muted small">{job ? `${job.title} @ ${job.company}` : "No job detected"}</span>
-          <Button disabled={!job || isMarked} onClick={() => void markApplied()}>
-            {isMarked ? "Marked as applied" : "Mark as applied"}
-          </Button>
-        </div>
-      </Card>
+      <ApplicationStatus job={job} />
       <h2 class="section-title">Documents</h2>
       <DocumentsSection currentJob={job} />
     </div>
+  );
+}
+
+function useAutoFillOnFormChange(tabId: number | null, current: { autoFill: boolean; isBusy: boolean; run: (isUserClick: boolean) => Promise<unknown> }) {
+  const latest = useRef(current);
+  latest.current = current;
+  useEffect(() => {
+    if (!tabId) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onMessage = (message: messages.ContentEvent, sender: chrome.runtime.MessageSender) => {
+      if (message?.type !== "formChanged" || sender.tab?.id !== tabId) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => latest.current.autoFill && !latest.current.isBusy && void latest.current.run(false), autoFillDelayMs);
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    return () => {
+      clearTimeout(timer);
+      chrome.runtime.onMessage.removeListener(onMessage);
+    };
+  }, [tabId]);
+}
+
+async function clearHighlights(tabId: number) {
+  const frameIds = await messages.listFrameIds(tabId);
+  await Promise.all(frameIds.map((frameId) => messages.sendToFrame(tabId, frameId, { type: "clearHighlights" })));
+}
+
+function ApplicationStatus({ job }: { job: JobPosting | null }) {
+  const [isMarked, setIsMarked] = useState(false);
+  const markApplied = async () => {
+    if (!job) return;
+    await trackedJobs.track(job, { status: "applied", appliedAt: Date.now() });
+    setIsMarked(true);
+  };
+  return (
+    <Card title="Application status">
+      <div class="row between">
+        <span class="muted small">{job ? `${job.title} @ ${job.company}` : "No job detected"}</span>
+        <Button disabled={!job || isMarked} onClick={() => void markApplied()}>
+          {isMarked ? "Marked as applied" : "Mark as applied"}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

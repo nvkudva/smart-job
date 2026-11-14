@@ -8,6 +8,11 @@ import * as aiContext from "../shared/aiContext.ts";
 import * as trackedJobs from "./trackedJobs.ts";
 import { useTask } from "../shared/useTask.ts";
 
+async function readSavedResults(jobId: string) {
+  const [jobs, analyses, lookups, settings] = await Promise.all([storage.get("jobs"), storage.get("analyses"), storage.get("lookups"), storage.get("settings")]);
+  return { cached: jobs[jobId]?.analysis ?? analyses[jobId], known: lookups[jobId], settings };
+}
+
 /** Analysis + salary for one job: cached results first, auto-analyze if enabled, salary runs in parallel. */
 export function useAnalysis(job: JobPosting | null, hasResume: boolean) {
   const [analysis, setAnalysis] = useState<JobAnalysis | null>(null);
@@ -68,15 +73,13 @@ export function useAnalysis(job: JobPosting | null, hasResume: boolean) {
     if (!job) return;
     let isAlive = true;
     void (async () => {
-      const [jobs, analyses, lookups, settings] = await Promise.all([storage.get("jobs"), storage.get("analyses"), storage.get("lookups"), storage.get("settings")]);
+      const { cached, known, settings } = await readSavedResults(job.id);
       if (!isAlive) return;
-      const cached = jobs[job.id]?.analysis ?? analyses[job.id];
       if (cached) {
         setAnalysis(cached);
         setSalary(cached.salary);
         setPerks(cached.perks ?? null);
       } else {
-        const known = lookups[job.id];
         if (known) {
           setSalary(known.salary);
           setPerks(known.perks);
