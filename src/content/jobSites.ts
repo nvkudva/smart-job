@@ -22,15 +22,27 @@ const BLOCK = new Set(["p", "div", "li", "ul", "ol", "h1", "h2", "h3", "h4", "h5
 const SKIP = new Set(["script", "style", "noscript", "template", "button", "svg"]);
 
 const CURRENCY = String.raw`(?:[$€£₹]|USD|EUR|GBP|INR|CAD|AUD)`;
-const AMOUNT = String.raw`\d[\d,.]*\s?(?:[kKmM]|L\b|Cr\b)?`;
+const AMOUNT = String.raw`\d[\d,.]*(?:\s?(?:[mM]illion|[bB]illion|[tT]rillion|[mM]n|[bB]n|[kKmMbB]|L|Cr)\b)?`;
 const UNIT = String.raw`(?:\s?(?:\/|per|a)\s?(?:hr|hour|year|yr|annum|month|mo|week|day))?`;
 const SALARY = new RegExp(
   String.raw`${CURRENCY}\s?${AMOUNT}(?:\s?(?:[-–—]|to)\s?(?:${CURRENCY}\s?)?${AMOUNT})?${UNIT}|\b\d{2,3}[kK]\s?[-–—]\s?\d{2,3}[kK]\b${UNIT}`,
 );
 
+const SALARY_ANYWHERE = new RegExp(SALARY.source, "g");
+
+/** Company stats ("$1.85B raised") and bare small amounts ("$1.85") are not pay. */
+function looksLikePay(phrase: string): boolean {
+  if (/billion|trillion|\d\s?[bB]n?\b/.test(phrase)) return false;
+  const hasScale = /\d\s?(?:[kKmM]|[mM]illion|[mM]n|L|Cr)\b/.test(phrase);
+  return hasScale || Number(phrase.match(/\d[\d,]*(?:\.\d+)?/)?.[0].replace(/,/g, "")) >= 10;
+}
+
 /** First salary-looking phrase in the text, or "". */
 export function findSalary(text: string): string {
-  return text.match(SALARY)?.[0].trim() ?? "";
+  for (const match of text.matchAll(SALARY_ANYWHERE)) {
+    if (looksLikePay(match[0])) return match[0].trim();
+  }
+  return "";
 }
 
 /** Plain text with a line per block/bullet. */

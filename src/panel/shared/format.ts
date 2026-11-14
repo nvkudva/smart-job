@@ -1,6 +1,8 @@
-/** Amount in the viewer's locale (grouping, symbol position); the currency comes from the data, so a rupee figure stays rupees anywhere. */
+/** Amount in the viewer's locale (grouping, symbol position; INR always Indian grouping); the currency comes from the data, so a rupee figure stays rupees anywhere. */
 export function money(amount: number, currency: string, locale?: string): string {
   const code = currency.trim().toUpperCase();
+  // rupees read as 13,00,000 for everyone, whatever the browser locale
+  locale ??= code === "INR" ? "en-IN" : undefined;
   try {
     return new Intl.NumberFormat(locale, { style: "currency", currency: code, maximumFractionDigits: 0 }).format(amount);
   } catch {

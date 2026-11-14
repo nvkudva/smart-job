@@ -1,4 +1,3 @@
-import * as perksData from "../../ai/perks.ts";
 import type { CompanyPerks } from "../../types.ts";
 import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
 
@@ -13,36 +12,16 @@ function siteName(url: string): string {
 function PerksList({ perks }: { perks: CompanyPerks }) {
   if (perks.items.length === 0) return <p class="muted">No perks stated in the posting or found on the web.</p>;
   return (
-    <>
-      {perksData.categories.map((category) => {
-        const items = perks.items.filter((item) => item.category === category);
-        if (items.length === 0) return null;
-        return (
-          <div class="block">
-            <h4>{category}</h4>
-            <ul class="checklist">
-              {items.map((item) => (
-                <li class="ok">
-                  <span>✓</span> {item.text}
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-      {perks.sources.length > 0 && (
-        <div class="block">
-          <h4>Sources</h4>
-          <div class="chips">
-            {perks.sources.map((source) => (
-              <a class="chip site" href={source.url} target="_blank" rel="noreferrer" title={source.title}>
-                {siteName(source.url)}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
+    <div class="chips">
+      {perks.items.map((item) => (
+        <span class="chip">{item.text}</span>
+      ))}
+      {perks.sources.map((source) => (
+        <a class="chip site" href={source.url} target="_blank" rel="noreferrer" title={source.title}>
+          {siteName(source.url)}
+        </a>
+      ))}
+    </div>
   );
 }
 

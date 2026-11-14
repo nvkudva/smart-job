@@ -69,19 +69,25 @@ function siteName(source: Source): string {
   }
 }
 
-function SourceLinks({ title, sources, onOpen }: { title: string; sources: Source[]; onOpen: (source: Source) => void }) {
+function SiteChips({ sources, onOpen }: { sources: Source[]; onOpen: (source: Source) => void }) {
   const oneBySite = sources.filter((source, index) => sources.findIndex((other) => siteName(other) === siteName(source)) === index);
-  if (oneBySite.length === 0) return null;
+  return (
+    <div class="chips">
+      {oneBySite.map((source) => (
+        <button type="button" class="chip site" title={source.title.replace(salaryData.lookupPrefix, "")} onClick={() => onOpen(source)}>
+          {siteName(source)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SourceLinks({ title, sources, onOpen }: { title: string; sources: Source[]; onOpen: (source: Source) => void }) {
+  if (sources.length === 0) return null;
   return (
     <div class="block">
       <h4>{title}</h4>
-      <div class="chips">
-        {oneBySite.map((source) => (
-          <button type="button" class="chip site" title={source.title.replace(salaryData.lookupPrefix, "")} onClick={() => onOpen(source)}>
-            {siteName(source)}
-          </button>
-        ))}
-      </div>
+      <SiteChips sources={sources} onOpen={onOpen} />
     </div>
   );
 }
@@ -97,6 +103,7 @@ export function SalarySection({ salary, isLoading, error, onEstimate }: SalarySe
   const range = salary ? headline(salary) : "";
   const [viewing, setViewing] = useState<Source | null>(null);
   const sources = (salary?.sources ?? []).filter((source) => !salaryData.isLookup(source));
+  const isWebBased = salary?.basis === "web" && sources.length > 0;
   const lookups = (salary?.sources ?? []).filter(salaryData.isLookup);
   return (
     <Card title="Salary" actions={salary && !isLoading ? <Button onClick={onEstimate}>Refresh</Button> : undefined}>
@@ -110,11 +117,11 @@ export function SalarySection({ salary, isLoading, error, onEstimate }: SalarySe
         <div>
           <div class="salary-range">
             <strong>{range || "No figures found"}</strong>
-            <span class={`badge basis-${salary.basis}`}>{basisLabel[salary.basis]}</span>
+            {isWebBased ? <SiteChips sources={sources} onOpen={setViewing} /> : <span class={`badge basis-${salary.basis}`}>{basisLabel[salary.basis]}</span>}
           </div>
           {salary.components && <Breakdown components={salary.components} currency={salary.currency} />}
           {salary.note && <p class="muted">{salary.note}</p>}
-          <SourceLinks title={salary.basis === "web" ? "Sources (pages these figures came from)" : "Source"} sources={sources} onOpen={setViewing} />
+          {!isWebBased && <SourceLinks title="Source" sources={sources} onOpen={setViewing} />}
           <SourceLinks title="Look up yourself" sources={lookups} onOpen={setViewing} />
         </div>
       )}

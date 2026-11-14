@@ -23,6 +23,9 @@ const html = `
 </div>`;
 
 describe("parseSalaryText", () => {
+  test("reads million words", () => {
+    expect(salary.parseSalaryText("$1.85 million per year")).toMatchObject({ min: 1850000, max: 1850000, currency: "USD", period: "year" });
+  });
   const cases: [string, number, number, string, string][] = [
     ["$120,000 - $150,000 a year", 120000, 150000, "USD", "year"],
     ["₹25L–35L", 2500000, 3500000, "INR", "year"],

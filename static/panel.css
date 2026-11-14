@@ -512,7 +512,24 @@ textarea:focus {
   font-weight: 600;
 }
 .job-company {
+  color: var(--text);
   font-weight: 600;
+}
+.job-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.job-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 8px;
+}
+.job-foot .btn {
+  padding: 4px 11px;
+  font-size: 12px;
 }
 .score-row {
   display: flex;

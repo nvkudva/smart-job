@@ -57,4 +57,8 @@ test("salary regex", () => {
   expect(sites.findSalary("We pay 120k–150k plus equity")).toBe("120k–150k");
   expect(sites.findSalary("About $60/hr")).toBe("$60/hr");
   expect(sites.findSalary("No pay info, 5 years")).toBe("");
+  expect(sites.findSalary("Base pay $1.85 million per year")).toBe("$1.85 million per year");
+  expect(sites.findSalary("Raised $1.85 billion. Pay: $150,000 - $200,000")).toBe("$150,000 - $200,000");
+  expect(sites.findSalary("Fee $1.85 per seat")).toBe("");
+  expect(sites.findSalary("Rippling has raised $1.85B+ in funding")).toBe("");
 });

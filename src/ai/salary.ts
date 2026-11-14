@@ -39,11 +39,11 @@ function detectPeriod(text: string): Period {
   return "";
 }
 
-const multipliers: Record<string, number> = { k: 1e3, m: 1e6, l: 1e5, lpa: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
+const multipliers: Record<string, number> = { k: 1e3, thousand: 1e3, m: 1e6, mn: 1e6, million: 1e6, l: 1e5, lpa: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
 
 function amounts(text: string): number[] {
   const found: { value: number; suffix: string }[] = [];
-  for (const match of text.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*(lpa|lakhs?|lacs?|crores?|cr|k|m|l)?(?![\p{L}\p{N}])/giu)) {
+  for (const match of text.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*(lpa|lakhs?|lacs?|crores?|cr|thousand|million|mn|k|m|l)?(?![\p{L}\p{N}])/giu)) {
     const raw = Number(match[1]!.replace(/,/g, ""));
     if (Number.isFinite(raw)) found.push({ value: raw, suffix: (match[2] ?? "").toLowerCase() });
   }
@@ -123,7 +123,7 @@ function withModelComponents(estimate: SalaryEstimate, data: Record<string, unkn
 
 // ---------- bonus / equity next to a posted salary ----------
 
-const amountPattern = "(?:(?:[$₹£€]|\\brs\\.?\\s?)\\s?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:lpa|lakhs?|lacs?|crores?|cr|k|m|l)?|\\d[\\d,]*(?:\\.\\d+)?\\s?(?:lpa|lakhs?|lacs?|crores?|cr|k|m|l))(?![\\p{L}\\p{N}])";
+const amountPattern = "(?:(?:[$₹£€]|\\brs\\.?\\s?)\\s?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:lpa|lakhs?|lacs?|crores?|cr|million|mn|k|m|l)?|\\d[\\d,]*(?:\\.\\d+)?\\s?(?:lpa|lakhs?|lacs?|crores?|cr|million|mn|k|m|l))(?![\\p{L}\\p{N}])";
 const percentPattern = "(\\d{1,3}(?:\\.\\d+)?)\\s?%";
 const fillerWords = "(?:(?:annual|yearly|target|performance|cash|in|of|worth)\\s+){0,2}";
 const vestingTail = "(?:\\s*(?:vesting\\s+|vested\\s+)?over\\s+(\\d{1,2})\\s*(?:years?|yrs?))?";

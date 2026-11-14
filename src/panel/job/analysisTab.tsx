@@ -45,23 +45,29 @@ interface JobCardProps {
 function JobCard({ job, tracked, state, onApply, onShortlist }: JobCardProps) {
   return (
     <Card>
-      <h2 class="job-title">{job.title || "Untitled role"}</h2>
-      <div class="job-company">{job.company}</div>
-      <div class="muted">{[job.location, job.employmentType].filter(Boolean).join(" · ")}</div>
-      <div class="row wrap">
-        <span class="badge">{job.source}</span>
-        {job.salaryText && <span class="badge basis-posted">{job.salaryText}</span>}
+      <div class="job-head">
+        <h2 class="job-title">{job.title || "Untitled role"}</h2>
+        <div class="muted">
+          <strong class="job-company">{job.company}</strong>
+          {[job.location, job.employmentType].filter(Boolean).map((part) => ` · ${part}`)}
+        </div>
       </div>
-      <div class="actions">
-        <Button kind="primary" onClick={onApply}>
-          Apply
-        </Button>
-        <Button onClick={onShortlist} title={tracked ? "Change status or remove in Tracker" : undefined}>
-          {tracked ? "★ Shortlisted" : "★ Shortlist"}
-        </Button>
-        <Button isBusy={state.isAnalyzing} onClick={state.analyze}>
-          {state.analysis ? "Re-analyze" : "Analyze match"}
-        </Button>
+      <div class="job-foot">
+        <div class="row wrap">
+          <span class="badge">{job.source}</span>
+          {job.salaryText && <span class="badge basis-posted">{job.salaryText}</span>}
+        </div>
+        <div class="actions">
+          <Button kind="primary" onClick={onApply}>
+            Apply
+          </Button>
+          <Button onClick={onShortlist} title={tracked ? "Change status or remove in Tracker" : undefined}>
+            {tracked ? "★ Shortlisted" : "★ Shortlist"}
+          </Button>
+          <Button isBusy={state.isAnalyzing} onClick={state.analyze}>
+            {state.analysis ? "Re-analyze" : "Analyze match"}
+          </Button>
+        </div>
       </div>
     </Card>
   );

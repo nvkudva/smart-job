@@ -4,6 +4,7 @@ import * as format from "../../src/panel/shared/format.ts";
 test("same amount groups by locale; currency stays the data's", () => {
   expect(format.money(1200000, "INR", "en-IN")).toBe("₹12,00,000");
   expect(format.money(1200000, "INR", "en-US")).toBe("₹1,200,000");
+  expect(format.money(1300000, "INR")).toBe("₹13,00,000");
   expect(format.money(1200000, "INR", "de-DE")).toBe("1.200.000 ₹");
 });
 
