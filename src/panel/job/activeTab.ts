@@ -60,8 +60,15 @@ function useTrackedTab(): { tab: TabInfo; version: number } {
   return { tab, version };
 }
 
+/** Tabs opened before the extension was installed or reloaded have no content script yet, so add it once the page does not answer. */
+async function ensureContentScript(tabId: number): Promise<void> {
+  if (await messages.sendToFrame(tabId, 0, { type: "ping" })) return;
+  await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ["content.js"] }).catch(() => undefined);
+}
+
 /** First non-null job over all frames, preferring the top frame. */
 async function extractJob(tabId: number): Promise<JobPosting | null> {
+  await ensureContentScript(tabId);
   const frameIds = await messages.listFrameIds(tabId).catch(() => [0]);
   const ordered = [...frameIds].sort((a, b) => (a === 0 ? -1 : b === 0 ? 1 : a - b));
   const results = await Promise.all(ordered.map((frameId) => messages.sendToFrame(tabId, frameId, { type: "extractJob" })));
