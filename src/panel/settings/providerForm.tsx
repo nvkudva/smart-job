@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as llm from "../../ai/llm.ts";
 import * as models from "../../ai/models.ts";
+import * as openrouterAuth from "../../ai/openrouterAuth.ts";
+import { defaultSettings } from "../../storage.ts";
 import type { ProviderSettings } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
 import { Button, Choice, ErrorNote, Field } from "../shared/controls.tsx";
@@ -54,18 +56,29 @@ export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
   // each provider keeps its own edited URL, key and model while the user switches between them
   const rememberedByPreset = useRef<Record<string, ProviderSettings>>({});
   const keyPage = llm.keyPages[presetName];
+  const [isManualOpen, setIsManualOpen] = useState(JSON.stringify(provider) !== JSON.stringify(defaultSettings.provider));
+  // pasting a key is the last step of the manual flow, so connect without another click
+  const testedKey = useRef(provider.apiKey);
 
   const choosePreset = (name: string) => {
     rememberedByPreset.current[presetName] = provider;
     const next = rememberedByPreset.current[name] ?? llm.presets[name];
     setPresetName(name);
-    if (next) onProvider(next);
+    if (next) {
+      testedKey.current = next.apiKey;
+      onProvider(next);
+    }
   };
-  const testConnection = useTask(async () => {
+  const startOwnKey = (name: string) => {
+    choosePreset(name);
+    setIsManualOpen(true);
+    window.open(llm.keyPages[name], "_blank");
+  };
+  const testConnection = useTask(async (target: ProviderSettings = provider) => {
     setLatency(null);
     const started = performance.now();
     try {
-      await llm.create(provider).chat({ system: "Reply with the single word OK.", user: "ping", maxTokens: 16 });
+      await llm.create(target).chat({ system: "Reply with the single word OK.", user: "ping", maxTokens: 16 });
     } catch (failure) {
       aiContext.report("error");
       throw failure;
@@ -73,27 +86,61 @@ export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
     aiContext.report("ok");
     setLatency(Math.round(performance.now() - started));
   });
+  const getFreeKey = useTask(async () => {
+    const connected = await openrouterAuth.connect();
+    if (!connected) return;
+    rememberedByPreset.current.OpenRouter = connected;
+    testedKey.current = connected.apiKey;
+    setPresetName("OpenRouter");
+    onProvider(connected);
+    await testConnection.run(connected);
+  });
+  useEffect(() => {
+    if (provider.apiKey === testedKey.current || provider.apiKey.length < 20) return;
+    const timer = setTimeout(() => {
+      testedKey.current = provider.apiKey;
+      void testConnection.run();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [provider.apiKey]);
 
   return (
     <>
-      <div class="grid2">
-        <Choice label="Provider" value={presetName} options={[...presetNames, customPreset]} onValue={choosePreset} />
-        <Choice label="API type" value={provider.kind} options={[["openai", "OpenAI-compatible"], ["anthropic", "Anthropic"]]} onValue={(kind) => onProvider({ kind: kind as ProviderSettings["kind"] })} />
-      </div>
-      <Field label="Base URL" value={provider.baseUrl} onValue={(baseUrl) => onProvider({ baseUrl })} />
-      <Field label="API key" type="password" value={provider.apiKey} placeholder="Not needed for local models" onValue={(apiKey) => onProvider({ apiKey })} />
-      {keyPage && (
-        <a class="link small" href={keyPage} target="_blank" rel="noreferrer">
-          Get {presetName} API key ↗
-        </a>
-      )}
-      <ModelField provider={provider} ids={modelIds} onProvider={onProvider} />
-      <div class="row wrap">
-        <Button isBusy={testConnection.isBusy} onClick={() => void testConnection.run()}>
-          Test connection
+      <div class="stack tight">
+        <Button kind="primary" isBusy={getFreeKey.isBusy} onClick={() => void getFreeKey.run()}>
+          Get a free AI key
         </Button>
-        {latency !== null && <span class="ok-text">Connected in {latency} ms</span>}
+        <span class="muted small">
+          Free through OpenRouter, no card. Sign in with Google or GitHub and click Authorize. Free models may log prompts; if you see a "data policy" error, allow it at openrouter.ai/settings/privacy.
+        </span>
+        <ErrorNote message={getFreeKey.error} />
+        <div class="row wrap">
+          <span class="muted small">Want more free quota? Paste a key from</span>
+          <Button onClick={() => startOwnKey("Gemini")}>Gemini ↗</Button>
+          <Button onClick={() => startOwnKey("Groq")}>Groq ↗</Button>
+        </div>
       </div>
+      <details open={isManualOpen} onToggle={(event) => setIsManualOpen(event.currentTarget.open)}>
+        <summary class="muted small">Use my own key or a local model</summary>
+        <div class="stack tight">
+          <div class="grid2">
+            <Choice label="Provider" value={presetName} options={[...presetNames, customPreset]} onValue={choosePreset} />
+            <Choice label="API type" value={provider.kind} options={[["openai", "OpenAI-compatible"], ["anthropic", "Anthropic"]]} onValue={(kind) => onProvider({ kind: kind as ProviderSettings["kind"] })} />
+          </div>
+          <Field label="Base URL" value={provider.baseUrl} onValue={(baseUrl) => onProvider({ baseUrl })} />
+          <Field label="API key" type="password" value={provider.apiKey} placeholder="Not needed for local models" onValue={(apiKey) => onProvider({ apiKey })} />
+          {keyPage && (
+            <a class="link small" href={keyPage} target="_blank" rel="noreferrer">
+              Get {presetName} API key ↗
+            </a>
+          )}
+          <ModelField provider={provider} ids={modelIds} onProvider={onProvider} />
+          <Button isBusy={testConnection.isBusy} onClick={() => void testConnection.run()}>
+            Test connection
+          </Button>
+        </div>
+      </details>
+      {latency !== null && <span class="ok-text">Connected in {latency} ms</span>}
       <ErrorNote message={testConnection.error} />
     </>
   );

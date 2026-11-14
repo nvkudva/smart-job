@@ -7,7 +7,7 @@
   "action": { "default_title": "Open SmartJob" },
   "side_panel": { "default_path": "sidepanel.html" },
   "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["sidePanel", "storage", "unlimitedStorage", "tabs", "webNavigation", "scripting", "declarativeNetRequestWithHostAccess"],
+  "permissions": ["identity", "sidePanel", "storage", "unlimitedStorage", "tabs", "webNavigation", "scripting", "declarativeNetRequestWithHostAccess"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
