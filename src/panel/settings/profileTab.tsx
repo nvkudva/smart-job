@@ -1,5 +1,4 @@
 import { useState } from "preact/hooks";
-import { AnswerBank } from "./answerBank.tsx";
 import { LinkedinButton } from "./linkedinButton.tsx";
 import { ProfileEditor } from "./profileEditor.tsx";
 import { ResumeFields } from "./resumeSection.tsx";
@@ -24,12 +23,12 @@ function SourcesCard({ hasResume }: { hasResume: boolean }) {
 export function ProfileTab() {
   const profile = useStored("profile");
   const resume = useStored("resume");
+  const answers = useStored("answers");
   return (
     <div class="stack">
       {resume !== undefined && <SourcesCard hasResume={!!resume} />}
       {/* remount when the stored profile changes (extraction, import) so the draft resyncs */}
-      {profile && <ProfileEditor key={JSON.stringify(profile)} initial={profile} />}
-      <AnswerBank />
+      {profile && answers && <ProfileEditor key={JSON.stringify(profile)} initial={profile} answers={answers} />}
     </div>
   );
 }

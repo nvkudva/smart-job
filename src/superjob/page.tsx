@@ -8,6 +8,7 @@ import { useStored } from "../panel/shared/useStored.ts";
 import type { Profile } from "../types.ts";
 import type { FoundJob, SearchQuery } from "./jobSources.ts";
 import * as jobSources from "./jobSources.ts";
+import { ConnectCard } from "./connectCard.tsx";
 import { filterByPortals } from "./jobList.tsx";
 import { Results, useChosenJob } from "./results.tsx";
 
@@ -280,6 +281,7 @@ function Page({ profile }: { profile: Profile }) {
           />
           {hasSearched && <PortalFilters statuses={search.statuses} hiddenPortals={hiddenPortals} jobCount={visibleJobs.length} onToggle={togglePortal} />}
         </div>
+        {hasSearched && search.jobs.length > 0 && <ConnectCard />}
         {hasSearched && !profile.country.trim() && <p class="muted small sj-hint">Add your country in Profile to also search local job portals.</p>}
       </header>
       {hasSearched && <Body jobs={search.jobs} visibleJobs={visibleJobs} statuses={search.statuses} country={profile.country} chosen={chosen} onLoadMore={canLoadMore && !isLoadingAny ? () => search.loadMore(hiddenPortals) : undefined} />}

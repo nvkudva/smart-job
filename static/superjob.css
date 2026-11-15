@@ -701,3 +701,8 @@ span.sj-logo {
 .sj-where input:focus {
   box-shadow: none;
 }
+
+.sj-connect {
+  padding: 12px 14px;
+  gap: 8px;
+}

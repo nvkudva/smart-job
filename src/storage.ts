@@ -19,6 +19,8 @@ export interface StoreShape {
   /** epoch ms of the last LinkedIn import, 0 = never */
   linkedinImportedAt: number;
   jobSearches: JobSearch[];
+  /** true once the user chose "Not now" on the Super Job connect card */
+  connectCardDismissed: boolean;
   /** newest first */
   tailoredResumes: TailoredResume[];
 }
@@ -82,6 +84,7 @@ const defaults: StoreShape = {
   setupComplete: false,
   linkedinImportedAt: 0,
   jobSearches: [],
+  connectCardDismissed: false,
   tailoredResumes: [],
 };
 
