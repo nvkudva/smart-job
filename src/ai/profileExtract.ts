@@ -56,8 +56,18 @@ function findPhones(text: string): string[] {
   });
 }
 
-function countryCodeOf(phone: string): string {
-  return phone.match(/^\+(\d{1,3})[\s.-]/)?.[0].trim().replace(/[\s.-]/g, "") ?? "";
+/** "+91 98765 43210" → code "+91", national "98765 43210"; a number without a leading "+code " has no code to split off. */
+export function splitPhone(phone: string): { code: string; national: string } {
+  const prefix = phone.trim().match(/^\+(\d{1,3})[\s.-]+/);
+  if (!prefix) return { code: "", national: phone.trim() };
+  return { code: `+${prefix[1]}`, national: phone.trim().slice(prefix[0].length) };
+}
+
+/** The editor shows the national number beside its own country code field, so the code is never typed twice. */
+export function withSplitPhone(profile: Profile): Profile {
+  const { code, national } = splitPhone(profile.phone);
+  if (!code || (profile.phoneCountryCode && profile.phoneCountryCode !== code)) return profile;
+  return { ...profile, phone: national, phoneCountryCode: code };
 }
 
 // ---------- dates and experience ----------
@@ -151,7 +161,7 @@ export function buildProfile(raw: unknown, resumeText: string, now = new Date())
   const education = (Array.isArray(data.education) ? data.education : []).map(normalizeEducation).filter((item) => item !== null);
   const [first, ...rest] = normalize.asString(data.name).split(/\s+/).filter(Boolean);
   const latest = latestExperience(experience);
-  const phone = contacts.phone || normalize.asString(data.phone);
+  const { code: phoneCountryCode, national: phone } = splitPhone(contacts.phone || normalize.asString(data.phone));
   const years = normalize.asNumber(data.yearsExperience);
   return {
     ...structuredClone(storage.emptyProfile),
@@ -161,7 +171,7 @@ export function buildProfile(raw: unknown, resumeText: string, now = new Date())
     email: contacts.email || normalize.asString(data.email),
     phone,
     otherPhones: contacts.otherPhones,
-    phoneCountryCode: countryCodeOf(phone),
+    phoneCountryCode,
     city: normalize.asString(data.city),
     state: normalize.asString(data.state),
     country: normalize.asString(data.country),

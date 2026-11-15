@@ -114,7 +114,7 @@ describe("extractProfile", () => {
     const fake = new FakeLlm([`prose ${JSON.stringify(raw)} trailing`]);
     const profile = await tasks.extractProfile(fake, resumeText);
     expect(profile).toMatchObject({
-      firstName: "Jane", lastName: "Doe", email: "jane.doe@example.com", phone: "+91 98765 43210", phoneCountryCode: "+91",
+      firstName: "Jane", lastName: "Doe", email: "jane.doe@example.com", phone: "98765 43210", phoneCountryCode: "+91",
       linkedin: "https://linkedin.com/in/janedoe", github: "https://github.com/janedoe", city: "Bengaluru",
       currentTitle: "Senior Engineer", currentCompany: "Acme Corp", skills: ["Python", "AWS"], workAuthorized: "", gender: "",
     });
@@ -138,7 +138,7 @@ describe("extractProfile", () => {
     expect(profileExtract.buildProfile({ github: "github.com/jane." }, "").github).toBe("https://github.com/jane");
     const header = "Vijay Kudva +91 9632544966 | +1 6507721555 | +91 96325 44966\nLinks\nhttps://www.linkedin.com/in/nvkudva/\ntel:+44 7700 900123";
     const contact = profileExtract.buildProfile({ firstName: "Vijay", middleName: "Krishna" }, header);
-    expect([contact.middleName, contact.phone, contact.otherPhones, contact.linkedin]).toEqual(["Krishna", "+91 9632544966", ["+1 6507721555", "+44 7700 900123"], "https://www.linkedin.com/in/nvkudva/"]);
+    expect([contact.middleName, contact.phone, contact.otherPhones, contact.linkedin]).toEqual(["Krishna", "9632544966", ["+1 6507721555", "+44 7700 900123"], "https://www.linkedin.com/in/nvkudva/"]);
     expect(profileExtract.buildProfile({ experience: "oops", skills: "a, b; c" }, "").skills).toEqual(["a", "b", "c"]);
   });
   test("re-extraction keeps what the user typed when the resume lacks it", () => {

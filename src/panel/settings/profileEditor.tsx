@@ -1,10 +1,11 @@
 import { useState } from "preact/hooks";
+import * as profileExtract from "../../ai/profileExtract.ts";
 import * as storage from "../../storage.ts";
 import type { Education, Experience, Profile } from "../../types.ts";
 import * as format from "../shared/format.ts";
 import { Button, Card, Check, Choice, Field, SaveBar } from "../shared/controls.tsx";
 
-type FieldSpec = { key: keyof Profile; label: string; type?: "text" | "email" | "tel" | "number"; rows?: number; isYesNo?: boolean; isAmount?: boolean };
+type FieldSpec = { key: keyof Profile; label: string; isNarrow?: boolean; type?: "text" | "email" | "tel" | "number"; rows?: number; isYesNo?: boolean; isAmount?: boolean };
 
 const yesNoOptions = [["", "Not set"], ["yes", "Yes"], ["no", "No"]] as const;
 // an inner array is one row of side-by-side fields; a bare spec takes the full width
@@ -15,7 +16,7 @@ const groups: { title: string; note?: string; fields: (FieldSpec | FieldSpec[])[
       [{ key: "firstName", label: "First name" }, { key: "middleName", label: "Middle name" }],
       { key: "lastName", label: "Last name" },
       { key: "email", label: "Email", type: "email" },
-      [{ key: "phoneCountryCode", label: "Country code (+1)" }, { key: "phone", label: "Phone", type: "tel" }],
+      [{ key: "phoneCountryCode", label: "Country code", isNarrow: true }, { key: "phone", label: "Phone", type: "tel" }],
       { key: "address", label: "Address" },
       [{ key: "city", label: "City" }, { key: "state", label: "State / region" }],
       [{ key: "postalCode", label: "Postal code" }, { key: "country", label: "Country" }],
@@ -122,7 +123,8 @@ function RowList<T extends object>({ title, items, blank, fields, summarize, onC
 
 const parseList = (text: string) => text.split(",").map((item) => item.trim()).filter(Boolean);
 
-export function ProfileEditor({ initial }: { initial: Profile }) {
+export function ProfileEditor({ initial: stored }: { initial: Profile }) {
+  const initial = profileExtract.withSplitPhone(stored);
   const [profile, setProfile] = useState(initial);
   const [skillsText, setSkillsText] = useState(initial.skills.join(", "));
   const [otherPhonesText, setOtherPhonesText] = useState(initial.otherPhones.join(", "));
@@ -150,7 +152,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
         <Card title={group.title} collapsible isOpen={index === 0}>
           {group.note && <p class="muted small">{group.note}</p>}
           <div class="stack tight">
-            {group.fields.map((entry) => (Array.isArray(entry) ? <div class="grid2">{entry.map(renderProfileField)}</div> : renderProfileField(entry)))}
+            {group.fields.map((entry) => (Array.isArray(entry) ? <div class={entry[0]?.isNarrow ? "grid2 narrow-first" : "grid2"}>{entry.map(renderProfileField)}</div> : renderProfileField(entry)))}
             {group.title === "Contact" && (
               <Field
                 label="Other phone numbers (comma separated)"

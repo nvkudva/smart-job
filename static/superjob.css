@@ -15,7 +15,7 @@
   height: 100vh;
 }
 .sj :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 .sj-top {
@@ -33,10 +33,7 @@
   font-weight: 700;
   letter-spacing: -0.035em;
   line-height: 1.1;
-  background: linear-gradient(120deg, var(--text) 30%, var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
 }
 .sj-sub {
   display: flex;
@@ -59,7 +56,7 @@
   cursor: pointer;
 }
 .sj-role-chip:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-soft);
 }
 
@@ -75,15 +72,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 6px 6px 20px;
+  padding: 6px 6px 6px 22px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: 999px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lift);
   transition: box-shadow 0.2s, border-color 0.2s;
 }
 .sj-search:hover {
   border-color: var(--field-border);
+  box-shadow: var(--shadow-float);
 }
 .sj-search:focus-within {
   border-color: var(--accent);
@@ -94,7 +92,7 @@
   color: var(--muted);
 }
 .sj-search:focus-within .sj-search-icon {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .sj-search .sj-input:not([type="checkbox"]):not([type="file"]) {
   flex: 1;
@@ -107,10 +105,11 @@
 }
 .sj-go {
   flex: none;
-  padding: 11px 26px;
+  align-self: stretch;
+  padding: 0 26px;
   border: 0;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-grad);
   color: var(--accent-text);
   font: inherit;
   font-weight: 600;
@@ -140,10 +139,10 @@
 }
 button.sj-where:hover {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .sj-where-edit {
-  color: var(--accent);
+  color: var(--accent-ink);
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -156,7 +155,7 @@ button.sj-where:focus-visible .sj-where-edit {
   background: var(--surface);
   border: 1px solid var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .sj-where.is-editing input:not([type="checkbox"]):not([type="file"]) {
   width: 200px;
@@ -193,7 +192,7 @@ button.sj-where:focus-visible .sj-where-edit {
   font-size: calc(19px + var(--font-bump, 0pt));
 }
 .sj-home .sj-go {
-  padding: 14px 30px;
+  padding: 0 30px;
 }
 .sj-home .sj-roles {
   justify-content: center;
@@ -206,8 +205,8 @@ button.sj-where:focus-visible .sj-where-edit {
   color: var(--text);
 }
 .sj-home .sj-role-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--text);
+  color: var(--text);
 }
 
 /* results: sticky bar over two panes */
@@ -246,7 +245,7 @@ button.sj-where:focus-visible .sj-where-edit {
   padding: 6px 4px;
 }
 .sj-results-mode .sj-go {
-  padding: 6px 16px;
+  padding: 0 16px;
 }
 .sj-results-mode .sj-sub {
   flex-direction: row;
@@ -281,7 +280,7 @@ button.sj-where:focus-visible .sj-where-edit {
   text-transform: none;
 }
 .sj-status .chip.active {
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-soft);
   border-color: transparent;
 }
@@ -419,7 +418,7 @@ button.sj-where:focus-visible .sj-where-edit {
 }
 .sj-saved {
   display: inline-flex;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .sj-logo {
@@ -534,7 +533,7 @@ span.sj-logo {
 }
 .sj-saved {
   display: inline-flex;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .sj-logo {
@@ -695,4 +694,10 @@ span.sj-logo {
 }
 .sj-star {
   flex: none;
+}
+
+/* bare search inputs sit inside their own pill, so they skip the global focus ring */
+.sj .sj-input:focus,
+.sj-where input:focus {
+  box-shadow: none;
 }

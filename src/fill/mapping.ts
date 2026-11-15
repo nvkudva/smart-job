@@ -149,10 +149,12 @@ function monthYear(yearMonth: string, field: FieldDescriptor): string | undefine
 
 function localPhone({ profile, hasPhoneCodeField }: Context): string | undefined {
   const phone = profile.phone.trim();
-  if (!phone || !hasPhoneCodeField) return phone || undefined;
+  if (!phone) return undefined;
   const code = profile.phoneCountryCode.replace(/\D/g, "");
+  const isInternational = phone.startsWith("+");
+  if (!hasPhoneCodeField) return isInternational || !code ? phone : `+${code} ${phone}`;
   const digits = phone.replace(/[^\d+]/g, "");
-  return phone.startsWith("+") && code && digits.startsWith(`+${code}`) ? digits.slice(code.length + 1) : phone;
+  return isInternational && code && digits.startsWith(`+${code}`) ? digits.slice(code.length + 1) : phone;
 }
 
 function phoneCode({ profile, field }: Context): string | undefined {

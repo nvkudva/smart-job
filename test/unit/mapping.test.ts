@@ -106,6 +106,10 @@ describe("identity and contact", () => {
     expect(fillOne(field({ label: "Phone", kind: "tel" }))?.value).toBe("+1 415 555 0100");
   });
 
+  test("a national number gets its country code back when the form has no code field", () => {
+    expect(fillOne(field({ label: "Phone", kind: "tel" }), { ...profile, phone: "415 555 0100" })?.value).toBe("+1 415 555 0100");
+  });
+
   test("phone device type selects Mobile", () => {
     const type = field({ label: "Phone Device Type", kind: "select", options: ["Select One", "Home", "Mobile", "Work"] });
     expect(fillOne(type)?.value).toBe("Mobile");
