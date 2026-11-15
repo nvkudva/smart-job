@@ -45,14 +45,19 @@ export async function rememberAnswers(answers: { field: FieldDescriptor; value: 
   });
 }
 
+const LOGIN_FIELD = /e ?mail|user ?name|user ?id|login/i;
+
 /**
- * The user changed a field on the page. The log always gets it. The value is saved as an answer only when it replaces our own guess (AI, an old saved answer)
- * or fills a question we had no answer for: a profile value they edited means the profile is wrong, and a saved answer would shadow it for good.
+ * The user changed a field on the page. The log always gets it, and the new value is saved as the answer for that question, so the next form asks the same thing
+ * and gets what the user chose (a saved answer is tried before the profile). The one exception is a login or email field the profile filled: that is
+ * usually an account made for one site, and saving it would put it on every other form.
  */
 export async function recordEdit(host: string, field: FieldDescriptor, source: FillSource | "none", filled: string, final: string): Promise<void> {
   if (!isLoggable(field)) return;
   await log(host, [entryOf(field, source === "none" ? "learned" : "edited", source, filled, final)]);
-  if (source === "none" || source === "ai" || source === "answers") await rememberAnswers([{ field, value: final }]);
+  const isLogin = field.kind === "email" || LOGIN_FIELD.test(field.label);
+  if (source === "profile" && isLogin) return;
+  await rememberAnswers([{ field, value: final }]);
 }
 
 function wordsOf(text: string): Set<string> {
