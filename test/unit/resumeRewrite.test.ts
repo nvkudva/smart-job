@@ -106,6 +106,13 @@ describe("rewrite", () => {
     expect(rewrite.parse(null)).toEqual([]);
   });
 
+  test("fit places the user's own text without the model's content checks, and reports overflow", () => {
+    const own = rewrite.fit("Shipped a brand new payments platform for 99 markets", oneLine, measurer);
+    expect("placement" in own && own.placement.lines.join(" ")).toBe("Shipped a brand new payments platform for 99 markets");
+    const tooLong = rewrite.fit("word ".repeat(80), oneLine, measurer);
+    expect("overBy" in tooLong && tooLong.overBy).toBeGreaterThan(0);
+  });
+
   test("clean maps symbols, strips markdown and bullets, drops unencodable characters", () => {
     expect(rewrite.clean("• **Cut** cost → 30% ≥ goal 🚀", measurer)).toBe("Cut cost -> 30% >= goal");
   });

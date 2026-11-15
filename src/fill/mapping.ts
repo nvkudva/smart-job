@@ -353,9 +353,15 @@ function hasFilledValue(field: FieldDescriptor): boolean {
   return value !== "" && !(field.kind === "checkbox" && value === "false");
 }
 
+const fileText = (field: FieldDescriptor) => normalize(`${field.label} ${field.name} ${field.automationId}`);
+
+export const isCoverLetterField = (field: FieldDescriptor) => /cover/.test(fileText(field));
+
+/** A file field that is not asking for some other document. */
+export const isResumeField = (field: FieldDescriptor) => !/cover letter|coverletter|transcript|portfolio|writing sample|photo|picture|reference|certificate/.test(fileText(field));
+
 function fileFill(field: FieldDescriptor, resume: Resume | null | undefined): Pick<FieldFill, "value" | "source"> | undefined {
-  const text = normalize(`${field.label} ${field.name} ${field.automationId}`);
-  if (/cover letter|coverletter|transcript|portfolio|writing sample|photo|picture|reference|certificate/.test(text) || !resume?.fileBase64) return undefined;
+  if (!isResumeField(field) || !resume?.fileBase64) return undefined;
   return { value: "resume", source: "resume" };
 }
 

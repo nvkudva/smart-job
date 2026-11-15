@@ -742,6 +742,56 @@ textarea:focus {
 .change .after {
   color: var(--text);
 }
+.tcard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.tcard.off {
+  opacity: 0.6;
+}
+.tcard.over {
+  border-color: var(--bad);
+}
+.tline {
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.tline.before {
+  color: var(--muted);
+}
+.tline.after {
+  cursor: text;
+  border: 1px solid transparent;
+}
+.tline.after:hover {
+  border-color: var(--field-border);
+}
+mark.diff-added,
+mark.diff-removed {
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+mark.diff-added {
+  background: rgb(0 138 5 / 18%);
+}
+mark.diff-removed {
+  background: rgb(193 53 21 / 16%);
+  text-decoration: line-through;
+}
+.row > input.grow {
+  flex: 1;
+  min-width: 0;
+}
 .row-item {
   display: flex;
   flex-direction: column;

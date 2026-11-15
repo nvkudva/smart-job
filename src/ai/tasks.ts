@@ -415,6 +415,23 @@ async function shortenOverlong(client: llm.LlmClient, overlong: rewrite.Overlong
   }
 }
 
+export interface TailorOptions {
+  /** the user's own direction, e.g. "make it more polite" or "highlight leadership in Experience" */
+  instruction?: string;
+  /** rewrite only these block ids (a per-change "ask AI") */
+  onlyIds?: string[];
+  /** the user's current text for a block, so an instruction builds on their edit */
+  drafts?: Record<string, string>;
+}
+
+function describeOptions({ instruction, onlyIds, drafts }: TailorOptions): string {
+  const parts: string[] = [];
+  if (onlyIds?.length) parts.push(`Rewrite ONLY these blocks and no others: ${onlyIds.join(", ")}.`);
+  for (const [id, text] of Object.entries(drafts ?? {})) parts.push(`The user's current text for ${id} is: ${text}\nStart from it.`);
+  if (instruction?.trim()) parts.push(`The user asks: ${normalize.truncate(instruction.trim(), 500)}\nFollow it, within every rule above.`);
+  return parts.length ? `\n\nUSER DIRECTION\n${parts.join("\n")}` : "";
+}
+
 /** Line rewrites for a PDF resume, each verified to fit the lines it replaces. Rewrites that still do not fit after one retry are dropped. */
 export async function tailorPdf(
   client: llm.LlmClient,
@@ -422,14 +439,17 @@ export async function tailorPdf(
   candidate: CandidateContext,
   resume: layout.Layout,
   measurer: rewrite.Measurer,
+  options: TailorOptions = {},
 ): Promise<rewrite.Placement[]> {
   const skillsLine = candidate.profile.skills.length ? `\n\nCANDIDATE SKILLS\n${candidate.profile.skills.join(", ")}` : "";
   const raw = await llm.chatJson<unknown>(client, {
     system: pdfTailorSystem,
-    user: `JOB\n${describeJob(job)}${keywordHint(job, candidate)}${skillsLine}\n\nRESUME\n${normalize.truncate(rewrite.describe(resume), fullResumeLimit)}`,
+    user: `JOB\n${describeJob(job)}${keywordHint(job, candidate)}${skillsLine}\n\nRESUME\n${normalize.truncate(rewrite.describe(resume), fullResumeLimit)}${describeOptions(options)}`,
     maxTokens: tokenBudget,
   });
-  const first = rewrite.validate(rewrite.parse(raw), resume, measurer);
+  const allowed = options.onlyIds ? new Set(options.onlyIds) : null;
+  const requested = rewrite.parse(raw).filter((item) => !allowed || allowed.has(item.id));
+  const first = rewrite.validate(requested, resume, measurer);
   const retried = await shortenOverlong(client, first.overlong, resume, measurer);
   const order = new Map(layout.allBlocks(resume).map((block, index) => [block.id, index]));
   const truthful = [...first.placements, ...retried].filter((placement) => !addsSkill(placement, candidate));

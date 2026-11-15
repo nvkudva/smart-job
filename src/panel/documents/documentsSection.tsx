@@ -6,7 +6,7 @@ import { TailorResume } from "./tailorResume.tsx";
 import { useStored } from "../shared/useStored.ts";
 
 /** Cover letter, tailored resume and question answerer for the job in the current tab; to work on another job, open its tab (the Track tab's Continue button does that). */
-export function DocumentsSection({ currentJob: job }: { currentJob: JobPosting | null }) {
+export function DocumentsSection({ currentJob: job, tabId }: { currentJob: JobPosting | null; tabId: number | null }) {
   const jobs = useStored("jobs");
 
   return (
@@ -18,8 +18,8 @@ export function DocumentsSection({ currentJob: job }: { currentJob: JobPosting |
           <p class="muted">Open a job posting to write a cover letter or tailor your resume. The question answerer below works without one.</p>
         </Card>
       )}
-      {job && <CoverLetter key={`letter-${job.id}`} job={job} tracked={jobs?.[job.id]} />}
-      {job && <TailorResume key={`tailor-${job.id}`} job={job} />}
+      {job && <CoverLetter key={`letter-${job.id}`} job={job} tabId={tabId} tracked={jobs?.[job.id]} />}
+      {job && <TailorResume key={`tailor-${job.id}`} job={job} tabId={tabId} />}
       <QuestionAnswerer key={`question-${job?.id ?? ""}`} job={job} />
     </div>
   );

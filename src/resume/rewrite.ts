@@ -165,6 +165,18 @@ function place(rewrite: Rewrite, block: layout.Block, measurer: Measurer): Outco
   return { kind: "placed", placement: { block, lines, scale, reason: rewrite.reason } };
 }
 
+/** Characters a block can hold, the same budget the model is given. */
+export const maxCharsOf = (block: layout.Block): number => capacity(block).maxChars;
+
+/** The user's own text for a block: cleaned and fitted only. No truthfulness checks, the user is the author. */
+export function fit(text: string, block: layout.Block, measurer: Measurer, reason = "Edited by you"): { placement: Placement; cleaned: string } | { cleaned: string; overBy: number } {
+  const cleaned = clean(text, measurer);
+  const scale = fontScale(block, measurer);
+  const lines = cleaned ? fitLines(cleaned, block, scale, measurer) : null;
+  if (!lines) return { cleaned, overBy: Math.max(1, cleaned.length - maxCharsOf(block)) };
+  return { placement: { block, lines, scale, reason }, cleaned };
+}
+
 /** Placements that fit their original lines, plus the rewrites that were valid but too long to fit. */
 export function validate(rewrites: Rewrite[], resume: layout.Layout, measurer: Measurer): { placements: Placement[]; overlong: Overlong[] } {
   const blocks = new Map(layout.allBlocks(resume).map((block) => [block.id, block]));

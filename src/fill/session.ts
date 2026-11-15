@@ -136,6 +136,30 @@ async function logMisses(tabId: number, unknown: FieldDescriptor[], fills: Field
   await learning.log(await hostOf(tabId), entries);
 }
 
+/** Some portals (iCIMS) reload the page when a file is attached and drop the other fields; attaching again on the reloaded page would loop forever. */
+const uploadedResumePages = new Map<number, string>();
+
+async function pageKeyOf(tabId: number): Promise<string> {
+  try {
+    const url = new URL((await chrome.tabs.get(tabId)).url ?? "");
+    return url.origin + url.pathname;
+  } catch {
+    return "";
+  }
+}
+
+/** Puts a generated PDF into the page's cover letter or resume upload field (a plain Fill skips the cover letter field on purpose). */
+export async function attachFile(tabId: number, file: { name: string; base64: string; mimeType: string }, kind: "cover letter" | "resume"): Promise<void> {
+  const fileFields = (await scanAllFrames(tabId)).filter((candidate) => candidate.kind === "file");
+  const candidates = fileFields.filter(kind === "resume" ? mapping.isResumeField : mapping.isCoverLetterField);
+  const field = (kind === "resume" && candidates.find((candidate) => /resume|\bcv\b/i.test(`${candidate.label} ${candidate.name}`))) || candidates[0];
+  if (!field) throw new Error(`No ${kind} upload field found on this page.`);
+  const fill: FieldFill = { id: field.id, frameId: field.frameId, value: file.name, source: "user" };
+  const [result] = (await sendToFrame(tabId, field.frameId, { type: "fillFields", fills: [fill], resumeFile: file })) ?? [];
+  if (!result?.ok) throw new Error(result?.error || "The page did not accept the file.");
+  if (kind === "resume") uploadedResumePages.set(tabId, await pageKeyOf(tabId));
+}
+
 /** scan all frames → deterministic map → answer bank → AI for leftovers → fill one by one → point at what is left → report. */
 export async function run(tabId: number, job: JobPosting | null, options: { useAi: boolean; includeAccount: boolean }): Promise<FillReport> {
   await clearHighlights(tabId);
@@ -147,9 +171,14 @@ export async function run(tabId: number, job: JobPosting | null, options: { useA
   const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !learning.isUserDecision(field));
   const ai = options.useAi ? await askAi(leftovers, { profile, resume, job, answers }) : { fills: [], failed: false };
   const fieldOrder = new Map(fields.map((field, index) => [keyOf(field), index]));
-  const allFills = [...fills, ...ai.fills].sort((a, b) => fieldOrder.get(keyOf(a))! - fieldOrder.get(keyOf(b))!);
+  const pageKey = await pageKeyOf(tabId);
+  const hasResumeUploaded = uploadedResumePages.get(tabId) === pageKey;
+  const allFills = [...fills, ...ai.fills]
+    .filter((fill) => !(hasResumeUploaded && fill.source === "resume"))
+    .sort((a, b) => fieldOrder.get(keyOf(a))! - fieldOrder.get(keyOf(b))!);
 
   const results = await sendFills(tabId, allFills, resume);
+  if (allFills.some((fill) => fill.source === "resume" && results.get(keyOf(fill))?.ok)) uploadedResumePages.set(tabId, pageKey);
   const unknown = unknownFields(fields, results);
   await pointAtUnknown(tabId, unknown);
   await logMisses(tabId, unknown, allFills, results);

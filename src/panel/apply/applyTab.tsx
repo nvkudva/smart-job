@@ -153,7 +153,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
       <ErrorNote message={applyTask.error} />
       <ApplicationStatus job={job} />
       <h2 class="section-title">Documents</h2>
-      <DocumentsSection currentJob={job} />
+      <DocumentsSection currentJob={job} tabId={tabId} />
     </div>
   );
 }
