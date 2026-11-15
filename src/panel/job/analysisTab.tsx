@@ -1,6 +1,6 @@
 import type { ActiveJob } from "./activeTab.ts";
-import { AnalysisView } from "./analysisView.tsx";
-import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
+import { AnalysisDetails, ScoreRing } from "./analysisView.tsx";
+import { AiErrorNote, Button, Card, Spinner } from "../shared/controls.tsx";
 import { PerksSection } from "./perks.tsx";
 import { SalarySection } from "./salary.tsx";
 import * as trackedJobs from "./trackedJobs.ts";
@@ -43,14 +43,18 @@ interface JobCardProps {
 }
 
 function JobCard({ job, tracked, state, onApply, onShortlist }: JobCardProps) {
+  const analysis = state.isAnalyzing ? null : state.analysis;
   return (
     <Card>
-      <div class="job-head">
-        <h2 class="job-title">{job.title || "Untitled role"}</h2>
-        <div class="muted">
-          <strong class="job-company">{job.company}</strong>
-          {[job.location, job.employmentType].filter(Boolean).map((part) => ` · ${part}`)}
+      <div class="job-top">
+        <div class="job-head">
+          <h2 class="job-title">{job.title || "Untitled role"}</h2>
+          <div class="muted">
+            <strong class="job-company">{job.company}</strong>
+            {[job.location, job.employmentType].filter(Boolean).map((part) => ` · ${part}`)}
+          </div>
         </div>
+        {analysis && <ScoreRing score={analysis.matchScore} />}
       </div>
       <div class="job-foot">
         <div class="row wrap">
@@ -69,6 +73,12 @@ function JobCard({ job, tracked, state, onApply, onShortlist }: JobCardProps) {
           </Button>
         </div>
       </div>
+      {state.isAnalyzing && (
+        <p class="muted">
+          <Spinner /> Analyzing against your resume…
+        </p>
+      )}
+      {analysis && <AnalysisDetails analysis={analysis} />}
     </Card>
   );
 }
@@ -97,15 +107,7 @@ export function AnalysisTab({ active, hasResume, onApply }: AnalysisTabProps) {
   return (
     <div class="stack">
       <JobCard job={job} tracked={tracked} state={state} onApply={onApply} onShortlist={() => void toggleShortlist()} />
-      <ErrorNote message={state.error} onRetry={state.analyze} />
-      {state.isAnalyzing && (
-        <Card>
-          <p class="muted">
-            <Spinner /> Analyzing against your resume…
-          </p>
-        </Card>
-      )}
-      {state.analysis && !state.isAnalyzing && <AnalysisView analysis={state.analysis} />}
+      <AiErrorNote message={state.error} onRetry={state.analyze} />
       <SalarySection salary={state.salary} isLoading={state.isEstimating} error={state.salaryError} onEstimate={state.estimate} />
       <PerksSection perks={state.perks} isLoading={state.isFindingPerks} error={state.perksError} onFind={state.findPerks} />
     </div>

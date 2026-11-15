@@ -9,22 +9,19 @@ export function scan(): FieldDescriptor[] {
   return scanner.scan();
 }
 
-const FIELD_PAUSE_MS = 140;
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /** Fills one field at a time, scrolling to each so the user can follow along. Marks from earlier runs stay until the panel clears them. */
 export async function fill(
   fills: FieldFill[],
   resumeFile?: { name: string; base64: string; mimeType: string },
 ): Promise<FillResult[]> {
   const fields = new Map(scanner.scan().map((field) => [field.id, field]));
-  return filler.fillAll(fills, resumeFile, {
+  const results = await filler.fillAll(fills, resumeFile, {
     before: async (fill) => {
       const element = scanner.findElement(fill.id);
       if (!element) return;
       highlight.release(element);
       highlight.mark(element, "active");
-      if (await highlight.reveal(element)) await sleep(FIELD_PAUSE_MS);
+      if (await highlight.reveal(element)) await highlight.moveCursor(element);
     },
     after: (fill, result) => {
       const element = scanner.findElement(fill.id);
@@ -34,9 +31,11 @@ export async function fill(
       if (field) learn.watch(field, result.ok ? fill.source : "none", result.finalValue);
     },
   });
+  highlight.hideCursor();
+  return results;
 }
 
-/** Fields SmartJob had no answer for: pins a pill on each and, once the known fields are done, jumps to the first. */
+/** Fields SmartJob had no answer for: pins a dot on each and, once the known fields are done, jumps to the first. */
 export function markUnknown(unknown: { id: string; isRequired: boolean }[], shouldScroll: boolean): void {
   const fields = new Map(scanner.scan().map((field) => [field.id, field]));
   let firstId: string | undefined;
@@ -48,7 +47,7 @@ export function markUnknown(unknown: { id: string; isRequired: boolean }[], shou
     learn.watch(field, "none", field.currentValue);
     firstId ??= id;
   }
-  if (shouldScroll && firstId) highlight.focus(firstId);
+  if (shouldScroll && firstId) highlight.focus(firstId, false);
 }
 
 export function clearHighlights(): void {

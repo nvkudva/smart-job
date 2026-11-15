@@ -5,22 +5,36 @@ import * as openrouterAuth from "../../ai/openrouterAuth.ts";
 import type { ProviderSettings } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
 import { Button, Choice, ErrorNote, Field } from "../shared/controls.tsx";
+import { Icon } from "../shared/icons.tsx";
 import { useTask } from "../shared/useTask.ts";
 
 const customPreset = "Custom";
 
-function useModelIds(provider: ProviderSettings): string[] {
+function useModelIds(provider: ProviderSettings, onProvider: (patch: Partial<ProviderSettings>) => void): { ids: string[]; isLoading: boolean; refresh: () => void } {
   const [ids, setIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshCount, setRefreshCount] = useState(0);
   useEffect(() => {
     let isAlive = true;
+    setIsLoading(true);
     // debounced so typing a base URL does not fire a request per keystroke
-    const timer = setTimeout(() => void models.list(provider).then((found) => isAlive && setIds(found)), 600);
+    const timer = setTimeout(
+      () =>
+        void Promise.all([models.list(provider), models.active(provider)]).then(([found, running]) => {
+          if (!isAlive) return;
+          setIds(found);
+          setIsLoading(false);
+          // a local server has one model in memory; picking another would make it swap models on the first request
+          if (running && running !== provider.model) onProvider({ model: running });
+        }),
+      600,
+    );
     return () => {
       isAlive = false;
       clearTimeout(timer);
     };
-  }, [provider.kind, provider.baseUrl, provider.apiKey]);
-  return ids;
+  }, [provider.kind, provider.baseUrl, provider.apiKey, refreshCount]);
+  return { ids, isLoading, refresh: () => setRefreshCount(refreshCount + 1) };
 }
 
 function ModelField({ provider, ids, onProvider }: { provider: ProviderSettings; ids: string[]; onProvider: (patch: Partial<ProviderSettings>) => void }) {
@@ -40,7 +54,7 @@ interface ProviderFieldsProps {
 /** Preset, API type, URL, key (with a link to the provider's key page), model (with discovered ids) and Test connection; shared by Settings and the setup wizard. */
 export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
   const [latency, setLatency] = useState<number | null>(null);
-  const modelIds = useModelIds(provider);
+  const modelIds = useModelIds(provider, onProvider);
   const presetOptions: [string, string][] = Object.keys(llm.presets).map((name) => [name, llm.freeLimits[name] ? `${name} (${llm.freeLimits[name]})` : name]);
   const [presetName, setPresetName] = useState(llm.presetFor(provider) ?? customPreset);
   // each provider keeps its own edited URL, key and model while the user switches between them
@@ -107,7 +121,12 @@ export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
           )}
         </div>
         <ErrorNote message={getFreeKey.error} />
-        <ModelField provider={provider} ids={modelIds} onProvider={onProvider} />
+        <div class="row">
+          <ModelField provider={provider} ids={modelIds.ids} onProvider={onProvider} />
+          <Button isBusy={modelIds.isLoading} aria-label="Refresh models" title="Refresh models" onClick={modelIds.refresh}>
+            {!modelIds.isLoading && <Icon name="Refresh" />}
+          </Button>
+        </div>
         <Button isBusy={testConnection.isBusy} onClick={() => void testConnection.run()}>
           Test connection
         </Button>

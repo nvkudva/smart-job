@@ -43,8 +43,7 @@ async function onEdit(event: Event): Promise<void> {
   const previous = entry.lastValue;
   entry.lastValue = value;
   if (entry.source === "none") {
-    highlight.release(element);
-    highlight.mark(element, "profile");
+    highlight.answered(element);
   }
   await learning.recordEdit(location.hostname, entry.field, entry.source, previous, value);
 }

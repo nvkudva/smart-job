@@ -2,7 +2,7 @@ import { useState } from "preact/hooks";
 import * as tasks from "../../ai/tasks.ts";
 import type { JobPosting, TrackedJob } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
-import { Button, Card, Choice, ErrorNote } from "../shared/controls.tsx";
+import { Button, Card, Choice, AiErrorNote } from "../shared/controls.tsx";
 import * as download from "../shared/download.ts";
 import * as trackedJobs from "../job/trackedJobs.ts";
 import { useTask } from "../shared/useTask.ts";
@@ -35,7 +35,7 @@ export function CoverLetter({ job, tracked }: { job: JobPosting; tracked: Tracke
       <Button kind="primary" isBusy={generate.isBusy} onClick={() => void generate.run()}>
         {letter ? "Regenerate" : "Generate"}
       </Button>
-      <ErrorNote message={generate.error} onRetry={() => void generate.run()} />
+      <AiErrorNote message={generate.error} onRetry={() => void generate.run()} />
       {letter && (
         <>
           <textarea

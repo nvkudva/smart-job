@@ -180,8 +180,6 @@ export interface JobAnalysis {
   keywordScore: number;
   matchedSkills: string[];
   missingSkills: string[];
-  strengths: string[];
-  gaps: string[];
   verdict: string;
   salary: SalaryEstimate | null;
   /** absent in analyses cached before perks existed */

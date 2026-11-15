@@ -4,7 +4,17 @@ import type { ProviderSettings, Settings } from "../../types.ts";
 import { Button, Card, Check, Field, SaveBar } from "../shared/controls.tsx";
 import { DataSection } from "./dataSection.tsx";
 import { ProviderFields } from "./providerForm.tsx";
+import * as aiContext from "../shared/aiContext.ts";
 import { useStored } from "../shared/useStored.ts";
+
+function AiStatus() {
+  const status = aiContext.useStatus();
+  return (
+    <p class="muted small ai-status">
+      <span class={`dot status-${status}`} /> {aiContext.statusLabel[status]}
+    </p>
+  );
+}
 
 function AiSection({ initial }: { initial: Settings }) {
   const [draft, setDraft] = useState(initial);
@@ -23,6 +33,7 @@ function AiSection({ initial }: { initial: Settings }) {
   return (
     <div class="stack">
       <Card title="AI provider">
+        <AiStatus />
         <ProviderFields provider={draft.provider} onProvider={setProvider} />
       </Card>
       <Card title="Automation">
@@ -61,9 +72,9 @@ function DataTab() {
   return (
     <div class="stack">
       <Card title="Setup">
-        <div class="actions">
+        <div class="row between">
+          <span class="muted">Walks through provider, profile and job searches. Existing data is kept.</span>
           <Button onClick={() => void storage.set("setupComplete", false)}>Run setup again</Button>
-          <span class="muted small">Walks through provider, profile and job searches. Existing data is kept.</span>
         </div>
       </Card>
       <DataSection />

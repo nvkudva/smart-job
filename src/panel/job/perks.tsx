@@ -1,4 +1,5 @@
 import type { CompanyPerks } from "../../types.ts";
+import * as aiContext from "../shared/aiContext.ts";
 import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
 
 function siteName(url: string): string {
@@ -32,7 +33,8 @@ interface PerksSectionProps {
   onFind: () => void;
 }
 
-export function PerksSection({ perks, isLoading, error, onFind }: PerksSectionProps) {
+export function PerksSection({ perks, isLoading, error: rawError, onFind }: PerksSectionProps) {
+  const error = aiContext.useCardError(rawError);
   return (
     <Card title="Perks" actions={perks && !isLoading ? <Button onClick={onFind}>Refresh</Button> : undefined}>
       {isLoading && (

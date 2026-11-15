@@ -49,16 +49,16 @@ export function describeCandidate(candidate: CandidateContext): string {
 // ---------- analyzeJob ----------
 
 const analysisSystem = `You are a recruiter assessing how well a candidate fits a job. Reply with JSON:
-{"mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "seniority": "under" | "match" | "over", "blockers": [short phrases], "strengths": [up to 3 short phrases], "gaps": [up to 3 short phrases], "reason": "one line, at most 15 words", "overview": {"company": [0-3 short sentences], "position": [2-3 short sentences]}}
+{"mustHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "niceToHave": [{"requirement": "short phrase", "met": "yes" | "partial" | "no"}], "seniority": "under" | "match" | "over", "blockers": [short phrases], "reason": "one line, at most 15 words", "overview": {"company": [0-3 short sentences], "position": [2-3 short sentences]}}
 mustHave: the 3-7 requirements the posting marks as required, in its order. niceToHave: its preferred extras.
 "met" judges the candidate's whole background (resume and LinkedIn), not exact wording: an engineering manager meets "2+ years leading teams".
 seniority: the candidate's level against the role ("under" = too junior, "over" = clearly more senior than the role).
 blockers: only hard conditions the posting states that the candidate's data clearly fails (work authorization, location or onsite, security clearance, license, required language). Unknown is not a blocker; usually empty.
-strengths and gaps: the 3 that most affect the decision, citing specifics, never repeating a requirement's wording. reason: the single deciding fact.
+reason: the single deciding fact.
 overview says why this job might interest the candidate, written to them as "you", one fact from the posting per sentence, at most 12 words each, starting "You'd" or "You get to".
 company: what they would join (what it builds, stage or size, domain, customers), e.g. "You'd join a Series B payments company serving retailers". Leave it empty when the posting says nothing about the company.
 position: what they would own or do (scope, team, product, impact), e.g. "You get to lead design and development of the platform end to end". Prefer facts that match or stretch the candidate's background.
-Leave out requirements, pay and perks (they have their own sections), fit judgments (strengths and gaps cover them) and hype words like "exciting". ${noInvention}`;
+Leave out requirements, pay and perks (they have their own sections), fit judgments (the verdict covers them) and hype words like "exciting". ${noInvention}`;
 
 const MET_VALUES: MustHaveMet[] = ["yes", "partial", "no"];
 const SENIORITY_VALUES: Seniority[] = ["under", "match", "over"];
@@ -120,8 +120,6 @@ export function normalizeAnalysis(raw: unknown, fallbackScore = 0): Omit<JobAnal
     blockers,
     reason: normalize.asString(data.reason),
     matchScore: score,
-    strengths: normalize.asStringList(data.strengths, 3),
-    gaps: normalize.asStringList(data.gaps, 3),
     verdict: verdictFor(score),
   };
 }

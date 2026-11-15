@@ -4,8 +4,6 @@ const analysis = {
   niceToHave: [{ requirement: "Preact", met: "yes" }],
   seniority: "match",
   blockers: [],
-  strengths: ["Strong TypeScript background"],
-  gaps: ["No Playwright on resume"],
   reason: "Core stack matches; Playwright is the only gap",
   overview: { company: [], position: ["You get to build browser extensions with TypeScript"] },
 };

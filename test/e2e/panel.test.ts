@@ -57,7 +57,7 @@ test("settings, resume and profile extraction persist", async () => {
 
   await panel.getByRole("button", { name: "Test connection" }).click();
   await visible(panel.getByText(/Connected in \d+ ms/));
-  await visible(panel.locator(".dot.ok").first());
+  await visible(panel.locator(".dot.status-ok").first());
 
   await panel.getByRole("tab", { name: "Profile", exact: true }).click();
   await panel.getByLabel("Resume text").fill(resume.text);

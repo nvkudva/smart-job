@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ComponentChildren } from "preact";
+import * as aiContext from "./aiContext.ts";
 
 export function Spinner() {
   return <span class="spinner" role="status" aria-label="Working" />;
@@ -42,6 +43,11 @@ export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () 
       {onRetry && <Button onClick={onRetry}>Retry</Button>}
     </div>
   );
+}
+
+/** ErrorNote for AI calls: silent while the header banner already explains that the AI is down. */
+export function AiErrorNote(props: { message: string; onRetry?: () => void }) {
+  return <ErrorNote {...props} message={aiContext.useCardError(props.message)} />;
 }
 
 interface FieldProps {

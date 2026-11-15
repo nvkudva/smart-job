@@ -155,7 +155,7 @@ describe("fill", () => {
     expect([(dateInput as HTMLInputElement).value, (textInput as HTMLInputElement).value]).toEqual(["2020-03-01", "03/2020"]);
   });
 
-  test("highlights are colored by source, amber for unknown fields, and removable", async () => {
+  test("highlights are colored by source, unknown fields get no outline, and removable", async () => {
     document.body.innerHTML = `<input aria-label="A" /><input aria-label="B" /><input aria-label="C *" required />`;
     const [a, b, c] = form.scan();
     await form.fill([
@@ -164,7 +164,7 @@ describe("fill", () => {
     ]);
     form.markUnknown([{ id: c!.id, isRequired: true }], true);
     const marks = [...document.querySelectorAll("input")].map((input) => input.dataset.sjHighlight);
-    expect(marks).toEqual(["profile", "ai", "review"]);
+    expect(marks).toEqual(["profile", "ai", undefined]);
     form.clearHighlights();
     expect(document.querySelectorAll("[data-sj-highlight]")).toHaveLength(0);
   });

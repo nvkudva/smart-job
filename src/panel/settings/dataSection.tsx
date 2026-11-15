@@ -1,30 +1,7 @@
 import * as storage from "../../storage.ts";
 import { Button, Card, ErrorNote, FileButton } from "../shared/controls.tsx";
 import * as download from "../shared/download.ts";
-import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
-
-function AnswerBank() {
-  const answers = useStored("answers");
-  const entries = Object.entries(answers ?? {});
-  const remove = (key: string) => storage.update("answers", (bank) => Object.fromEntries(Object.entries(bank).filter(([existing]) => existing !== key)));
-  return (
-    <Card title={`Answer bank (${entries.length})`}>
-      {entries.length === 0 && <p class="muted">Answers you save or approve are reused on later applications.</p>}
-      {entries.map(([key, entry]) => (
-        <div class="bank-row">
-          <div>
-            <strong class="small">{entry.question}</strong>
-            <div class="muted small clamp">{entry.answer}</div>
-          </div>
-          <Button kind="danger" aria-label={`Delete answer: ${entry.question}`} onClick={() => void remove(key)}>
-            Delete
-          </Button>
-        </div>
-      ))}
-    </Card>
-  );
-}
 
 export function DataSection() {
   const importFile = useTask(async (file: File) => {
@@ -39,17 +16,18 @@ export function DataSection() {
   };
   return (
     <>
-      <AnswerBank />
       <Card title="Your data">
-        <p class="muted small">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint and salary search.</p>
-        <div class="actions">
+        <p class="muted">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint and salary search.</p>
+        <div class="actions start">
           <Button onClick={() => void exportAll()}>Export JSON</Button>
           <FileButton accept="application/json,.json" isBusy={importFile.isBusy} onFile={(file) => void importFile.run(file)}>
             Import JSON
           </FileButton>
-          <Button kind="danger" onClick={() => void clearAll()}>
-            Clear all
-          </Button>
+          <span class="push">
+            <Button kind="danger" onClick={() => void clearAll()}>
+              Clear all
+            </Button>
+          </span>
         </div>
         <ErrorNote message={importFile.error} />
       </Card>

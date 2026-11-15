@@ -3,7 +3,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register();
 
 import { expect, test } from "bun:test";
 import { render } from "preact";
-import { AnalysisView } from "../../src/panel/job/analysisView.tsx";
+import { AnalysisDetails } from "../../src/panel/job/analysisView.tsx";
 import type { JobAnalysis } from "../../src/types.ts";
 
 const base: JobAnalysis = {
@@ -14,8 +14,6 @@ const base: JobAnalysis = {
   keywordScore: 40,
   matchedSkills: ["Python"],
   missingSkills: [],
-  strengths: ["Python depth"],
-  gaps: ["No React"],
   verdict: "Strong match",
   salary: null,
   analyzedAt: 0,
@@ -23,13 +21,12 @@ const base: JobAnalysis = {
 
 function textOf(analysis: JobAnalysis): string {
   const host = document.createElement("div");
-  render(<AnalysisView analysis={analysis} />, host);
+  render(<AnalysisDetails analysis={analysis} />, host);
   return host.textContent ?? "";
 }
 
-test("an analysis cached before ratings existed still renders with its stored score and verdict", () => {
+test("an analysis cached before ratings existed still renders with its stored verdict", () => {
   const text = textOf({ ...base, highlights: ["Payments domain"] });
-  expect(text).toContain("72");
   expect(text).toContain("Strong match");
   expect(text).toContain("Payments domain");
   expect(text).not.toContain("Keywords");

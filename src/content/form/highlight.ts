@@ -40,88 +40,129 @@ export async function reveal(element: HTMLElement): Promise<boolean> {
   return true;
 }
 
-// ---------- "needs your answer" pills ----------
+// ---------- unanswered dots, the one-time "saved" note and the filling cursor ----------
 // They live in a shadow root of their own: page frameworks re-render form markup and would wipe anything injected beside a field.
 
-const PILL_CSS = `
-.pill{position:absolute;display:flex;align-items:center;gap:7px;padding:4px 12px 4px 9px;border-radius:999px;white-space:nowrap;
-  font:600 12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;color:#7c2d12;background:linear-gradient(135deg,#fffbeb,#fde68a);
-  border:1px solid #f59e0b;box-shadow:0 6px 16px rgba(217,119,6,.32);animation:rise .28s ease-out}
-.pill.optional{color:#334155;background:linear-gradient(135deg,#f8fafc,#e2e8f0);border-color:#94a3b8;box-shadow:0 6px 16px rgba(71,85,105,.25)}
-.dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:pulse 1.5s infinite}
-.optional .dot{background:#64748b;animation:none}
-.pill span.hint{font-weight:500;opacity:.75}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(245,158,11,.7)}70%{box-shadow:0 0 0 7px rgba(245,158,11,0)}100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
-@keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important}}`;
+const LOGO = `<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#2563eb"/><text x="32" y="32" dy="0.35em" text-anchor="middle" font-family="system-ui,sans-serif" font-size="34" font-weight="600" fill="#fff">S</text></svg>`;
+const ARROW = `<svg viewBox="0 0 24 24"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path d="M4 3l16 7.5-7 2.5-2.5 7z" fill="url(#g)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+
+const LAYER_CSS = `
+.dot{position:absolute;width:8px;height:8px;border-radius:50%;background:#f59e0b;opacity:.85;animation:rise .28s ease-out}
+.dot.optional{background:#94a3b8}
+.note{position:absolute;display:flex;align-items:center;gap:8px;width:150px;padding:8px 10px;border-radius:10px;background:#fff;color:#475569;
+  border:1px solid #e2e8f0;box-shadow:0 4px 14px rgba(15,23,42,.12);font:500 12px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;animation:rise .28s ease-out}
+.note svg{flex:none;width:22px;height:22px}
+.cursor{position:absolute;width:26px;height:26px;margin:-4px 0 0 -4px;transition:left .32s cubic-bezier(.4,0,.2,1),top .32s cubic-bezier(.4,0,.2,1),opacity .3s}
+.cursor svg{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 5px rgba(59,130,246,.45));animation:float 1.6s ease-in-out infinite}
+.cursor i{position:absolute;left:4px;top:4px;width:10px;height:10px;border-radius:50%;border:2px solid #3b82f6;opacity:0}
+.cursor.tap i{animation:tap .45s ease-out}
+@keyframes float{50%{transform:translate(2px,3px)}}
+@keyframes tap{from{opacity:.8;transform:scale(.4)}to{opacity:0;transform:scale(2.6)}}
+@keyframes rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}`;
 
 const REPOSITION_MS = 500;
-const pills = new Map<HTMLElement, HTMLElement>();
-let pillLayer: ShadowRoot | undefined;
+const NOTE_MS = 4500;
+const CURSOR_MS = 320;
+const GAP = 12;
+const markers = new Map<HTMLElement, HTMLElement>();
+let layerRoot: ShadowRoot | undefined;
 let repositionTimer: ReturnType<typeof setInterval> | undefined;
+let hasShownNote = false;
+let cursor: HTMLElement | undefined;
 
 function layer(): ShadowRoot {
-  if (pillLayer?.host.isConnected) return pillLayer;
+  if (layerRoot?.host.isConnected) return layerRoot;
   const host = document.createElement("div");
   host.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none";
-  pillLayer = host.attachShadow({ mode: "closed" });
-  pillLayer.innerHTML = `<style>${PILL_CSS}</style>`;
+  layerRoot = host.attachShadow({ mode: "closed" });
+  layerRoot.innerHTML = `<style>${LAYER_CSS}</style>`;
   document.documentElement.append(host);
-  return pillLayer;
+  return layerRoot;
 }
 
-/** A badge on the field's top-right corner; beside it when the field is too narrow to carry one. Labels sit above-left, so neither covers them. */
-function place(element: HTMLElement, pill: HTMLElement): void {
+/** Right of the field with a gap; under it when the right side has no room. */
+function place(element: HTMLElement, marker: HTMLElement): void {
   const box = targetOf(element).getBoundingClientRect();
-  pill.hidden = !element.isConnected || (!box.width && !box.height);
-  const isWideEnough = box.width >= pill.offsetWidth + 200;
-  const left = isWideEnough ? box.right - pill.offsetWidth - 8 : box.right + 10;
-  const top = isWideEnough ? box.top - pill.offsetHeight * 0.6 : box.top + (box.height - pill.offsetHeight) / 2;
-  pill.style.left = `${Math.min(Math.max(8, left + scrollX), scrollX + innerWidth - pill.offsetWidth - 8)}px`;
-  pill.style.top = `${Math.max(4, top + scrollY)}px`;
+  marker.hidden = !element.isConnected || (!box.width && !box.height);
+  const fitsRight = box.right + GAP + marker.offsetWidth <= innerWidth - 8;
+  const left = fitsRight ? box.right + GAP : box.right - marker.offsetWidth;
+  const top = fitsRight ? box.top + (box.height - marker.offsetHeight) / 2 : box.bottom + 6;
+  marker.style.left = `${Math.max(8, left + scrollX)}px`;
+  marker.style.top = `${Math.max(4, top + scrollY)}px`;
 }
 
 function placeAll(): void {
-  for (const [element, pill] of pills) place(element, pill);
+  for (const [element, marker] of markers) place(element, marker);
 }
 
-function pillOf(isRequired: boolean): HTMLElement {
-  const pill = document.createElement("div");
-  pill.className = isRequired ? "pill" : "pill optional";
-  const dot = document.createElement("span");
-  dot.className = "dot";
-  const text = document.createElement("span");
-  text.textContent = isRequired ? "Needs your answer" : "Optional: add an answer";
-  const hint = document.createElement("span");
-  hint.className = "hint";
-  hint.textContent = "· SmartJob will remember it";
-  pill.append(dot, text, hint);
-  return pill;
-}
-
-/** Outlines a field SmartJob had no answer for and pins a pill above it. */
-export function markUnknown(element: HTMLElement, isRequired: boolean): void {
-  mark(element, "review");
+function show(element: HTMLElement, marker: HTMLElement): void {
   release(element);
-  const pill = pillOf(isRequired);
-  layer().append(pill);
-  pills.set(element, pill);
-  place(element, pill);
+  layer().append(marker);
+  markers.set(element, marker);
+  place(element, marker);
   repositionTimer ??= setInterval(placeAll, REPOSITION_MS);
 }
 
-/** Removes a field's pill, e.g. once the user answered it or it was filled. */
+/** Pins a small dot beside a field SmartJob had no answer for. */
+export function markUnknown(element: HTMLElement, isRequired: boolean): void {
+  const dot = document.createElement("div");
+  dot.className = isRequired ? "dot" : "dot optional";
+  show(element, dot);
+}
+
+/** The user answered a dot field: the dot goes, and the first time only, a note says SmartJob saves answers. */
+export function answered(element: HTMLElement): void {
+  release(element);
+  if (hasShownNote) return;
+  hasShownNote = true;
+  const note = document.createElement("div");
+  note.className = "note";
+  note.innerHTML = `${LOGO}<span>SmartJob saves your answer for next time</span>`;
+  show(element, note);
+  setTimeout(() => markers.get(element) === note && release(element), NOTE_MS);
+}
+
+/** Removes a field's dot or note, e.g. once the user answered it or it was filled. */
 export function release(element: HTMLElement): void {
-  pills.get(element)?.remove();
-  pills.delete(element);
-  if (!pills.size) {
+  markers.get(element)?.remove();
+  markers.delete(element);
+  if (!markers.size) {
     clearInterval(repositionTimer);
     repositionTimer = undefined;
   }
 }
 
+/** Glides the arrow cursor to a field being filled and waits for it to arrive. */
+export async function moveCursor(element: HTMLElement): Promise<void> {
+  const box = targetOf(element).getBoundingClientRect();
+  const x = box.left + Math.min(60, box.width / 2) + scrollX;
+  const y = box.top + box.height / 2 + scrollY;
+  if (!cursor?.isConnected) {
+    cursor = document.createElement("div");
+    cursor.className = "cursor";
+    cursor.innerHTML = `${ARROW}<i></i>`;
+    cursor.style.cssText = `left:${x + 120}px;top:${y + 80}px;opacity:0`;
+    layer().append(cursor);
+    cursor.getBoundingClientRect();
+  }
+  cursor.style.cssText = `left:${x}px;top:${y}px;opacity:1`;
+  await sleep(CURSOR_MS);
+  cursor.classList.remove("tap");
+  cursor.getBoundingClientRect();
+  cursor.classList.add("tap");
+}
+
+export function hideCursor(): void {
+  const leaving = cursor;
+  if (!leaving) return;
+  cursor = undefined;
+  leaving.style.opacity = "0";
+  setTimeout(() => leaving.remove(), 350);
+}
+
 export function clear(): void {
-  for (const element of [...pills.keys()]) release(element);
+  for (const element of [...markers.keys()]) release(element);
   for (const target of document.querySelectorAll<HTMLElement>("[data-sj-highlight]")) {
     target.style.outline = target.dataset.sjPrevOutline ?? "";
     target.style.outlineOffset = "";
@@ -130,11 +171,12 @@ export function clear(): void {
   }
 }
 
-export function focus(id: string): boolean {
+export function focus(id: string, shouldFocus = true): boolean {
   const element = scanner.findElement(id);
   if (!element) return false;
   const target = targetOf(element);
   target.scrollIntoView({ block: "center", behavior: "smooth" });
+  if (!shouldFocus) return true;
   element.focus({ preventScroll: true });
   const previous = target.style.boxShadow;
   target.style.boxShadow = "0 0 0 5px rgba(250, 204, 21, 0.8)";

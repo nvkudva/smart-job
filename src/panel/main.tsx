@@ -6,7 +6,8 @@ import * as activeTab from "./job/activeTab.ts";
 import * as aiContext from "./shared/aiContext.ts";
 import { ApplyTab } from "./apply/applyTab.tsx";
 import * as applyPage from "./apply/openApplyPage.ts";
-import { Card, ErrorNote } from "./shared/controls.tsx";
+import { Button, Card, ErrorNote } from "./shared/controls.tsx";
+import { useTask } from "./shared/useTask.ts";
 import { Icon } from "./shared/icons.tsx";
 import { AnalysisTab } from "./job/analysisTab.tsx";
 import { SetupWizard, useSetupComplete } from "./settings/onboarding.tsx";
@@ -31,39 +32,31 @@ class TabGuard extends Component<{ children: ComponentChildren }, { message: str
   }
 }
 
-const statusLabel = { unknown: "AI not checked yet", ok: "AI reachable", error: "AI error" };
-
 /** The side panel already shows the extension name, so health lives as a dot on the Settings tab instead of a header row. */
 function AiDot() {
   const status = aiContext.useStatus();
-  return <span class={`dot ${status}`} role="img" aria-label={statusLabel[status]} title={statusLabel[status]} />;
+  return <span class={`dot status-${status}`} role="img" aria-label={aiContext.statusLabel[status]} title={aiContext.statusLabel[status]} />;
 }
 
-/** Shown when the AI provider reports a rate limit, with a shortcut to Settings where another endpoint can be picked. */
-function RateLimitToast({ onSwitch }: { onSwitch: () => void }) {
-  const [isRateLimited, dismiss] = aiContext.useRateLimited();
-  useEffect(() => {
-    if (!isRateLimited) return;
-    const timer = setTimeout(dismiss, 20000);
-    return () => clearTimeout(timer);
-  }, [isRateLimited]);
-  if (!isRateLimited) return null;
+/** One place for AI failures that hit several cards at once: says what is wrong in a line and offers the fix. */
+function AiBanner({ onSettings }: { onSettings: () => void }) {
+  const status = aiContext.useStatus();
+  const isRateLimited = aiContext.useRateLimited();
+  const recheck = useTask(aiContext.check);
+  if (status !== "error" && !isRateLimited) return null;
+  const message = isRateLimited
+    ? "Provider is rate limited. Try another endpoint."
+    : "SmartJob needs AI to work. Check your provider.";
   return (
-    <div class="toast" role="alert">
-      <span>The AI provider is rate limited. Switch to another endpoint?</span>
-      <button
-        type="button"
-        class="btn primary"
-        onClick={() => {
-          dismiss();
-          onSwitch();
-        }}
-      >
-        Switch
-      </button>
-      <button type="button" class="btn ghost" aria-label="Dismiss" title="Dismiss" onClick={dismiss}>
-        <Icon name="Close" />
-      </button>
+    <div class="ai-banner" role="alert">
+      <div>
+        <strong>AI not working</strong>
+        <span>{message}</span>
+      </div>
+      <Button isBusy={recheck.isBusy} onClick={() => void recheck.run()}>
+        Retry
+      </Button>
+      <Button onClick={onSettings}>Settings</Button>
     </div>
   );
 }
@@ -133,6 +126,7 @@ function App() {
           </button>
         ))}
       </nav>
+      <AiBanner onSettings={() => setTab("Settings")} />
       <div class="superjob-bar">
         <button type="button" class="btn primary" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("superjob.html") })}>
           Super Job ↗
@@ -147,7 +141,6 @@ function App() {
           </section>
         ))}
       </main>
-      <RateLimitToast onSwitch={() => setTab("Settings")} />
     </div>
   );
 }

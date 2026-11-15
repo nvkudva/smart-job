@@ -45,10 +45,10 @@ describe("keywordMatch", () => {
 describe("analyzeJob", () => {
   test("normalizes messy output and adds keyword fields", async () => {
     const fake = new FakeLlm([
-      '<think>scoring</think>Here you go:\n```json\n{"summary": "A backend role.", "mustHave": "Python; AWS", "niceToHave": ["React", "React"], "matchScore": "140", "strengths": ["Python",], "gaps": null,}\n```',
+      '<think>scoring</think>Here you go:\n```json\n{"summary": "A backend role.", "mustHave": "Python; AWS", "niceToHave": ["React", "React"], "matchScore": "140",}\n```',
     ]);
     const result = await tasks.analyzeJob(fake, job, candidate);
-    expect(result).toMatchObject({ summary: "A backend role.", mustHave: ["Python", "AWS"], niceToHave: ["React"], matchScore: 100, strengths: ["Python"], gaps: [], verdict: "Strong match - apply" });
+    expect(result).toMatchObject({ summary: "A backend role.", mustHave: ["Python", "AWS"], niceToHave: ["React"], matchScore: 100, verdict: "Strong match - apply" });
     expect(result.matchedSkills).toContain("Python");
     expect(result.missingSkills).toContain("Terraform");
     expect(result.keywordScore).toBeGreaterThan(0);
@@ -77,9 +77,9 @@ describe("analyzeJob", () => {
     expect(tasks.normalizeAnalysis({ mustHave: ["Go"] }, 61)).toMatchObject({ matchScore: 61, verdict: "Possible match - stretch" });
     expect(tasks.normalizeAnalysis({ mustHave: ["Go"], matchScore: 90 }, 61).matchScore).toBe(90);
   });
-  test("nice-to-haves can be rated, seniority is an enum, strengths and gaps keep three", () => {
-    const result = tasks.normalizeAnalysis({ niceToHave: [{ requirement: "Preact", met: "yes" }], seniority: "Over", strengths: ["a", "b", "c", "d"], gaps: ["x"], reason: "Strong stack fit" });
-    expect(result).toMatchObject({ niceToHave: ["Preact"], niceToHaveMet: ["yes"], seniority: "over", strengths: ["a", "b", "c"], reason: "Strong stack fit" });
+  test("nice-to-haves can be rated, seniority is an enum", () => {
+    const result = tasks.normalizeAnalysis({ niceToHave: [{ requirement: "Preact", met: "yes" }], seniority: "Over", reason: "Strong stack fit" });
+    expect(result).toMatchObject({ niceToHave: ["Preact"], niceToHaveMet: ["yes"], seniority: "over", reason: "Strong stack fit" });
     expect(tasks.normalizeAnalysis({ seniority: "senior-ish" }).seniority).toBeUndefined();
   });
   test("retries on non-JSON and truncates long input", async () => {
