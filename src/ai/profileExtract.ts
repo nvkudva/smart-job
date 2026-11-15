@@ -3,10 +3,10 @@ import type { Education, Experience, Profile } from "../types.ts";
 import * as normalize from "./normalize.ts";
 
 export const profileSystem = `You extract a structured profile from resume text. Reply with JSON:
-{"firstName","lastName","email","phone","city","state","country","linkedin","github","portfolio","website","headline","summary","yearsExperience":number,"skills":[string],
+{"firstName","middleName","lastName","email","phone","city","state","country","linkedin","github","portfolio","website","headline","summary","yearsExperience":number,"skills":[string],
 "experience":[{"title","company","location","start":"YYYY-MM","end":"YYYY-MM or empty if current","current":boolean,"description":"key bullets joined by newlines"}],
 "education":[{"school","degree","field","start":"YYYY-MM","end":"YYYY-MM","gpa"}]}
-Rules: copy facts exactly as written in the resume; never invent anything. Use "" or [] when a field is not in the resume. Newest experience first. Skills are short names (e.g. "Python", "Stakeholder management").
+Rules: middleName is only a middle name written in the resume header, never part of firstName or lastName. copy facts exactly as written in the resume; never invent anything. Use "" or [] when a field is not in the resume. Newest experience first. Skills are short names (e.g. "Python", "Stakeholder management").
 - Several roles listed under one company heading are separate experience entries, each with that company. A role without its own dates takes the company's date span.
 - A role with no employer (career break, sabbatical, freelance) keeps company "".
 - Read the whole resume to the end: education, certifications and links are often last. URLs listed under "Links" belong in linkedin / github / portfolio / website.
@@ -17,6 +17,7 @@ Rules: copy facts exactly as written in the resume; never invent anything. Use "
 interface ContactDetails {
   email: string;
   phone: string;
+  otherPhones: string[];
   linkedin: string;
   github: string;
 }
@@ -25,23 +26,48 @@ function extractContacts(text: string): ContactDetails {
   const email = text.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0] ?? "";
   const linkedin = text.match(/(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[\w\-%]+\/?/i)?.[0] ?? "";
   const github = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/(?!orgs\b)[\w-]+/i)?.[0] ?? "";
-  return { email, phone: findPhone(text), linkedin: withScheme(linkedin), github: withScheme(github) };
+  const [phone = "", ...otherPhones] = findPhones(text);
+  return { email, phone, otherPhones, linkedin: withScheme(linkedin), github: withScheme(github) };
+}
+
+/** A resume header often says just "GitHub" or "LinkedIn"; keep only a value that is really a link to that site. */
+function profileLink(value: string, site: RegExp): string {
+  const url = value.trim().replace(/[.,;]+$/, "");
+  return site.test(url) ? withScheme(url) : "";
 }
 
 function withScheme(url: string): string {
   return url && !/^https?:\/\//i.test(url) ? `https://${url}` : url;
 }
 
-function findPhone(text: string): string {
-  const candidates = text.match(/(?:\+\d{1,3}[\s.-]?)?(?:\(\d{2,4}\)[\s.-]?)?\d{3,5}[\s.-]?\d{3,5}(?:[\s.-]?\d{2,5})?/g) ?? [];
-  return candidates.map((item) => item.trim()).find((item) => {
+/** Every phone number in the text, first one first, without repeats (same digits written twice). */
+function findPhones(text: string): string[] {
+  const candidates = text.match(/(?:\+\d{1,3}[\s.-]?)?(?:\(\d{2,4}\)[\s.-]?)?\d{3,5}[\s.-]?\d{3,7}(?:[\s.-]?\d{2,5})?/g) ?? [];
+  const phones = candidates.map((item) => item.trim()).filter((item) => {
     const digits = item.replace(/\D/g, "").length;
     return digits >= 10 && digits <= 13 && !/^\d{4}\s*[-–]\s*\d{4}/.test(item);
-  }) ?? "";
+  });
+  const seenDigits = new Set<string>();
+  return phones.filter((item) => {
+    const digits = item.replace(/\D/g, "");
+    if (seenDigits.has(digits)) return false;
+    seenDigits.add(digits);
+    return true;
+  });
 }
 
-function countryCodeOf(phone: string): string {
-  return phone.match(/^\+(\d{1,3})[\s.-]/)?.[0].trim().replace(/[\s.-]/g, "") ?? "";
+/** "+91 98765 43210" → code "+91", national "98765 43210"; a number without a leading "+code " has no code to split off. */
+export function splitPhone(phone: string): { code: string; national: string } {
+  const prefix = phone.trim().match(/^\+(\d{1,3})[\s.-]+/);
+  if (!prefix) return { code: "", national: phone.trim() };
+  return { code: `+${prefix[1]}`, national: phone.trim().slice(prefix[0].length) };
+}
+
+/** The editor shows the national number beside its own country code field, so the code is never typed twice. */
+export function withSplitPhone(profile: Profile): Profile {
+  const { code, national } = splitPhone(profile.phone);
+  if (!code || (profile.phoneCountryCode && profile.phoneCountryCode !== code)) return profile;
+  return { ...profile, phone: national, phoneCountryCode: code };
 }
 
 // ---------- dates and experience ----------
@@ -135,20 +161,22 @@ export function buildProfile(raw: unknown, resumeText: string, now = new Date())
   const education = (Array.isArray(data.education) ? data.education : []).map(normalizeEducation).filter((item) => item !== null);
   const [first, ...rest] = normalize.asString(data.name).split(/\s+/).filter(Boolean);
   const latest = latestExperience(experience);
-  const phone = contacts.phone || normalize.asString(data.phone);
+  const { code: phoneCountryCode, national: phone } = splitPhone(contacts.phone || normalize.asString(data.phone));
   const years = normalize.asNumber(data.yearsExperience);
   return {
     ...structuredClone(storage.emptyProfile),
     firstName: normalize.asString(data.firstName) || first || "",
+    middleName: normalize.asString(data.middleName),
     lastName: normalize.asString(data.lastName) || rest.join(" "),
     email: contacts.email || normalize.asString(data.email),
     phone,
-    phoneCountryCode: countryCodeOf(phone),
+    otherPhones: contacts.otherPhones,
+    phoneCountryCode,
     city: normalize.asString(data.city),
     state: normalize.asString(data.state),
     country: normalize.asString(data.country),
-    linkedin: contacts.linkedin || withScheme(normalize.asString(data.linkedin)),
-    github: contacts.github || withScheme(normalize.asString(data.github)),
+    linkedin: contacts.linkedin || profileLink(normalize.asString(data.linkedin), /linkedin\.com\/./i),
+    github: contacts.github || profileLink(normalize.asString(data.github), /github\.com\/./i),
     portfolio: normalize.asString(data.portfolio),
     website: normalize.asString(data.website),
     headline: normalize.asString(data.headline),

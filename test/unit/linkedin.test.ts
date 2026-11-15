@@ -98,6 +98,14 @@ describe("models and setup", () => {
     expect(models.parseIds({ data: [{ id: "qwen" }, { id: "text-embedding-3" }, { id: "llama" }, { id: "qwen" }] })).toEqual(["llama", "qwen"]);
     expect(models.parseIds("nope")).toEqual([]);
   });
+
+  test("active model comes from LM Studio's loaded state or Ollama's running list", () => {
+    const lmStudio = { data: [{ id: "a", state: "not-loaded", type: "llm" }, { id: "embed", state: "loaded", type: "embeddings" }, { id: "b", state: "loaded", type: "llm" }] };
+    expect(models.parseLmStudioLoaded(lmStudio)).toBe("b");
+    expect(models.parseLmStudioLoaded({ data: [] })).toBeUndefined();
+    expect(models.parseOllamaRunning({ models: [{ name: "qwen2.5:7b" }] })).toBe("qwen2.5:7b");
+    expect(models.parseOllamaRunning({})).toBeUndefined();
+  });
   test("isSetupComplete: explicit flag wins, existing users count as done", () => {
     expect(isSetupComplete({ setupComplete: false, settings: {}, profile: { firstName: "A" } })).toBe(false);
     expect(isSetupComplete({ settings: {}, profile: { firstName: "A" } })).toBe(true);

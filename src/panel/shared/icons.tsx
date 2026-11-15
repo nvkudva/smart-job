@@ -1,5 +1,6 @@
 const paths: Record<string, string> = {
   Back: "M19 12H5M12 19l-7-7 7-7",
+  Refresh: "M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5",
   Close: "M18 6 6 18M6 6l12 12",
   Analysis: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   Apply: "M5 4h14v16H5zM9 9h6M9 13h6M9 17h3",

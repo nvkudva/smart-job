@@ -86,8 +86,11 @@ describe("identity and contact", () => {
     expect(fillOne(field({ label: "", name: "name" }))?.value).toBe("Priya Raman");
   });
 
-  test("middle name is skipped, preferred name uses first name", () => {
+  test("middle name is filled only when the profile has one, preferred name uses first name", () => {
     expect(fillOne(field({ label: "Middle Name" }))).toBeUndefined();
+    expect(mapping.map([field({ label: "Middle Name" })], { ...profile, middleName: "Krishna" }, {})[0]?.value).toBe("Krishna");
+    expect(mapping.map([field({ label: "Middle Initial" })], { ...profile, middleName: "Krishna" }, {})[0]?.value).toBe("K");
+    expect(mapping.map([field({ label: "Alternate phone number" })], { ...profile, otherPhones: ["+91 9632544966"] }, {})[0]?.value).toBe("+91 9632544966");
     expect(fillOne(field({ label: "Preferred Name" }))?.value).toBe("Priya");
   });
 
@@ -101,6 +104,10 @@ describe("identity and contact", () => {
 
   test("phone stays whole without a code field", () => {
     expect(fillOne(field({ label: "Phone", kind: "tel" }))?.value).toBe("+1 415 555 0100");
+  });
+
+  test("a national number gets its country code back when the form has no code field", () => {
+    expect(fillOne(field({ label: "Phone", kind: "tel" }), { ...profile, phone: "415 555 0100" })?.value).toBe("+1 415 555 0100");
   });
 
   test("phone device type selects Mobile", () => {

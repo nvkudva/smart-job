@@ -1,37 +1,26 @@
+import { useState } from "preact/hooks";
 import * as storage from "../../storage.ts";
+import * as diagnostics from "./diagnostics.ts";
 import { Button, Card, ErrorNote, FileButton } from "../shared/controls.tsx";
 import * as download from "../shared/download.ts";
+import * as trackerCsv from "../tracker/trackerCsv.ts";
 import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
 
-function AnswerBank() {
-  const answers = useStored("answers");
-  const entries = Object.entries(answers ?? {});
-  const remove = (key: string) => storage.update("answers", (bank) => Object.fromEntries(Object.entries(bank).filter(([existing]) => existing !== key)));
-  return (
-    <Card title={`Answer bank (${entries.length})`}>
-      {entries.length === 0 && <p class="muted">Answers you save or approve are reused on later applications.</p>}
-      {entries.map(([key, entry]) => (
-        <div class="bank-row">
-          <div>
-            <strong class="small">{entry.question}</strong>
-            <div class="muted small clamp">{entry.answer}</div>
-          </div>
-          <Button kind="danger" aria-label={`Delete answer: ${entry.question}`} onClick={() => void remove(key)}>
-            Delete
-          </Button>
-        </div>
-      ))}
-    </Card>
-  );
-}
-
 export function DataSection() {
+  const jobs = useStored("jobs");
+  const resumes = useStored("tailoredResumes");
   const importFile = useTask(async (file: File) => {
     await storage.importAll(await file.text());
     location.reload();
   });
+  const [copyNote, setCopyNote] = useState("");
+  const copy = useTask(async (copier: () => Promise<string>) => {
+    setCopyNote("");
+    setCopyNote(await copier());
+  });
   const exportAll = async () => download.save("smartjob-data.json", await storage.exportAll(), "application/json");
+  const exportTracker = () => download.save("smartjob-tracker.csv", trackerCsv.build(Object.values(jobs ?? {}), resumes ?? []), "text/csv");
   const clearAll = async () => {
     if (!confirm("Delete your resume, profile, tracker, answers and settings? This cannot be undone.")) return;
     await storage.clearAll();
@@ -39,19 +28,35 @@ export function DataSection() {
   };
   return (
     <>
-      <AnswerBank />
       <Card title="Your data">
-        <p class="muted small">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint and salary search.</p>
-        <div class="actions">
+        <p class="muted">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint and salary search.</p>
+        <div class="actions start">
           <Button onClick={() => void exportAll()}>Export JSON</Button>
+          <Button disabled={!jobs || Object.keys(jobs).length === 0} onClick={exportTracker}>
+            Export tracker CSV
+          </Button>
           <FileButton accept="application/json,.json" isBusy={importFile.isBusy} onFile={(file) => void importFile.run(file)}>
             Import JSON
           </FileButton>
-          <Button kind="danger" onClick={() => void clearAll()}>
-            Clear all
-          </Button>
+          <span class="push">
+            <Button kind="danger" onClick={() => void clearAll()}>
+              Clear all
+            </Button>
+          </span>
         </div>
         <ErrorNote message={importFile.error} />
+      </Card>
+      <Card title="Troubleshooting">
+        <p class="muted">Copy these as JSON when you report a form SmartJob could not fill. The field scan reads the tab you have open.</p>
+        <div class="actions">
+          <span class="grow muted small">{copy.error || copyNote}</span>
+          <Button isBusy={copy.isBusy} onClick={() => void copy.run(diagnostics.copyFieldScan)}>
+            Copy field scan
+          </Button>
+          <Button isBusy={copy.isBusy} onClick={() => void copy.run(diagnostics.copyFillLog)}>
+            Copy fill log
+          </Button>
+        </div>
       </Card>
     </>
   );

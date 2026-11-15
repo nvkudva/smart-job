@@ -84,7 +84,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
   const applyTask = useTask(async (items: FillReportItem[]) => {
     if (!tabId || !report) return;
     const fills: FieldFill[] = items.map((item) => ({ id: item.field.id, frameId: item.field.frameId, value: currentValue(item, edits), source: "user" }));
-    const results = await session.apply(tabId, fills, remember, report.items.map((item) => item.field));
+    const results = await session.apply(tabId, fills, remember, report.items.map((item) => item.field), items);
     const changedKeys = new Set(items.map(itemKey));
     const fillByKey = new Map(items.map((item, index) => [itemKey(item), fills[index]!]));
     setReport({
@@ -109,7 +109,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
     await trackedJobs.track(job, { ...(portalUrl && { portalUrl }), ...(hasPasswordFill && account?.email && { accountEmail: account.email }) });
   };
 
-  useAutoFillOnFormChange(tabId, { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy, run: fillTask.run });
+  useAutoFillOnFormChange(tabId, { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy || startTask.isBusy, run: fillTask.run });
 
   const changedItems = (report?.items ?? []).filter((item) => itemKey(item) in edits && edits[itemKey(item)] !== (item.fill?.value ?? ""));
   const [note, setNote] = useState("");
@@ -122,9 +122,6 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
           <p class="muted small">Start applying opens the Apply page and fills the form. SmartJob never submits — review and click Submit yourself.</p>
           <div class="actions">
             <span class="grow muted small">{note}</span>
-            <Button disabled={!tabId} title="Copy every scanned field as JSON for bug reports" onClick={() => tabId && void copyFieldScan(tabId).then(setNote, (error) => setNote(String(error)))}>
-              Copy field scan
-            </Button>
             <Button isBusy={fillTask.isBusy} disabled={!tabId || startTask.isBusy} onClick={() => void fillTask.run(true)}>
               {fillTask.isBusy ? "Filling…" : "Fill this page"}
             </Button>
@@ -230,17 +227,4 @@ function ReportList({ report, edits, onEdit, tabId }: { report: FillReport; edit
       })}
     </>
   );
-}
-
-/** Copies every scanned field as JSON so a user can report what an unsupported form looks like. */
-async function copyFieldScan(tabId: number): Promise<string> {
-  const frameIds = await messages.listFrameIds(tabId);
-  const fields = [];
-  for (const frameId of frameIds) {
-    const scanned = (await messages.sendToFrame(tabId, frameId, { type: "scanFields" })) ?? [];
-    for (const field of scanned) fields.push({ ...field, frameId, options: field.options.slice(0, 15) });
-  }
-  const tab = await chrome.tabs.get(tabId);
-  await navigator.clipboard.writeText(JSON.stringify({ url: tab.url, fields }, null, 1));
-  return `Copied ${fields.length} fields from ${frameIds.length} frame(s).`;
 }

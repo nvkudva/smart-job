@@ -1,11 +1,10 @@
 import type { JobAnalysis, MustHaveMet, Seniority } from "../../types.ts";
-import { Card } from "../shared/controls.tsx";
 
-function scoreTone(score: number): string {
+export function scoreTone(score: number): string {
   return score >= 70 ? "good" : score >= 45 ? "mid" : "bad";
 }
 
-function ScoreRing({ score }: { score: number }) {
+export function ScoreRing({ score }: { score: number }) {
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, score));
@@ -94,25 +93,21 @@ function Overview({ analysis }: { analysis: JobAnalysis }) {
   return analysis.summary ? <p>{analysis.summary}</p> : null;
 }
 
-export function AnalysisView({ analysis }: { analysis: JobAnalysis }) {
+/** The match breakdown; the score itself sits in the job card header. */
+export function AnalysisDetails({ analysis }: { analysis: JobAnalysis }) {
   const matched = analysis.matchedSkills ?? [];
   const missing = analysis.missingSkills ?? [];
   const evidence = evidenceLine(analysis);
   const blockers = analysis.blockers ?? [];
   return (
-    <Card title="Match">
-      <div class="score-row">
-        <ScoreRing score={analysis.matchScore} />
-        <div>
-          <div class="verdict">{analysis.verdict}</div>
-          {analysis.reason && <div>{analysis.reason}</div>}
-          {evidence && <div class="muted small">{evidence}</div>}
-        </div>
+    <div class="analysis">
+      <div>
+        <span class="verdict">{analysis.verdict}</span>
+        {analysis.reason && <span> · {analysis.reason}</span>}
+        {evidence && <div class="muted small">{evidence}</div>}
       </div>
       <Overview analysis={analysis} />
       <MarkList title="Dealbreakers" items={blockers} verdictOf={() => "no"} extraClass="blockers" />
-      <BulletList title="Why apply" items={analysis.strengths} />
-      <BulletList title="Watch out" items={analysis.gaps} />
       {analysis.mustHaveMet ? <MarkList title="Must have" items={analysis.mustHave} verdictOf={(_, index) => analysis.mustHaveMet?.[index] ?? "partial"} /> : <BulletList title="Must have" items={analysis.mustHave} />}
       {analysis.niceToHaveMet ? (
         <MarkList title="Nice to have" items={analysis.niceToHave} verdictOf={(_, index) => analysis.niceToHaveMet?.[index] ?? "partial"} />
@@ -121,6 +116,6 @@ export function AnalysisView({ analysis }: { analysis: JobAnalysis }) {
       )}
       <SkillsRow title="Matching skills" skills={matched} />
       <SkillsRow title="Missing skills" skills={missing} chipClass="warn" />
-    </Card>
+    </div>
   );
 }

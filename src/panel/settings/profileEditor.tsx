@@ -1,10 +1,12 @@
 import { useState } from "preact/hooks";
+import * as profileExtract from "../../ai/profileExtract.ts";
 import * as storage from "../../storage.ts";
-import type { Education, Experience, Profile } from "../../types.ts";
+import type { AnswerBank, Education, Experience, Profile } from "../../types.ts";
 import * as format from "../shared/format.ts";
+import { AnswerBank as AnswerBankCard, type AnswerEdits } from "./answerBank.tsx";
 import { Button, Card, Check, Choice, Field, SaveBar } from "../shared/controls.tsx";
 
-type FieldSpec = { key: keyof Profile; label: string; type?: "text" | "email" | "tel" | "number"; rows?: number; isYesNo?: boolean; isAmount?: boolean };
+type FieldSpec = { key: keyof Profile; label: string; isNarrow?: boolean; type?: "text" | "email" | "tel" | "number"; rows?: number; isYesNo?: boolean; isAmount?: boolean };
 
 const yesNoOptions = [["", "Not set"], ["yes", "Yes"], ["no", "No"]] as const;
 // an inner array is one row of side-by-side fields; a bare spec takes the full width
@@ -12,9 +14,10 @@ const groups: { title: string; note?: string; fields: (FieldSpec | FieldSpec[])[
   {
     title: "Contact",
     fields: [
-      [{ key: "firstName", label: "First name" }, { key: "lastName", label: "Last name" }],
+      [{ key: "firstName", label: "First name" }, { key: "middleName", label: "Middle name" }],
+      { key: "lastName", label: "Last name" },
       { key: "email", label: "Email", type: "email" },
-      [{ key: "phoneCountryCode", label: "Country code (+1)" }, { key: "phone", label: "Phone", type: "tel" }],
+      [{ key: "phoneCountryCode", label: "Country code", isNarrow: true }, { key: "phone", label: "Phone", type: "tel" }],
       { key: "address", label: "Address" },
       [{ key: "city", label: "City" }, { key: "state", label: "State / region" }],
       [{ key: "postalCode", label: "Postal code" }, { key: "country", label: "Country" }],
@@ -119,13 +122,20 @@ function RowList<T extends object>({ title, items, blank, fields, summarize, onC
   );
 }
 
-const parseSkills = (text: string) => text.split(",").map((skill) => skill.trim()).filter(Boolean);
+const parseList = (text: string) => text.split(",").map((item) => item.trim()).filter(Boolean);
 
-export function ProfileEditor({ initial }: { initial: Profile }) {
+export function ProfileEditor({ initial: stored, answers }: { initial: Profile; answers: AnswerBank }) {
+  const initial = profileExtract.withSplitPhone(stored);
   const [profile, setProfile] = useState(initial);
   const [skillsText, setSkillsText] = useState(initial.skills.join(", "));
+  const [otherPhonesText, setOtherPhonesText] = useState(initial.otherPhones.join(", "));
+  const [answerEdits, setAnswerEdits] = useState<AnswerEdits>({});
   const [isSaved, setIsSaved] = useState(false);
-  const isDirty = JSON.stringify({ ...profile, skills: parseSkills(skillsText) }) !== JSON.stringify(initial);
+  const isDirty = JSON.stringify({ ...profile, skills: parseList(skillsText), otherPhones: parseList(otherPhonesText) }) !== JSON.stringify(initial) || Object.keys(answerEdits).length > 0;
+  const editAnswer = (key: string, answer: AnswerBank[string] | null) => {
+    setAnswerEdits({ ...answerEdits, [key]: answer });
+    setIsSaved(false);
+  };
   const change = (patch: Partial<Profile>) => {
     setProfile({ ...profile, ...patch });
     setIsSaved(false);
@@ -138,33 +148,56 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
       <Field label={spec.label} type={spec.type} rows={spec.rows} value={String(profile[spec.key])} onValue={(value) => setField(spec.key, spec.isAmount ? format.groupDigits(value, format.localeForCountry(profile.country)) : value)} />
     );
   const save = async () => {
-    await storage.set("profile", { ...profile, skills: parseSkills(skillsText) });
+    await storage.set("profile", { ...profile, skills: parseList(skillsText), otherPhones: parseList(otherPhonesText) });
+    // apply only the edited keys so answers learned meanwhile are not overwritten
+    await storage.update("answers", (bank) => {
+      const next = { ...bank };
+      for (const [key, edit] of Object.entries(answerEdits)) {
+        if (edit === null) delete next[key];
+        else if (next[key]) next[key] = { ...edit, updatedAt: Date.now() };
+      }
+      return next;
+    });
+    setAnswerEdits({});
     setIsSaved(true);
   };
 
   return (
     <div class="stack">
-      {groups.map((group, index) => (
-        <Card title={group.title} collapsible isOpen={index === 0}>
-          {group.note && <p class="muted small">{group.note}</p>}
-          <div class="stack tight">
-            {group.fields.map((entry) => (Array.isArray(entry) ? <div class="grid2">{entry.map(renderProfileField)}</div> : renderProfileField(entry)))}
-          </div>
+      <div class="card grouped">
+        {groups.map((group, index) => (
+          <Card title={group.title} collapsible isOpen={index === 0}>
+            {group.note && <p class="muted small">{group.note}</p>}
+            <div class="stack tight">
+              {group.fields.map((entry) => (Array.isArray(entry) ? <div class={entry[0]?.isNarrow ? "grid2 narrow-first" : "grid2"}>{entry.map(renderProfileField)}</div> : renderProfileField(entry)))}
+              {group.title === "Contact" && (
+                <Field
+                  label="Other phone numbers (comma separated)"
+                  value={otherPhonesText}
+                  onValue={(value) => {
+                    setOtherPhonesText(value);
+                    setIsSaved(false);
+                  }}
+                />
+              )}
+            </div>
+          </Card>
+        ))}
+        <Card title="Skills" collapsible>
+          <Field
+            label="Comma separated"
+            value={skillsText}
+            onValue={(value) => {
+              setSkillsText(value);
+              setIsSaved(false);
+            }}
+          />
         </Card>
-      ))}
-      <Card title="Skills" collapsible>
-        <Field
-          label="Comma separated"
-          value={skillsText}
-          onValue={(value) => {
-            setSkillsText(value);
-            setIsSaved(false);
-          }}
-        />
-      </Card>
-      <RowList title="Experience" items={profile.experience} blank={blankExperience} fields={experienceFields} summarize={(job) => [job.title, job.company].filter(Boolean).join(" @ ")} onChange={(experience) => change({ experience })} />
-      <RowList title="Education" items={profile.education} blank={blankEducation} fields={educationFields} summarize={(item) => [item.degree, item.school].filter(Boolean).join(" @ ")} onChange={(education) => change({ education })} />
-      <SaveBar isDirty={isDirty} isSaved={isSaved} label="Save profile" onSave={() => void save()} />
+        <RowList title="Experience" items={profile.experience} blank={blankExperience} fields={experienceFields} summarize={(job) => [job.title, job.company].filter(Boolean).join(" @ ")} onChange={(experience) => change({ experience })} />
+        <RowList title="Education" items={profile.education} blank={blankEducation} fields={educationFields} summarize={(item) => [item.degree, item.school].filter(Boolean).join(" @ ")} onChange={(education) => change({ education })} />
+      </div>
+      <AnswerBankCard answers={answers} edits={answerEdits} onEdit={editAnswer} />
+      <SaveBar isDirty={isDirty} isSaved={isSaved} label="Save" onSave={() => void save()} />
     </div>
   );
 }

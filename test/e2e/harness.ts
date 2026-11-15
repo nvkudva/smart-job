@@ -18,7 +18,7 @@ export interface Harness {
   close(): Promise<void>;
 }
 
-export async function launch(options: { headless?: boolean } = {}): Promise<Harness> {
+export async function launch(options: { headless?: boolean; deviceScaleFactor?: number } = {}): Promise<Harness> {
   const server = Bun.serve({
     port: 0,
     async fetch(request) {
@@ -31,6 +31,7 @@ export async function launch(options: { headless?: boolean } = {}): Promise<Harn
   const context = await chromium.launchPersistentContext(userDataDir, {
     channel: "chromium",
     headless: options.headless ?? true,
+    deviceScaleFactor: options.deviceScaleFactor,
     args: [`--disable-extensions-except=${distDir}`, `--load-extension=${distDir}`],
   });
   let [worker] = context.serviceWorkers();

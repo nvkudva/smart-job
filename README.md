@@ -1,17 +1,63 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
+<p align="center"><img src="assets/icon.svg" width="88" height="88" alt="Smart Job icon"></p>
 
-# SmartJob
+<h1 align="center">Smart Job</h1>
 
-AI job-hunting copilot as a Chrome side panel. Keep it open while you browse LinkedIn, Indeed, Workday, Greenhouse, Lever, iCIMS and similar sites:
+<p align="center"><b>An AI sidekick for your job search and apply.</b><br>
+SmartJob is a Chrome side panel that scores every job against your resume, shows pay and perks, and fills in the application. It never submits for you.</p>
 
-- **Job tab**: detects the job you are viewing, summarizes it, scores your match against your resume (AI score + deterministic keyword score), estimates salary (posted → web search → AI estimate from nearest equivalents), and lets you shortlist it.
-- **Apply tab**: fills application forms in all frames (iCIMS iframes included) from your profile. Rules handle the standard fields, AI answers the leftover questions, and your saved answers are reused. Filled fields are outlined: green = profile, blue = AI, amber = needs review. **It never submits.**
-- **Tracker tab**: shortlisted and applied jobs with status, notes and CSV export.
-- **Write tab**: a short, keyword-aware cover letter; a tailored resume that keeps your PDF's exact look and redraws only the changed lines (side-by-side preview, download as PDF); and an answer box for any application question.
+<p align="center">
+  <a href="marketing/smartjob-launch-16x9.mp4"><img src="docs/screenshots/1-match-score.png" alt="Watch the 34 second launch video" width="760"></a><br>
+  <sub>Click to watch the 34 second launch video. All screens use a fictional candidate and company.</sub>
+</p>
+
+## What it does
+
+Keep the panel open while you browse LinkedIn, Indeed, Workday, Greenhouse, Lever, iCIMS and similar sites.
+
+### Know if a job is worth your time
+
+The **Analysis** tab detects the job you are viewing, summarizes it, and scores your match against your resume: an AI score checked requirement by requirement, plus a deterministic keyword score. Shortlist the good ones with one click.
+
+<img src="docs/screenshots/1-match-score.png" alt="Match score and requirement checklist next to a job posting" width="720">
+
+### See pay and perks before you apply
+
+Posted pay when the listing has it. Otherwise a web search, then an AI estimate from the nearest equivalents, always labelled **Estimate**. Perks come from the posting.
+
+<img src="docs/screenshots/2-pay-and-perks.png" alt="Salary breakdown and perks" width="720">
+
+### Autofill the application
+
+The **Apply** tab fills forms in every frame (iCIMS iframes included). Rules handle the standard fields, AI answers the leftover questions, and your saved answers are reused. Filled fields are outlined: **green** = profile, **blue** = AI, **amber** = needs review. **It never submits.**
+
+<img src="docs/screenshots/3-autofill.png" alt="Application form filled and colour-coded" width="720">
+
+### Write for each job
+
+A short, keyword-aware cover letter. A tailored resume that keeps your PDF's exact look and redraws only the changed lines (side-by-side preview, download as PDF). An answer box for any application question.
+
+<img src="docs/screenshots/4-cover-letter.png" alt="Generated cover letter" width="720">
+
+### Track every application
+
+Shortlisted and applied jobs with status, notes, saved resumes and CSV export.
+
+<img src="docs/screenshots/5-tracker.png" alt="Application tracker" width="720">
+
+### Also
+
 - **LinkedIn import**: Settings → Import / Refresh from LinkedIn reads your own profile, skills, certifications and recent posts (you must be logged in) and adds them to your profile for matching and writing.
+- **Setup wizard**: on first open it walks through the AI provider, your resume and/or LinkedIn profile, a profile review, and suggested roles. Each role becomes a LinkedIn job search.
 - **Settings**: AI provider, resume upload (PDF/TXT), AI profile extraction, full profile editor, answer bank, export/import.
 
-Everything is stored locally in `chrome.storage.local`. Data leaves the machine only for calls to the AI endpoint you choose and for the salary web search.
+<p>
+  <img src="docs/screenshots/raw/panel-profile.png" alt="Profile tab" width="260">
+  <img src="docs/screenshots/raw/panel-settings.png" alt="Settings tab" width="260">
+</p>
+
+## Your data stays with you
+
+Everything is stored locally in `chrome.storage.local`. Data leaves the machine only for calls to the AI endpoint you choose and for the salary web search. Use a local model (Ollama, LM Studio) and nothing goes to a cloud AI at all.
 
 See [PLAN.md](PLAN.md) for the product requirements, research and architecture.
 
@@ -70,6 +116,7 @@ bun run build && bun test/live/realsites.ts   # real public Greenhouse + Lever f
 bun test/live/ai.live.ts         # every AI task against LM Studio at localhost:1234
 bun test/live/realjobs.ts        # job extraction on real LinkedIn / Workday / Greenhouse / Lever pages
 bun test/live/checks.ts          # PDF resume parsing, Anthropic path, salary search from the extension
+bun test/live/storeshots.ts       # regenerates docs/screenshots and the Chrome Web Store images in store/ (fictional persona)
 ```
 
 ## What was verified, and how

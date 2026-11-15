@@ -11,13 +11,22 @@ import { useTask } from "../shared/useTask.ts";
 
 /** Extracts a profile from the resume text and merges it into the stored one so typed fields survive. */
 export async function saveExtractedProfile(text: string): Promise<void> {
-  const extracted = await aiContext.run(({ client }) => tasks.extractProfile(client, text));
+  const withLinks = await resumeFile.addStoredLinks(await storage.get("resume"), text);
+  const extracted = await aiContext.run(({ client }) => tasks.extractProfile(client, withLinks));
   const previous = await storage.get("profile");
   await storage.set("profile", profileExtract.mergeInto(previous, extracted));
 }
 
 /** In the wizard the resume saves itself (after a file read and on every edit) and extraction is left to "Build my profile". */
 export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean }) {
+  return (
+    <Card title="Resume">
+      <ResumeFields isOnboarding={isOnboarding} />
+    </Card>
+  );
+}
+
+export function ResumeFields({ isOnboarding = false }: { isOnboarding?: boolean }) {
   const stored = useStored("resume");
   const [text, setText] = useState("");
   const [pendingFile, setPendingFile] = useState<Resume | null>(null);
@@ -51,43 +60,41 @@ export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean
   });
 
   return (
-    <Card title="Resume">
-      <div class="stack tight">
-        <div class="row between">
-          <span class="muted small clamp">{(pendingFile ?? stored)?.fileName || "No file chosen"}</span>
-          <FileButton accept=".pdf,.txt,.md,application/pdf,text/plain" isBusy={readFile.isBusy} onFile={(file) => void readFile.run(file)}>
-            Choose file
-          </FileButton>
-        </div>
-        <ErrorNote message={readFile.error} />
-        <label class="field area">
-          <textarea
-            rows={8}
-            placeholder=" "
-            aria-label="Resume text"
-            value={text}
-            onInput={(event) => {
-              setText(event.currentTarget.value);
-              setIsSaved(false);
-              if (isOnboarding) void saveResume(baseResume(), event.currentTarget.value);
-            }}
-          />
-          <span>or paste text</span>
-        </label>
-        {stored?.fileName && stored.fileBase64 && <span class="muted small">Stored file: {stored.fileName} (attached to upload fields)</span>}
-        <div class="actions">
-          <span class="grow ok-text">{isExtracted ? "Profile updated" : isSaved ? "Saved" : ""}</span>
-          {!isOnboarding && (
-            <Button isBusy={extract.isBusy} disabled={!stored?.text || isDirty} onClick={() => void extract.run()}>
-              Extract profile with AI
-            </Button>
-          )}
-          <Button kind="primary" disabled={!text.trim() || !isDirty} onClick={() => void save()}>
-            Save resume
-          </Button>
-        </div>
-        <ErrorNote message={extract.error} onRetry={() => void extract.run()} />
+    <div class="stack tight">
+      <div class="row between">
+        <span class="muted small clamp">{(pendingFile ?? stored)?.fileName || "No file chosen"}</span>
+        <FileButton accept=".pdf,.txt,.md,application/pdf,text/plain" isBusy={readFile.isBusy} onFile={(file) => void readFile.run(file)}>
+          Choose file
+        </FileButton>
       </div>
-    </Card>
+      <ErrorNote message={readFile.error} />
+      <label class="field area">
+        <textarea
+          rows={8}
+          placeholder=" "
+          aria-label="Resume text"
+          value={text}
+          onInput={(event) => {
+            setText(event.currentTarget.value);
+            setIsSaved(false);
+            if (isOnboarding) void saveResume(baseResume(), event.currentTarget.value);
+          }}
+        />
+        <span>or paste text</span>
+      </label>
+      {stored?.fileName && stored.fileBase64 && <span class="muted small">Stored file: {stored.fileName} (attached to upload fields)</span>}
+      <div class="actions">
+        <span class="grow ok-text">{isExtracted ? "Profile updated" : isSaved ? "Saved" : ""}</span>
+        {!isOnboarding && (
+          <Button isBusy={extract.isBusy} disabled={!stored?.text || isDirty} onClick={() => void extract.run()}>
+            Extract profile with AI
+          </Button>
+        )}
+        <Button kind="primary" disabled={!text.trim() || !isDirty} onClick={() => void save()}>
+          Save resume
+        </Button>
+      </div>
+      <ErrorNote message={extract.error} onRetry={() => void extract.run()} />
+    </div>
   );
 }

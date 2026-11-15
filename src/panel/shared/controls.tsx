@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ComponentChildren } from "preact";
+import * as aiContext from "./aiContext.ts";
 
 export function Spinner() {
   return <span class="spinner" role="status" aria-label="Working" />;
@@ -42,6 +43,11 @@ export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () 
       {onRetry && <Button onClick={onRetry}>Retry</Button>}
     </div>
   );
+}
+
+/** ErrorNote for AI calls: silent while the header banner already explains that the AI is down. */
+export function AiErrorNote(props: { message: string; onRetry?: () => void }) {
+  return <ErrorNote {...props} message={aiContext.useCardError(props.message)} />;
 }
 
 interface FieldProps {
@@ -126,10 +132,12 @@ export function Card({ title, actions, collapsible = false, isOpen = false, chil
 }
 
 /** Sticks to the bottom of the panel so Save stays in reach while scrolling a long form. */
+/** Floats at the bottom right while there is something to save, then shows "Saved". */
 export function SaveBar({ isDirty, isSaved, label, onSave }: { isDirty: boolean; isSaved: boolean; label: string; onSave: () => void }) {
+  if (!isDirty && !isSaved) return null;
   return (
     <div class="save-bar">
-      <span class={isDirty ? "dirty-text" : "ok-text"}>{isDirty ? "Unsaved changes" : isSaved ? "Saved" : ""}</span>
+      <span class={isDirty ? "dirty-text" : "ok-text"}>{isDirty ? "Unsaved changes" : "Saved"}</span>
       <Button kind="primary" disabled={!isDirty} onClick={onSave}>
         {label}
       </Button>

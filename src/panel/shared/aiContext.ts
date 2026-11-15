@@ -7,11 +7,14 @@ import type { Settings } from "../../types.ts";
 
 type AiStatus = "unknown" | "ok" | "error";
 
+export const statusLabel: Record<AiStatus, string> = { unknown: "AI not checked yet", ok: "AI reachable", error: "AI error" };
+
 let status: AiStatus = "unknown";
 const listeners = new Set<(next: AiStatus) => void>();
 
 export function report(next: AiStatus): void {
   status = next;
+  if (next === "ok") setRateLimited(false);
   for (const listener of listeners) listener(next);
 }
 
@@ -37,14 +40,30 @@ function setRateLimited(next: boolean): void {
   for (const listener of rateLimitListeners) listener(next);
 }
 
-/** True after a provider answered "rate limited"; the panel offers to switch endpoints until the user dismisses it. */
-export function useRateLimited(): [boolean, () => void] {
+/** Cards hide their own AI error while the header banner already explains it; their normal buttons stay as the way to retry. */
+export function useCardError(error: string): string {
+  return useStatus() === "error" ? "" : error;
+}
+
+/** Pings the saved provider and updates the status, so the banner clears once the AI is back. */
+export async function check(): Promise<void> {
+  const settings = await storage.get("settings");
+  try {
+    await llm.create(settings.provider).chat({ system: "Reply with the single word OK.", user: "ping", maxTokens: 16 });
+    report("ok");
+  } catch {
+    report("error");
+  }
+}
+
+/** True after a provider answered "rate limited", until the next successful AI call. */
+export function useRateLimited(): boolean {
   const [current, setCurrent] = useState(isRateLimited);
   useEffect(() => {
     rateLimitListeners.add(setCurrent);
     return () => void rateLimitListeners.delete(setCurrent);
   }, []);
-  return [current, () => setRateLimited(false)];
+  return current;
 }
 
 interface AiContext {

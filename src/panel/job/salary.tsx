@@ -1,6 +1,7 @@
 import { useRef, useState } from "preact/hooks";
 import * as salaryData from "../../ai/salary.ts";
 import type { SalaryComponents, SalaryEstimate, SalaryRange } from "../../types.ts";
+import * as aiContext from "../shared/aiContext.ts";
 import { Button, Card, ErrorNote, Spinner } from "../shared/controls.tsx";
 import * as format from "../shared/format.ts";
 import { Icon } from "../shared/icons.tsx";
@@ -122,7 +123,8 @@ interface SalarySectionProps {
   onEstimate: () => void;
 }
 
-export function SalarySection({ salary, isLoading, error, onEstimate }: SalarySectionProps) {
+export function SalarySection({ salary, isLoading, error: rawError, onEstimate }: SalarySectionProps) {
+  const error = aiContext.useCardError(rawError);
   const range = salary ? headline(salary) : "";
   const [viewing, setViewing] = useState<Source | null>(null);
   const sources = (salary?.sources ?? []).filter((source) => !salaryData.isLookup(source));

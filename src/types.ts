@@ -50,9 +50,12 @@ export type YesNo = "yes" | "no" | "";
 
 export interface Profile {
   firstName: string;
+  middleName: string;
   lastName: string;
   email: string;
   phone: string;
+  /** every other number on the resume, as written */
+  otherPhones: string[];
   /** E.164 style country code, e.g. "+1" */
   phoneCountryCode: string;
   address: string;
@@ -177,8 +180,6 @@ export interface JobAnalysis {
   keywordScore: number;
   matchedSkills: string[];
   missingSkills: string[];
-  strengths: string[];
-  gaps: string[];
   verdict: string;
   salary: SalaryEstimate | null;
   /** absent in analyses cached before perks existed */
@@ -271,6 +272,24 @@ export interface FillResult {
 
 /** Answer bank: normalized question -> answer */
 export type AnswerBank = Record<string, { question: string; answer: string; updatedAt: number }>;
+
+/** One thing worth learning from a fill: a field that failed, was edited by the user, was answered by the user, or was left blank. */
+export interface FillLogEntry {
+  at: number;
+  host: string;
+  outcome: "failed" | "edited" | "learned" | "unanswered";
+  label: string;
+  kind: FieldKind;
+  section: string;
+  name: string;
+  automationId: string;
+  options: string[];
+  /** where the value we put in came from; "none" when SmartJob had no answer */
+  source: FillSource | "none";
+  filled: string;
+  final: string;
+  error: string;
+}
 
 /** A saved LinkedIn job search suggested during setup. */
 export interface JobSearch {

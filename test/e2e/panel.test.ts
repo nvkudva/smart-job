@@ -50,14 +50,13 @@ test("settings, resume and profile extraction persist", async () => {
   const panel = await h.openPanel();
   await panel.getByRole("tab", { name: "Settings" }).click();
   await panel.getByLabel("Base URL").fill(llm.baseUrl);
-  await panel.getByLabel("Model").fill("fake");
-  await panel.getByRole("button", { name: "Save settings" }).click();
+  await panel.getByLabel("Model", { exact: true }).fill("fake");
   await visible(panel.getByText("Saved").first());
   expect(((await stored(panel, "settings")) as { provider: { baseUrl: string } }).provider.baseUrl).toBe(llm.baseUrl);
 
   await panel.getByRole("button", { name: "Test connection" }).click();
   await visible(panel.getByText(/Connected in \d+ ms/));
-  await visible(panel.locator(".dot.ok").first());
+  await visible(panel.locator(".dot.status-ok").first());
 
   await panel.getByRole("tab", { name: "Profile", exact: true }).click();
   await panel.getByLabel("Resume text").fill(resume.text);
@@ -121,7 +120,7 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
 
   await panel.getByRole("tab", { name: "Track" }).click();
   const tracker = panel.getByRole("tabpanel", { name: "Track" });
-  await visible(tracker.getByText(/Job posting on/));
+  await visible(tracker.getByRole("link", { name: /Posting/ }));
   await visible(tracker.getByText("Cover letter", { exact: true }));
   await panel.close();
 }, 90000);
@@ -162,7 +161,7 @@ test("setup wizard: provider, profile, review, job searches, then tabs", async (
   await h.seed({ setupComplete: false, resume: null, profile: emptyProfile, jobSearches: [] });
   const panel = await h.openPanel();
   await panel.getByLabel("Base URL").fill(llm.baseUrl);
-  await panel.getByLabel("Model").fill("fake");
+  await panel.getByLabel("Model", { exact: true }).fill("fake");
   await panel.getByRole("button", { name: "Save and continue" }).click();
 
   await panel.getByLabel("Resume text").fill(resume.text);

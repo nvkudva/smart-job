@@ -45,10 +45,10 @@ describe("keywordMatch", () => {
 describe("analyzeJob", () => {
   test("normalizes messy output and adds keyword fields", async () => {
     const fake = new FakeLlm([
-      '<think>scoring</think>Here you go:\n```json\n{"summary": "A backend role.", "mustHave": "Python; AWS", "niceToHave": ["React", "React"], "matchScore": "140", "strengths": ["Python",], "gaps": null,}\n```',
+      '<think>scoring</think>Here you go:\n```json\n{"summary": "A backend role.", "mustHave": "Python; AWS", "niceToHave": ["React", "React"], "matchScore": "140",}\n```',
     ]);
     const result = await tasks.analyzeJob(fake, job, candidate);
-    expect(result).toMatchObject({ summary: "A backend role.", mustHave: ["Python", "AWS"], niceToHave: ["React"], matchScore: 100, strengths: ["Python"], gaps: [], verdict: "Strong match - apply" });
+    expect(result).toMatchObject({ summary: "A backend role.", mustHave: ["Python", "AWS"], niceToHave: ["React"], matchScore: 100, verdict: "Strong match - apply" });
     expect(result.matchedSkills).toContain("Python");
     expect(result.missingSkills).toContain("Terraform");
     expect(result.keywordScore).toBeGreaterThan(0);
@@ -77,9 +77,9 @@ describe("analyzeJob", () => {
     expect(tasks.normalizeAnalysis({ mustHave: ["Go"] }, 61)).toMatchObject({ matchScore: 61, verdict: "Possible match - stretch" });
     expect(tasks.normalizeAnalysis({ mustHave: ["Go"], matchScore: 90 }, 61).matchScore).toBe(90);
   });
-  test("nice-to-haves can be rated, seniority is an enum, strengths and gaps keep three", () => {
-    const result = tasks.normalizeAnalysis({ niceToHave: [{ requirement: "Preact", met: "yes" }], seniority: "Over", strengths: ["a", "b", "c", "d"], gaps: ["x"], reason: "Strong stack fit" });
-    expect(result).toMatchObject({ niceToHave: ["Preact"], niceToHaveMet: ["yes"], seniority: "over", strengths: ["a", "b", "c"], reason: "Strong stack fit" });
+  test("nice-to-haves can be rated, seniority is an enum", () => {
+    const result = tasks.normalizeAnalysis({ niceToHave: [{ requirement: "Preact", met: "yes" }], seniority: "Over", reason: "Strong stack fit" });
+    expect(result).toMatchObject({ niceToHave: ["Preact"], niceToHaveMet: ["yes"], seniority: "over", reason: "Strong stack fit" });
     expect(tasks.normalizeAnalysis({ seniority: "senior-ish" }).seniority).toBeUndefined();
   });
   test("retries on non-JSON and truncates long input", async () => {
@@ -114,7 +114,7 @@ describe("extractProfile", () => {
     const fake = new FakeLlm([`prose ${JSON.stringify(raw)} trailing`]);
     const profile = await tasks.extractProfile(fake, resumeText);
     expect(profile).toMatchObject({
-      firstName: "Jane", lastName: "Doe", email: "jane.doe@example.com", phone: "+91 98765 43210", phoneCountryCode: "+91",
+      firstName: "Jane", lastName: "Doe", email: "jane.doe@example.com", phone: "98765 43210", phoneCountryCode: "+91",
       linkedin: "https://linkedin.com/in/janedoe", github: "https://github.com/janedoe", city: "Bengaluru",
       currentTitle: "Senior Engineer", currentCompany: "Acme Corp", skills: ["Python", "AWS"], workAuthorized: "", gender: "",
     });
@@ -134,6 +134,11 @@ describe("extractProfile", () => {
   test("model years respected; garbage tolerated", () => {
     expect(profileExtract.buildProfile({ yearsExperience: "7" }, "").yearsExperience).toBe(7);
     expect(profileExtract.buildProfile(null, "").firstName).toBe("");
+    expect(profileExtract.buildProfile({ github: "GitHub.", linkedin: "LinkedIn" }, "").github).toBe("");
+    expect(profileExtract.buildProfile({ github: "github.com/jane." }, "").github).toBe("https://github.com/jane");
+    const header = "Vijay Kudva +91 9632544966 | +1 6507721555 | +91 96325 44966\nLinks\nhttps://www.linkedin.com/in/nvkudva/\ntel:+44 7700 900123";
+    const contact = profileExtract.buildProfile({ firstName: "Vijay", middleName: "Krishna" }, header);
+    expect([contact.middleName, contact.phone, contact.otherPhones, contact.linkedin]).toEqual(["Krishna", "9632544966", ["+1 6507721555", "+44 7700 900123"], "https://www.linkedin.com/in/nvkudva/"]);
     expect(profileExtract.buildProfile({ experience: "oops", skills: "a, b; c" }, "").skills).toEqual(["a", "b", "c"]);
   });
   test("re-extraction keeps what the user typed when the resume lacks it", () => {

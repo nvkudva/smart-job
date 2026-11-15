@@ -8,7 +8,7 @@ import * as render from "../../resume/render.ts";
 import * as storage from "../../storage.ts";
 import type { JobPosting, Resume } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
-import { Button, Card, ErrorNote } from "../shared/controls.tsx";
+import { Button, Card, AiErrorNote } from "../shared/controls.tsx";
 import * as trackedJobs from "../job/trackedJobs.ts";
 import * as markdown from "./markdown.ts";
 import { SavedResumes } from "./savedResumes.tsx";
@@ -110,7 +110,7 @@ export function TailorResume({ job }: { job: JobPosting }) {
       <Button kind="primary" isBusy={generate.isBusy} onClick={() => void generate.run()}>
         {hasRun ? "Regenerate" : "Generate"}
       </Button>
-      <ErrorNote message={generate.error} onRetry={() => void generate.run()} />
+      <AiErrorNote message={generate.error} onRetry={() => void generate.run()} />
       {pdf && (
         <div class="row wrap">
           <Button kind="primary" onClick={() => void preview.open()} disabled={pdf.changes.length === 0}>

@@ -1,5 +1,5 @@
 import * as llm from "./ai/llm.ts";
-import type { AnswerBank, CompanyPerks, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
+import type { AnswerBank, CompanyPerks, FillLogEntry, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
 
 export interface StoreShape {
   settings: Settings;
@@ -12,6 +12,8 @@ export interface StoreShape {
   /** salary and perks that succeeded when the analysis itself failed, keyed by JobPosting.id */
   lookups: Record<string, { salary: SalaryEstimate | null; perks: CompanyPerks | null }>;
   answers: AnswerBank;
+  /** newest last, capped; what failed, was edited or was unknown on job forms */
+  fillLog: FillLogEntry[];
   /** false shows the setup wizard; absent means "decide from existing data" (see isSetupComplete) */
   setupComplete: boolean;
   /** epoch ms of the last LinkedIn import, 0 = never */
@@ -31,9 +33,11 @@ export const defaultSettings: Settings = {
 
 export const emptyProfile: Profile = {
   firstName: "",
+  middleName: "",
   lastName: "",
   email: "",
   phone: "",
+  otherPhones: [],
   phoneCountryCode: "",
   address: "",
   city: "",
@@ -74,6 +78,7 @@ const defaults: StoreShape = {
   analyses: {},
   lookups: {},
   answers: {},
+  fillLog: [],
   setupComplete: false,
   linkedinImportedAt: 0,
   jobSearches: [],

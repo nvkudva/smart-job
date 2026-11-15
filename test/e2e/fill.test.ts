@@ -81,6 +81,8 @@ async function autofill(panel: Page, urlPart: string) {
     const frameFills = mapping.map(frameFields, profile, {}, resume);
     const resumeFile = { name: resume.fileName, base64: resume.fileBase64, mimeType: resume.mimeType };
     const response = (await sendToFrame(panel, tabId, frameId, { type: "fillFields", fills: frameFills, resumeFile })) as FillResult[] | undefined;
+    const unknown = frameFields.filter((field) => field.required && !frameFills.some((fill) => fill.id === field.id)).map((field) => ({ id: field.id, isRequired: true }));
+    await sendToFrame(panel, tabId, frameId, { type: "markUnknown", unknown, shouldScroll: false });
     fields.push(...frameFields);
     fills.push(...frameFills);
     results.push(...(response ?? []));

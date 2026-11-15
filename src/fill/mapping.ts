@@ -149,10 +149,12 @@ function monthYear(yearMonth: string, field: FieldDescriptor): string | undefine
 
 function localPhone({ profile, hasPhoneCodeField }: Context): string | undefined {
   const phone = profile.phone.trim();
-  if (!phone || !hasPhoneCodeField) return phone || undefined;
+  if (!phone) return undefined;
   const code = profile.phoneCountryCode.replace(/\D/g, "");
+  const isInternational = phone.startsWith("+");
+  if (!hasPhoneCodeField) return isInternational || !code ? phone : `+${code} ${phone}`;
   const digits = phone.replace(/[^\d+]/g, "");
-  return phone.startsWith("+") && code && digits.startsWith(`+${code}`) ? digits.slice(code.length + 1) : phone;
+  return isInternational && code && digits.startsWith(`+${code}`) ? digits.slice(code.length + 1) : phone;
 }
 
 function phoneCode({ profile, field }: Context): string | undefined {
@@ -227,14 +229,17 @@ const contactRules: Rule[] = [
   [/e ?mail/, ({ profile }) => profile.email || undefined],
   [/phone (device )?type|device type/, () => "Mobile"],
   [/country (phone )?code|phone code|dial/, phoneCode],
-  [/extension/, none],
+  [/extension|emergency/, none],
+  [/(alternat|secondary|additional|other|second|home)\S* (phone|mobile|telephone|contact|number)/, ({ profile }) => profile.otherPhones[0] || undefined],
   [/phone|mobile|telephone|\bcell\b|contact (number|no)\b/, localPhone],
   [/preferred (first )?name|nick ?name|goes by/, ({ profile }) => profile.firstName || undefined],
-  [/middle|suffix|prefix/, none],
+  [/middle (initial|i\b)/, ({ profile }) => profile.middleName.slice(0, 1) || undefined],
+  [/middle/, ({ profile }) => profile.middleName || undefined],
+  [/suffix|prefix/, none],
   [/first name|given name|forename/, ({ profile }) => profile.firstName || undefined],
   [/last name|family name|surname/, ({ profile }) => profile.lastName || undefined],
-  [/linkedin/, ({ profile }) => profile.linkedin || undefined],
-  [/github/, ({ profile }) => profile.github || undefined],
+  [/linkedin/, ({ profile }) => (/linkedin\.com\/./i.test(profile.linkedin) ? profile.linkedin : undefined)],
+  [/github/, ({ profile }) => (/github\.com\/./i.test(profile.github) ? profile.github : undefined)],
   [/(company|employer|organi[sz]ation) (website|url|size|address|phone)/, none],
   [/portfolio/, ({ profile }) => profile.portfolio || profile.website || undefined],
   [/website|web site|personal (site|page)|homepage|\burl\b/, ({ profile }) => profile.website || profile.portfolio || undefined],
