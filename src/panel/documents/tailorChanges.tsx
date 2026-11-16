@@ -1,20 +1,9 @@
 import { useState } from "preact/hooks";
-import * as layout from "../../resume/layout.ts";
 import type * as rewrite from "../../resume/rewrite.ts";
 import * as textDiff from "../../resume/textDiff.ts";
-import { AiErrorNote, Button, Check } from "../shared/controls.tsx";
+import { AiErrorNote, Button } from "../shared/controls.tsx";
+import type { Draft } from "./tailoredPdf.ts";
 import { useTask } from "../shared/useTask.ts";
-
-export interface Draft {
-  block: layout.Block;
-  /** the user's current wording for this line */
-  text: string;
-  reason: string;
-  /** false puts the original line back in the PDF */
-  isOn: boolean;
-  /** typed or AI-directed by the user, so a global regenerate keeps it */
-  isEdited: boolean;
-}
 
 export type Fit = ReturnType<typeof rewrite.fit>;
 
@@ -87,8 +76,8 @@ export function ChangeCard({ draft, fit, maxChars, onChange, onAsk }: ChangeCard
   return (
     <div class={`tcard${draft.isOn ? "" : " off"}${overBy ? " over" : ""}`}>
       <div class="row between">
-        <Check label="Use this change" checked={draft.isOn} onChecked={(isOn) => onChange({ isOn })} />
-        <span class={`small ${overBy ? "required" : "muted"}`}>{fit.cleaned.length}/{maxChars}</span>
+        <span class={`small ${overBy ? "required" : "muted"}`}>{fit.cleaned.length}/{maxChars} characters</span>
+        <Button onClick={() => onChange({ isOn: !draft.isOn })}>{draft.isOn ? "Revert line" : "Re-apply"}</Button>
       </div>
       <div class="tline before">
         <DiffText pieces={pieces} hide="added" mark="removed" />
@@ -110,7 +99,7 @@ export function ChangeCard({ draft, fit, maxChars, onChange, onAsk }: ChangeCard
             <span class="muted small">✎</span>
           </div>
         ))}
-      {overBy > 0 && <div class="small required">{overBy} characters too long for this line. Shorten it, ask the AI, or turn it off.</div>}
+      {overBy > 0 && <div class="small required">{overBy} characters too long for this line. Shorten it, ask the AI, or revert the line.</div>}
       {!overBy && fit.cleaned !== draft.text.trim() && <div class="small muted">Prints as: {fit.cleaned}</div>}
       {draft.reason && <div class="small muted">{draft.reason}</div>}
       {draft.isOn && <AskAi onAsk={onAsk} />}

@@ -351,14 +351,65 @@ export async function writeCoverLetter(
   return removePlaceholders(cleanText(text), job);
 }
 
+/** What the earlier analysis learned about the role and company, as context for tailoring; empty when the job was never analyzed. */
+function describeAnalysis(analysis: JobAnalysis | null | undefined): string {
+  if (!analysis) return "";
+  const lines = [
+    analysis.mustHave.length && `Must-have: ${analysis.mustHave.join("; ")}`,
+    analysis.niceToHave.length && `Nice-to-have: ${analysis.niceToHave.join("; ")}`,
+    analysis.overview?.company.length && `Company: ${analysis.overview.company.join(" ")}`,
+    analysis.overview?.position.length && `Position: ${analysis.overview.position.join(" ")}`,
+    analysis.matchedSkills.length && `Skills the candidate has that the job names: ${analysis.matchedSkills.join(", ")}`,
+    analysis.missingSkills.length && `Skills the job names that the candidate does not show (do not claim or mention these): ${analysis.missingSkills.join(", ")}`,
+  ].filter(Boolean);
+  return lines.length ? `\n\nWHAT AN EARLIER ANALYSIS FOUND (use as a guide; the posting above is the source)\n${lines.join("\n")}` : "";
+}
+
+/** The candidate's profile facts and LinkedIn text, which the resume may not spell out but which are true and may be used. */
+function candidateFacts(candidate: CandidateContext): string {
+  const { profile } = candidate;
+  const facts = [
+    profile.currentTitle && `Current role: ${profile.currentTitle}${profile.currentCompany ? ` at ${profile.currentCompany}` : ""}`,
+    profile.yearsExperience > 0 && `Years of experience: ${profile.yearsExperience}`,
+    profile.skills.length > 0 && `Skills: ${profile.skills.join(", ")}`,
+    (profile.linkedinSummary ?? "").trim() && `LinkedIn profile:\n${normalize.truncate(normalize.compact(profile.linkedinSummary!), linkedinLimit)}`,
+  ].filter(Boolean);
+  return facts.length ? `\n\nCANDIDATE FACTS (true, may be used alongside the resume)\n${facts.join("\n")}` : "";
+}
+
+// ---------- tailoring principles ----------
+
+/** What a good tailoring does and never does; shared by the PDF line-rewrite prompt and the markdown prompt. */
+const tailorPrinciples = `You are a senior recruiter and executive resume writer. Tailor this candidate's resume to ONE specific job so that the hiring manager sees the ideal candidate for the role within ten seconds, without a single untrue word.
+
+HOW TO WORK
+1. Read the posting as the hiring manager. What problem is this role hired to solve? What does the company do, at what stage and scale? What are the top responsibilities, the must-haves versus the nice-to-haves, and the seniority and scope signals (team size, org breadth, cross-functional reach, budget, geography)? Which words does the posting use for the work?
+2. Describe the ideal candidate in a sentence or two, then list the 5 to 8 things this resume must visibly demonstrate for this job.
+3. For each one, find the strongest real evidence anywhere in the resume or the candidate facts. Evidence often sits in a bullet that is not about it yet: bring it forward.
+4. Rewrite so that the matching evidence leads and the job's priorities show first.
+
+WHAT YOU SHOULD DO (this is the point: do not merely polish wording)
+- Re-angle every bullet that can serve the job. Lead with the outcome, scope or skill this job cares about, and push or trim the part it does not care about.
+- Use the posting's own terms for work the candidate really did (for example "platform strategy", "stakeholder management", "GenAI delivery"), so a recruiter or keyword screen sees the match.
+- Rewrite the summary for the target role: the candidate's real years, scope and domains stated in the language of the role, opening with the strongest match. Lift headline facts (scale, team size, metrics, well-known employers already on the resume) up from lower sections.
+- Move facts between lines of the same role when that tells the job's story better. Make room by cutting what this job does not value, not by dropping the key fact.
+- Where a line lists skills or keywords, put the job-relevant ones first.
+- Match the job's register: an executive role wants strategy, org design and business outcomes; a hands-on role wants systems, depth and delivery.
+- Change as many lines as honestly improve the match, usually 8 to 14, starting with the summary. Leave a line alone if you cannot make it better for this job.
+
+NEVER
+- Add a skill, tool, responsibility, scope, team size, employer, title, date, degree, award or number that is not already on the resume or in the candidate facts. Every figure you write must appear on the resume.
+- Inflate: "contributed to" does not become "led", a team does not grow, a region is not added, and a tool the candidate used is not "expert" level.
+- Give the candidate the job's title or seniority, or attach the job's buzzwords (such as "AI") to work the resume does not describe that way.
+- Claim something the job asks for that the candidate lacks. A gap stays a gap; do not paper over it, and do not mention it.
+- Change contact details, job titles, company names, dates, education or awards.`;
+
 // ---------- tailorResume ----------
 
-const tailorSystem = `You tailor a resume to a job description. Reply with JSON: {"markdown": "the full tailored resume in markdown", "changes": [{"before": "original text", "after": "new text", "reason": "why"}]}
-Rules:
-- Keep every employer, job title, date, degree and school exactly unchanged.
-- You may only rephrase the summary and bullet points, and reorder skills, to surface keywords from the job that the candidate genuinely has.
-- Never add skills, tools, metrics or responsibilities that are not in the original resume.
-- List each rewritten line in "changes".`;
+const tailorSystem = `${tailorPrinciples}
+
+You are given the job, what the earlier analysis found, the candidate facts and the original resume as markdown. Reply with JSON: {"brief": {"idealCandidate": "1-2 sentences", "mustShow": ["5-8 short items"]}, "markdown": "the full tailored resume in markdown", "changes": [{"before": "original text", "after": "new text", "reason": "the job need this serves, a short phrase"}]}
+Keep every section, employer, title, date and degree in place. Rewrite the summary and bullet points, and reorder skills, as described above. Fill "brief" first and let it drive the rewrite. List every rewritten line in "changes".`;
 
 function normalizeTailoring(raw: unknown, candidate: CandidateContext): { markdown: string; changes: { before: string; after: string; reason: string }[] } {
   const data = normalize.asRecord(raw);
@@ -379,10 +430,11 @@ export async function tailorResume(
   client: llm.LlmClient,
   job: JobPosting,
   candidate: CandidateContext,
+  analysis?: JobAnalysis | null,
 ): Promise<{ markdown: string; changes: { before: string; after: string; reason: string }[] }> {
   const raw = await llm.chatJson<unknown>(client, {
     system: tailorSystem,
-    user: `JOB\n${describeJob(job)}\n\nORIGINAL RESUME\n${normalize.truncate(candidate.resumeText || describeCandidate(candidate), resumeLimit)}`,
+    user: `JOB\n${describeJob(job)}${describeAnalysis(analysis)}${keywordHint(job, candidate)}${candidateFacts(candidate)}\n\nORIGINAL RESUME\n${normalize.truncate(candidate.resumeText || describeCandidate(candidate), resumeLimit)}`,
     maxTokens: tokenBudget,
   });
   return normalizeTailoring(raw, candidate);
@@ -390,15 +442,16 @@ export async function tailorResume(
 
 // ---------- tailorPdf ----------
 
-const pdfTailorSystem = `You tailor a resume to a job by rewriting individual lines in place. The resume is a fixed-layout PDF, so every rewrite must fit the space of the lines it replaces. Reply with JSON: {"rewrites": [{"id": "b1_3", "newText": "...", "reason": "..."}]}
-The resume is shown as plain text. Editable blocks start with [id | N lines | max C chars]; everything else is context you must not change.
-Rules:
-- Rewrite only blocks that gain from the job: the summary and bullets. Usually 4-10 blocks; leave every other block out of the reply.
-- newText must be at most C characters. Plain text: no bullet symbol, no markdown, no emoji, no arrows.
-- Keep the meaning and every employer, title, date, number and metric exactly. You may tighten and re-word, and use the job's own terms where the candidate genuinely did that work.
-- Never add skills, tools, numbers or responsibilities that are not in the resume or the candidate's skills list. Do not give the candidate the job's title or seniority, and do not attach job words (like "AI") to work the resume does not describe that way.
-- Never touch contact details, job titles, company names, dates, education or awards.
-- reason: one short phrase, e.g. "Surfaces 'platform' and 'GenAI' from the job".`;
+const pdfTailorSystem = `${tailorPrinciples}
+
+HOW THIS RESUME IS EDITED
+The resume is a fixed-layout PDF, so each rewrite replaces the text of one block and must fit the space of the lines it replaces. The resume is shown as plain text. Editable blocks start with [id | N lines | max C chars]; everything else is context you must not change, but you may draw facts from it.
+- newText must be at most C characters. Fit the budget by cutting the least relevant words, never by dropping the fact that matters. Plain text only: no bullet symbol, no markdown, no emoji, no arrows.
+- A block is one bullet or one paragraph. Keep a bullet a bullet. Do not merge two blocks or move text between blocks; each newText stands alone.
+- reason: one short phrase naming the job need it serves, e.g. "Leads with GenAI delivery the role asks for".
+
+Reply with JSON, filling "brief" first and letting it drive the rewrites:
+{"brief": {"idealCandidate": "1-2 sentences", "mustShow": ["5-8 short items"]}, "rewrites": [{"id": "b1_3", "newText": "...", "reason": "..."}]}`;
 
 const shortenSystem = `Each rewrite below is too long to fit its space in a fixed-layout resume. Shorten each one to at most its max chars, keeping the key facts, numbers and the job-relevant terms. No new facts. Reply with JSON: {"rewrites": [{"id": "...", "newText": "...", "reason": "..."}]}`;
 
@@ -422,6 +475,8 @@ export interface TailorOptions {
   onlyIds?: string[];
   /** the user's current text for a block, so an instruction builds on their edit */
   drafts?: Record<string, string>;
+  /** the cached analysis of this job, when there is one: its requirements and company context sharpen the rewrite */
+  analysis?: JobAnalysis | null;
 }
 
 function describeOptions({ instruction, onlyIds, drafts }: TailorOptions): string {
@@ -441,10 +496,9 @@ export async function tailorPdf(
   measurer: rewrite.Measurer,
   options: TailorOptions = {},
 ): Promise<rewrite.Placement[]> {
-  const skillsLine = candidate.profile.skills.length ? `\n\nCANDIDATE SKILLS\n${candidate.profile.skills.join(", ")}` : "";
   const raw = await llm.chatJson<unknown>(client, {
     system: pdfTailorSystem,
-    user: `JOB\n${describeJob(job)}${keywordHint(job, candidate)}${skillsLine}\n\nRESUME\n${normalize.truncate(rewrite.describe(resume), fullResumeLimit)}${describeOptions(options)}`,
+    user: `JOB\n${describeJob(job)}${describeAnalysis(options.analysis)}${keywordHint(job, candidate)}${candidateFacts(candidate)}\n\nRESUME\n${normalize.truncate(rewrite.describe(resume), fullResumeLimit)}${describeOptions(options)}`,
     maxTokens: tokenBudget,
   });
   const allowed = options.onlyIds ? new Set(options.onlyIds) : null;

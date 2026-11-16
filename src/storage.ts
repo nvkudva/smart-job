@@ -1,5 +1,5 @@
 import * as llm from "./ai/llm.ts";
-import type { AnswerBank, CompanyPerks, FillLogEntry, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
+import type { AnswerBank, CompanyOffice, CompanyPerks, FillLogEntry, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
 
 export interface StoreShape {
   settings: Settings;
@@ -10,7 +10,7 @@ export interface StoreShape {
   /** analysis cache for jobs not (yet) shortlisted, keyed by JobPosting.id */
   analyses: Record<string, JobAnalysis>;
   /** salary and perks that succeeded when the analysis itself failed, keyed by JobPosting.id */
-  lookups: Record<string, { salary: SalaryEstimate | null; perks: CompanyPerks | null }>;
+  lookups: Record<string, { salary: SalaryEstimate | null; perks: CompanyPerks | null; office?: CompanyOffice | null }>;
   answers: AnswerBank;
   /** newest last, capped; what failed, was edited or was unknown on job forms */
   fillLog: FillLogEntry[];

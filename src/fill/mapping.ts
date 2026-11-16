@@ -238,7 +238,7 @@ const contactRules: Rule[] = [
   [/suffix|prefix/, none],
   [/first name|given name|forename/, ({ profile }) => profile.firstName || undefined],
   [/last name|family name|surname/, ({ profile }) => profile.lastName || undefined],
-  [/linkedin/, ({ profile }) => (/linkedin\.com\/./i.test(profile.linkedin) ? profile.linkedin : undefined)],
+  [/linkedin/, ({ profile }) => (/linkedin\.com\/in\//i.test(profile.linkedin) ? profile.linkedin : undefined)],
   [/github/, ({ profile }) => (/github\.com\/./i.test(profile.github) ? profile.github : undefined)],
   [/(company|employer|organi[sz]ation) (website|url|size|address|phone)/, none],
   [/portfolio/, ({ profile }) => profile.portfolio || profile.website || undefined],

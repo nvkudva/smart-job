@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { JobStatus, TrackedJob } from "../../types.ts";
+import type { JobAnalysis, JobStatus, TrackedJob } from "../../types.ts";
 import { SavedResumes } from "../documents/savedResumes.tsx";
 import { Button, Card } from "../shared/controls.tsx";
+import { ScoreRing } from "../job/analysisView.tsx";
+import { Icon } from "../shared/icons.tsx";
 import { formatSalary } from "../job/salary.tsx";
 import * as trackedJobs from "../job/trackedJobs.ts";
 import { useStored } from "../shared/useStored.ts";
@@ -34,12 +36,11 @@ function CoverLetterNote({ text }: { text: string }) {
 }
 
 /** What is already done for this application, so a half-finished one is easy to pick up. */
-function Progress({ entry }: { entry: TrackedJob }) {
-  const resumes = useStored("tailoredResumes");
+function Progress({ entry, hasResume }: { entry: TrackedJob; hasResume: boolean }) {
   const appliedOn = entry.appliedAt ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(entry.appliedAt) : "";
   const steps = [
     ["Cover letter", !!entry.coverLetter],
-    ["Resume", !!resumes?.some((resume) => resume.jobId === entry.job.id)],
+    ["Resume", hasResume],
     ["Form filled", !!entry.portalUrl],
     [appliedOn ? `Applied ${appliedOn}` : "Applied", !!entry.appliedAt],
   ] as const;
@@ -54,43 +55,58 @@ function Progress({ entry }: { entry: TrackedJob }) {
   );
 }
 
+/** The analysis the Analysis tab would show: the tracker's copy or the cached one, whichever is newer, so a score is never lost. */
+function latestAnalysis(entry: TrackedJob, cached: JobAnalysis | undefined): JobAnalysis | null {
+  if (!entry.analysis || !cached) return entry.analysis ?? cached ?? null;
+  return cached.analyzedAt > entry.analysis.analyzedAt ? cached : entry.analysis;
+}
+
+function ResumeNote({ jobId }: { jobId: string }) {
+  return (
+    <details class="block">
+      <summary class="small">Resume</summary>
+      <SavedResumes jobId={jobId} showTitle={false} />
+    </details>
+  );
+}
+
 function TrackerCard({ entry }: { entry: TrackedJob }) {
-  const { job, analysis } = entry;
+  const { job } = entry;
+  const analysis = latestAnalysis(entry, useStored("analyses")?.[job.id]);
+  const hasResume = !!useStored("tailoredResumes")?.some((resume) => resume.jobId === job.id);
   const [isNoteOpen, setIsNoteOpen] = useState(!!entry.notes);
   const salary = formatSalary(analysis?.salary ?? null) || job.salaryText;
   const setStatus = (status: JobStatus) => void trackedJobs.track(job, { status, ...(status === "applied" && !entry.appliedAt && { appliedAt: Date.now() }) });
   return (
     <section class="card tracker-card">
-      <div class="row between top">
+      <div class="tracker-head">
         <div>
           <div class="job-title small-title">{job.title}</div>
           <div class="muted small">{[job.company, job.location, salary].filter(Boolean).join(" · ")}</div>
         </div>
-        {analysis && <span class="badge score">{analysis.matchScore}</span>}
+        <div class="tracker-side">
+          <label class="tracker-status">
+            <span class="muted small">Progress</span>
+            <select class="status-pill" data-status={entry.status} aria-label="Progress" title="Change progress" value={entry.status} onChange={(event) => setStatus(event.currentTarget.value as JobStatus)}>
+              {statuses.map((status) => (
+                <option value={status}>{status}</option>
+              ))}
+            </select>
+          </label>
+          {analysis && <ScoreRing score={analysis.matchScore} />}
+        </div>
       </div>
-      <Progress entry={entry} />
-      <div class="row between">
-        <select class="status-pill" data-status={entry.status} aria-label="Status" title="Change status" value={entry.status} onChange={(event) => setStatus(event.currentTarget.value as JobStatus)}>
-          {statuses.map((status) => (
-            <option value={status}>{status}</option>
-          ))}
-        </select>
-        {entry.status !== "rejected" && (
-          <Button kind="primary" title="Open the job tab to write a cover letter, tailor your resume or fill the form" onClick={() => void reopenJob.open(entry)}>
-            Continue
-          </Button>
-        )}
-      </div>
-      <SavedResumes jobId={job.id} />
+      <Progress entry={entry} hasResume={hasResume} />
       <CoverLetterNote text={entry.coverLetter} />
+      {hasResume && <ResumeNote jobId={job.id} />}
       {isNoteOpen && <NotesField entry={entry} />}
       <div class="tracker-foot small">
         <a href={job.url} target="_blank" rel="noreferrer">
-          Posting ↗
+          Posting <Icon name="External" />
         </a>
         {entry.portalUrl && (
           <a href={entry.portalUrl} target="_blank" rel="noreferrer" title={`Log in here to follow your application${entry.accountEmail ? ` with ${entry.accountEmail}` : ""}`}>
-            Portal ↗
+            Portal <Icon name="External" />
           </a>
         )}
         {!isNoteOpen && (
@@ -103,9 +119,16 @@ function TrackerCard({ entry }: { entry: TrackedJob }) {
             Mark applied
           </button>
         )}
-        <button type="button" class="link danger-text" onClick={() => confirm(`Remove "${job.title}" from the tracker?`) && void trackedJobs.untrack(job.id)}>
-          Delete
-        </button>
+        <span class="tracker-actions">
+          {entry.status !== "rejected" && (
+            <button type="button" class="icon-btn primary" aria-label="Continue" title="Continue: open the job tab to write a cover letter, tailor your resume or fill the form" onClick={() => void reopenJob.open(entry)}>
+              <Icon name="Continue" />
+            </button>
+          )}
+          <button type="button" class="icon-btn danger-text" aria-label="Delete" title="Remove from the tracker" onClick={() => confirm(`Remove "${job.title}" from the tracker?`) && void trackedJobs.untrack(job.id)}>
+            <Icon name="Trash" />
+          </button>
+        </span>
       </div>
     </section>
   );

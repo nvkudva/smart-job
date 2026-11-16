@@ -175,7 +175,7 @@ export function buildProfile(raw: unknown, resumeText: string, now = new Date())
     city: normalize.asString(data.city),
     state: normalize.asString(data.state),
     country: normalize.asString(data.country),
-    linkedin: contacts.linkedin || profileLink(normalize.asString(data.linkedin), /linkedin\.com\/./i),
+    linkedin: contacts.linkedin || profileLink(normalize.asString(data.linkedin), /linkedin\.com\/in\//i),
     github: contacts.github || profileLink(normalize.asString(data.github), /github\.com\/./i),
     portfolio: normalize.asString(data.portfolio),
     website: normalize.asString(data.website),

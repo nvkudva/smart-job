@@ -17,6 +17,8 @@ export interface FillReport {
   items: FillReportItem[];
   filledCount: number;
   needsReviewCount: number;
+  /** fields the scan found, including ones already filled (which never become items) */
+  fieldCount: number;
 }
 
 const QUESTION_KINDS = new Set(["textarea", "select", "radio", "combobox"]);
@@ -136,8 +138,20 @@ async function logMisses(tabId: number, unknown: FieldDescriptor[], fills: Field
   await learning.log(await hostOf(tabId), entries);
 }
 
-/** Some portals (iCIMS) reload the page when a file is attached and drop the other fields; attaching again on the reloaded page would loop forever. */
-const uploadedResumePages = new Map<number, string>();
+/**
+ * Some portals (iCIMS) reload the page when a file is attached and drop the other fields; attaching again on the reloaded page would loop forever.
+ * Kept in session storage because the panel and the resume editor tab are separate pages that both attach files.
+ */
+const uploadedKey = "uploadedResumePages";
+
+async function uploadedPages(): Promise<Record<number, string>> {
+  const stored = await chrome.storage.session?.get(uploadedKey);
+  return (stored?.[uploadedKey] as Record<number, string> | undefined) ?? {};
+}
+
+async function markResumeUploaded(tabId: number, pageKey: string): Promise<void> {
+  await chrome.storage.session?.set({ [uploadedKey]: { ...(await uploadedPages()), [tabId]: pageKey } });
+}
 
 async function pageKeyOf(tabId: number): Promise<string> {
   try {
@@ -157,28 +171,37 @@ export async function attachFile(tabId: number, file: { name: string; base64: st
   const fill: FieldFill = { id: field.id, frameId: field.frameId, value: file.name, source: "user" };
   const [result] = (await sendToFrame(tabId, field.frameId, { type: "fillFields", fills: [fill], resumeFile: file })) ?? [];
   if (!result?.ok) throw new Error(result?.error || "The page did not accept the file.");
-  if (kind === "resume") uploadedResumePages.set(tabId, await pageKeyOf(tabId));
+  if (kind === "resume") await markResumeUploaded(tabId, await pageKeyOf(tabId));
 }
 
 /** scan all frames → deterministic map → answer bank → AI for leftovers → fill one by one → point at what is left → report. */
-export async function run(tabId: number, job: JobPosting | null, options: { useAi: boolean; includeAccount: boolean }): Promise<FillReport> {
+export async function run(
+  tabId: number,
+  job: JobPosting | null,
+  options: { useAi: boolean; includeAccount: boolean; onProgress?: (phase: string) => void },
+): Promise<FillReport> {
+  const reportProgress = options.onProgress ?? (() => {});
+  reportProgress("Scanning the form…");
   await clearHighlights(tabId);
   const fields = await scanAllFrames(tabId);
+  reportProgress(fields.length ? `Matching your profile to ${fields.length} field${fields.length === 1 ? "" : "s"}…` : "No fields found on this step yet…");
   const [profile, resume, answers, settings] = await Promise.all([storage.get("profile"), storage.get("resume"), storage.get("answers"), storage.get("settings")]);
 
   const fills = mapping.map(fields, profile, answers, resume, options.includeAccount ? settings.account : undefined);
   const filledKeys = new Set(fills.map(keyOf));
   const leftovers = fields.filter((field) => !filledKeys.has(keyOf(field)) && needsAnswer(field) && !learning.isUserDecision(field));
+  if (options.useAi && leftovers.length) reportProgress(`Asking AI for ${leftovers.length} remaining question${leftovers.length === 1 ? "" : "s"}… filling starts right after.`);
   const ai = options.useAi ? await askAi(leftovers, { profile, resume, job, answers }) : { fills: [], failed: false };
   const fieldOrder = new Map(fields.map((field, index) => [keyOf(field), index]));
   const pageKey = await pageKeyOf(tabId);
-  const hasResumeUploaded = uploadedResumePages.get(tabId) === pageKey;
+  const hasResumeUploaded = (await uploadedPages())[tabId] === pageKey;
   const allFills = [...fills, ...ai.fills]
     .filter((fill) => !(hasResumeUploaded && fill.source === "resume"))
     .sort((a, b) => fieldOrder.get(keyOf(a))! - fieldOrder.get(keyOf(b))!);
 
+  reportProgress(allFills.length ? `Filling ${allFills.length} field${allFills.length === 1 ? "" : "s"}…` : "Nothing to fill on this step.");
   const results = await sendFills(tabId, allFills, resume);
-  if (allFills.some((fill) => fill.source === "resume" && results.get(keyOf(fill))?.ok)) uploadedResumePages.set(tabId, pageKey);
+  if (allFills.some((fill) => fill.source === "resume" && results.get(keyOf(fill))?.ok)) await markResumeUploaded(tabId, pageKey);
   const unknown = unknownFields(fields, results);
   await pointAtUnknown(tabId, unknown);
   await logMisses(tabId, unknown, allFills, results);
@@ -200,7 +223,7 @@ function buildReport(fields: FieldDescriptor[], fills: FieldFill[], results: Map
     if (isUnanswered || (isFilled && fill?.source === "ai")) needsReviewCount++;
     items.push({ field, fill, result });
   }
-  return { items, filledCount, needsReviewCount };
+  return { items, filledCount, needsReviewCount, fieldCount: fields.length };
 }
 
 /** Re-apply user-edited values (source "user"), optionally saving them to the answer bank. `items` are the report rows being edited, so the log can say what we had put there. */

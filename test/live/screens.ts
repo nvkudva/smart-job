@@ -21,7 +21,7 @@ await panel.waitForTimeout(4000);
 for (const name of ["Job", "Apply", "Tracker", "Write", "Settings"]) {
   await panel.getByRole("tab", { name }).click();
   if (name === "Apply") {
-    await panel.getByRole("button", { name: "Fill this page" }).click();
+    await panel.getByRole("button", { name: "Start applying" }).click();
     await panel.waitForTimeout(3000);
   }
   await panel.screenshot({ path: `${outDir}/panel-${name}.png`, fullPage: true });

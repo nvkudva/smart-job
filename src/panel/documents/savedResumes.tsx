@@ -38,13 +38,13 @@ function ResumeRow({ entry, canDelete }: { entry: TailoredResume; canDelete: boo
 }
 
 /** Tailored resumes saved for one job, newest first. */
-export function SavedResumes({ jobId, canDelete = true }: { jobId: string; canDelete?: boolean }) {
+export function SavedResumes({ jobId, canDelete = true, showTitle = true }: { jobId: string; canDelete?: boolean; showTitle?: boolean }) {
   const saved = useStored("tailoredResumes");
   const mine = (saved ?? []).filter((entry) => entry.jobId === jobId);
   if (mine.length === 0) return null;
   return (
     <div class="block">
-      <h4>Saved resumes ({mine.length})</h4>
+      {showTitle && <h4>Saved resumes ({mine.length})</h4>}
       {mine.map((entry) => (
         <ResumeRow key={entry.id} entry={entry} canDelete={canDelete} />
       ))}

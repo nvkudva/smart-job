@@ -82,6 +82,11 @@ export async function run<T>(task: (context: AiContext) => Promise<T>): Promise<
     report("ok");
     return result;
   } catch (failure) {
+    // the provider answered fine, the request was just too big: keep the header calm and let the card show how to fix it
+    if (failure instanceof llm.TokenLimitError) {
+      report("ok");
+      throw failure;
+    }
     report("error");
     if (isRateLimitError(failure)) setRateLimited(true);
     throw failure;

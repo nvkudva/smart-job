@@ -152,6 +152,16 @@ export interface CompanyPerks {
   sources: { title: string; url: string }[];
 }
 
+export interface CompanyOffice {
+  /** every office address found for the job's city; when none, the most probable office instead */
+  addresses: string[];
+  /** city: an address is in the job's city · likely: no office in that city was found, most probable office · none: nothing found */
+  match: "city" | "likely" | "none";
+  /** city taken from the job's location, "" when the location names none */
+  city: string;
+  sources: { title: string; url: string }[];
+}
+
 export type MustHaveMet = "yes" | "partial" | "no";
 export type Seniority = "under" | "match" | "over";
 
@@ -184,6 +194,8 @@ export interface JobAnalysis {
   salary: SalaryEstimate | null;
   /** absent in analyses cached before perks existed */
   perks?: CompanyPerks | null;
+  /** absent in analyses cached before the office look-up existed */
+  office?: CompanyOffice | null;
   analyzedAt: number;
 }
 

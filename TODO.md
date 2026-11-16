@@ -38,3 +38,5 @@
 - [ ] Feedback: local wrangler dev needs "" in REPOS origins (DNR rule strips Origin for localhost)
 - [ ] Feedback: verify one real report (asset branch upload, labels auto-created, ?raw=true image renders in private issue)
 - [ ] Feedback: build widget to JS + publish (npm/GitHub) so non-Bun projects can import it
+- [x] LinkedIn Easy Apply modal: scan/fill scoped to the dialog, non-profile LinkedIn URLs never filled, fill progress shown in Apply tab
+- [x] Analysis Office section: office address(es) for the job's city, most-probable office fallback, cached with the analysis

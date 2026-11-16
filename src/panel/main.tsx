@@ -83,6 +83,7 @@ function App() {
   const isSetupComplete = useSetupComplete();
   const active = activeTab.use();
   const [tab, setTab] = useState<TabName>("Analysis");
+  const [applySignal, setApplySignal] = useState(0);
   const [lastJob, setLastJob] = useState<JobPosting | null>(null);
   const isResumeLoaded = resume !== undefined;
   const hasResume = !!resume;
@@ -104,8 +105,17 @@ function App() {
   }
   const currentJob = active.job ?? lastJob;
   const panels: Record<TabName, ComponentChildren> = {
-    Analysis: <AnalysisTab active={active} hasResume={hasResume} onApply={() => setTab("Apply")} />,
-    Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} />,
+    Analysis: (
+      <AnalysisTab
+        active={active}
+        hasResume={hasResume}
+        onApply={() => {
+          setApplySignal((signal) => signal + 1);
+          setTab("Apply");
+        }}
+      />
+    ),
+    Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} startSignal={applySignal} />,
     Track: <TrackerTab />,
     Profile: <ProfileTab />,
     Settings: <SettingsTab />,

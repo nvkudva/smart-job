@@ -49,6 +49,14 @@ test("run scans frames, fills in the right frame and reports unanswered required
   expect(report.needsReviewCount).toBe(1);
 });
 
+test("run reports progress phases while scanning, matching and filling", async () => {
+  const phases: string[] = [];
+  await session.run(1, null, { useAi: false, includeAccount: false, onProgress: (phase) => phases.push(phase) });
+  expect(phases[0]).toBe("Scanning the form…");
+  expect(phases.some((phase) => phase.startsWith("Matching your profile"))).toBe(true);
+  expect(phases.at(-1)).toBe("Filling 1 field…");
+});
+
 test("apply sends user edits and saves them to the answer bank by normalized question", async () => {
   const fills: FieldFill[] = [{ id: "b", frameId: 7, value: "Mission.", source: "user" }];
   const results = await session.apply(1, fills, true, frameFields.map((item) => ({ ...item, frameId: 7 })));

@@ -412,15 +412,24 @@ export function isLookup(source: { title: string }): boolean {
   return source.title.startsWith(lookupPrefix);
 }
 
+const LEGAL_SUFFIX = /^(inc|llc|llp|ltd|limited|corp|corporation|co|company|pvt|private|plc|gmbh|ag|nv|bv|sa)$/;
+
+/** Levels.fyi company slugs drop legal suffixes: "Stripe, Inc." is /companies/stripe, not /companies/stripe-inc. */
 function slugify(text: string): string {
-  return text.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const words = text.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  while (words.length > 1 && LEGAL_SUFFIX.test(words.at(-1)!)) words.pop();
+  return words.join("-");
 }
 
 const levelsRoles: [RegExp, string][] = [
-  [/engineering manager|head of engineering|director of engineering|vp of engineering|vp engineering/i, "software-engineering-manager"],
+  [
+    /engineering manager|manager.{0,25}engineering|director.{0,25}engineering|engineering.{0,15}director|head of (engineering|software|technology)|vp.{0,25}engineering|(software|technology|platform|infrastructure) engineering (manager|director|lead)/i,
+    "software-engineering-manager",
+  ],
   [/technical program manager|\btpm\b/i, "technical-program-manager"],
-  [/product manager|\bpm\b|product owner/i, "product-manager"],
+  [/product manager|\bpm\b|product owner|director.{0,20}product|product.{0,15}(manager|director)/i, "product-manager"],
   [/data scientist/i, "data-scientist"],
+  [/data analyst/i, "data-analyst"],
   [/designer|\bux\b/i, "product-designer"],
   [/engineer|developer|\bsde\b|\bswe\b|programmer|architect/i, "software-engineer"],
 ];
@@ -438,9 +447,9 @@ export function levelsUrl(job: JobPosting): string {
 
 const glassdoorDomains: Record<string, string> = { INR: "co.in", GBP: "co.uk", CAD: "ca", AUD: "com.au" };
 
-/** Glassdoor's salary search URL embeds the keyword length; the country domain narrows results to the job's market. */
+/** Glassdoor's salary search URL is a lowercase slug and embeds the keyword length; the country domain narrows results to the job's market. */
 function glassdoorUrl(job: JobPosting): string {
-  const keyword = `${job.company} ${job.title}`.replace(/\([^)]*\)/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().slice(0, 80);
+  const keyword = `${job.company} ${job.title}`.replace(/\([^)]*\)/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().slice(0, 80).toLowerCase();
   const domain = glassdoorDomains[currencyForLocation(job.location)] ?? "com";
   return `https://www.glassdoor.${domain}/Salaries/${keyword.replace(/ /g, "-")}-salary-SRCH_KO0,${keyword.length}.htm`;
 }

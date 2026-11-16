@@ -19,7 +19,7 @@ export function DocumentsSection({ currentJob: job, tabId }: { currentJob: JobPo
         </Card>
       )}
       {job && <CoverLetter key={`letter-${job.id}`} job={job} tabId={tabId} tracked={jobs?.[job.id]} />}
-      {job && <TailorResume key={`tailor-${job.id}`} job={job} tabId={tabId} />}
+      {job && <TailorResume key={`tailor-${job.id}`} job={job} />}
       <QuestionAnswerer key={`question-${job?.id ?? ""}`} job={job} />
     </div>
   );

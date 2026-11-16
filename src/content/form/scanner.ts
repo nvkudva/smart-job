@@ -8,11 +8,19 @@ const PLACEHOLDER_TEXT = /^(select|choose|please|pick|-+|—|…|\.\.\.)/i;
 
 let idCounter = 0;
 
+const DIALOG = '[role=dialog], dialog[open], .artdeco-modal, .jobs-easy-apply-modal';
+
+/** An open modal (LinkedIn Easy Apply) owns the form; fields behind it on the page must not be scanned or filled. */
+function openDialog(): HTMLElement | null {
+  const dialogs = Array.from(document.querySelectorAll<HTMLElement>(DIALOG)).filter((dialog) => !dialog.closest("[hidden]") && getComputedStyle(dialog).display !== "none");
+  return dialogs.at(-1) ?? null;
+}
+
 /** Scan visible fillable fields in this frame; stamps data-sj-id on each element. */
 export function scan(): FieldDescriptor[] {
   const fields: FieldDescriptor[] = [];
   const seenGroups = new Set<string>();
-  for (const element of document.querySelectorAll<HTMLElement>(CANDIDATES)) {
+  for (const element of (openDialog() ?? document).querySelectorAll<HTMLElement>(CANDIDATES)) {
     const field = describe(element, seenGroups);
     if (field) fields.push(field);
   }

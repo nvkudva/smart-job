@@ -4,6 +4,8 @@ export interface FontFace {
   family: "sans" | "serif" | "mono";
   isBold: boolean;
   isItalic: boolean;
+  /** the PDF's own name for this font (for example "CAAAAA+DMSans-Regular"), so its embedded copy can draw rewritten words */
+  pdfName?: string;
 }
 
 export interface TextRun {
@@ -44,6 +46,8 @@ export interface Block {
   face: FontFace;
   /** words that were bold inside a regular-weight block, so emphasis can be redrawn */
   boldWords: string[];
+  /** PDF font name of those bold words */
+  boldPdfName?: string;
   color: Rgb;
   boldColor: Rgb;
 }
@@ -232,6 +236,7 @@ function toBlock(lines: TextLine[], page: number, index: number, allLines: TextL
     fontSize,
     face,
     boldWords: boldWordsOf(runs, face),
+    boldPdfName: runs.find((run) => run.face.isBold && !face.isBold)?.face.pdfName,
     color: black,
     boldColor: black,
   };
@@ -279,7 +284,7 @@ async function resolveFaces(page: PDFPageProxy, fontNames: string[]): Promise<Ma
   const faces = new Map<string, FontFace>();
   for (const fontName of fontNames) {
     const font = await fontObject(page, fontName);
-    faces.set(fontName, faceFromName(font?.name ?? "", font?.isSerifFont ?? false, font?.isMonospace ?? false));
+    faces.set(fontName, { ...faceFromName(font?.name ?? "", font?.isSerifFont ?? false, font?.isMonospace ?? false), pdfName: font?.name });
   }
   return faces;
 }

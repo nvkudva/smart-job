@@ -15,6 +15,38 @@ export interface LlmClient {
   chat(request: ChatRequest): Promise<string>;
 }
 
+/** The provider refused or cut off an answer because of a size limit; the message tells the user what to do about it. */
+export class TokenLimitError extends Error {}
+
+class LlmHttpError extends Error {
+  constructor(readonly status: number, readonly body: string) {
+    super(`LLM ${status}: ${body.slice(0, 300)}`);
+  }
+}
+
+const switchAdvice = "Switch to a provider or model with a larger limit in Settings (a local model has none).";
+
+const isLocalServer = (baseUrl: string) => /\/\/(localhost|127\.0\.0\.1)[:/]/.test(baseUrl);
+
+const tooLargeWords = /request too large|context length|too many tokens|tokens per minute|prompt is too long|reduce (your|the) (message|prompt|input)|input is too long/i;
+
+const isTooLarge = (failure: LlmHttpError) => failure.status === 413 || tooLargeWords.test(failure.body);
+
+/** A smaller max_tokens that makes the request fit, read from the provider's own numbers; null when the input alone is too big. */
+export function smallerMaxTokens(body: string, current: number): number | null {
+  const minimum = 1000;
+  const perMinute = /Limit (\d+), Requested (\d+)/i.exec(body);
+  const context = /maximum context length is (\d+) tokens[\s\S]*?(\d+) in the messages/i.exec(body);
+  const fitted = perMinute ? current - (Number(perMinute[2]) - Number(perMinute[1])) - 200 : context ? Number(context[1]) - Number(context[2]) - 100 : null;
+  return fitted !== null && fitted >= minimum && fitted < current ? fitted : null;
+}
+
+function tooLargeError(model: string, failure: LlmHttpError): TokenLimitError {
+  const numbers = /Limit (\d+), Requested (\d+)/i.exec(failure.body);
+  const detail = numbers ? ` (limit ${numbers[1]} tokens, this needs about ${numbers[2]})` : "";
+  return new TokenLimitError(`${model} cannot take a request this big${detail}. ${switchAdvice}`);
+}
+
 export const presets: Record<string, ProviderSettings> = {
   Anthropic: { kind: "anthropic", baseUrl: "https://api.anthropic.com", apiKey: "", model: "claude-opus-5-5" },
   OpenAI: { kind: "openai", baseUrl: "https://api.openai.com/v1", apiKey: "", model: "gpt-4.1-mini" },
@@ -64,29 +96,45 @@ export function create(settings: ProviderSettings): LlmClient {
 }
 
 function openAiCompatibleClient(settings: ProviderSettings): LlmClient {
+  const isLocal = isLocalServer(settings.baseUrl);
   return {
     async chat(request) {
       const headers: Record<string, string> = { "content-type": "application/json" };
       if (settings.apiKey) headers.authorization = `Bearer ${settings.apiKey}`;
       const system = request.json ? `${request.system}\n\nRespond with a single valid JSON object only. No prose, no markdown fences.` : request.system;
-      const init = {
-        method: "POST",
-        headers,
-        signal: request.signal,
-        body: JSON.stringify({
-          model: settings.model,
-          temperature: 0.2,
-          max_tokens: request.maxTokens ?? 2000,
-          ...localReasoningOption(settings.baseUrl),
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: request.user },
-          ],
-        }),
-      };
-      const response = await fetchWithRateLimitRetry(`${settings.baseUrl.replace(/\/$/, "")}/chat/completions`, init);
-      const body = await response.json();
-      return stripThinking(body.choices?.[0]?.message?.content ?? "");
+      const wanted = request.maxTokens ?? 2000;
+      // a local server has no per-request quota, so a real task may use the whole context window; only tiny probes keep a cap
+      let maxTokens: number | undefined = isLocal && wanted >= 1000 ? undefined : wanted;
+      for (let attempt = 0; ; attempt++) {
+        const init = {
+          method: "POST",
+          headers,
+          signal: request.signal,
+          body: JSON.stringify({
+            model: settings.model,
+            temperature: 0.2,
+            ...(maxTokens !== undefined && { max_tokens: maxTokens }),
+            ...localReasoningOption(settings.baseUrl),
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: request.user },
+            ],
+          }),
+        };
+        try {
+          const response = await fetchWithRateLimitRetry(`${settings.baseUrl.replace(/\/$/, "")}/chat/completions`, init);
+          const body = await response.json();
+          if (request.json && body.choices?.[0]?.finish_reason === "length") {
+            throw new TokenLimitError(`${settings.model} ran out of room (${maxTokens ?? "its context"} tokens) before finishing its answer. ${switchAdvice}`);
+          }
+          return stripThinking(body.choices?.[0]?.message?.content ?? "");
+        } catch (failure) {
+          if (!(failure instanceof LlmHttpError) || !isTooLarge(failure)) throw failure;
+          const smaller = maxTokens === undefined || attempt > 0 ? null : smallerMaxTokens(failure.body, maxTokens);
+          if (smaller === null) throw tooLargeError(settings.model, failure);
+          maxTokens = smaller;
+        }
+      }
     },
   };
 }
@@ -111,9 +159,9 @@ async function fetchWithRateLimitRetry(url: string, init: RequestInit & { signal
   for (let attempt = 0; ; attempt++) {
     const response = await fetch(url, init);
     if (response.ok) return response;
-    const body = (await response.text()).slice(0, 300);
+    const body = (await response.text()).slice(0, 1500);
     const delay = response.status === 429 ? retryDelayMs(response.headers.get("retry-after"), body) : null;
-    if (delay === null || delay > maxRateLimitWaitMs || attempt >= rateLimitRetries) throw new Error(`LLM ${response.status}: ${body}`);
+    if (delay === null || delay > maxRateLimitWaitMs || attempt >= rateLimitRetries) throw new LlmHttpError(response.status, body);
     await new Promise((resolve) => setTimeout(resolve, delay + 250));
   }
 }
@@ -133,18 +181,24 @@ function anthropicClient(settings: ProviderSettings): LlmClient {
   return {
     async chat(request) {
       const system = request.json ? `${request.system}\n\nRespond with a single valid JSON object only. No prose, no markdown fences.` : request.system;
-      const message = await client.beta.messages.create(
-        {
-          model: settings.model,
-          max_tokens: request.maxTokens ?? 4000,
-          system,
-          messages: [{ role: "user", content: request.user }],
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        },
-        { signal: request.signal },
-      );
+      const message = await client.beta.messages
+        .create(
+          {
+            model: settings.model,
+            max_tokens: request.maxTokens ?? 4000,
+            system,
+            messages: [{ role: "user", content: request.user }],
+            betas: ["server-side-fallback-2026-07-01"],
+            fallbacks: "default",
+          },
+          { signal: request.signal },
+        )
+        .catch((failure: unknown) => {
+          if (failure instanceof Anthropic.APIError && tooLargeWords.test(failure.message)) throw new TokenLimitError(`${settings.model} cannot take a request this big. ${switchAdvice}`);
+          throw failure;
+        });
       if (message.stop_reason === "refusal") throw new Error("The model declined this request.");
+      if (request.json && message.stop_reason === "max_tokens") throw new TokenLimitError(`${settings.model} ran out of room before finishing its answer. ${switchAdvice}`);
       let text = "";
       for (const block of message.content) if (block.type === "text") text += block.text;
       return text;

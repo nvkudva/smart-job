@@ -1,4 +1,5 @@
-import { PDFDocument, type PDFFont, type PDFPage, rgb, StandardFonts } from "pdf-lib";
+import { beginText, endText, moveText, popGraphicsState, PDFDocument, PDFHexString, type PDFFont, type PDFPage, pushGraphicsState, rgb, setFillingRgbColor, setFontAndSize, showText, StandardFonts } from "pdf-lib";
+import * as embeddedFonts from "./embeddedFonts.ts";
 import type * as layout from "./layout.ts";
 import type { FontFace } from "./layout.ts";
 import * as pageText from "./pageText.ts";
@@ -33,14 +34,26 @@ class FontSet {
   }
 }
 
-export async function createMeasurer(): Promise<rewrite.Measurer> {
-  const fonts = new FontSet(await PDFDocument.create());
-  await fonts.preload();
+/** The resume's own embedded font for this face when it has every glyph of `text`; null means the stand-in draws it. */
+function embeddedFor(embedded: Map<string, embeddedFonts.EmbeddedFont>, face: FontFace, text: string): embeddedFonts.EmbeddedFont | null {
+  const font = face.pdfName ? embedded.get(face.pdfName) : undefined;
+  return font?.hasText(text) ? font : null;
+}
+
+function buildMeasurer(fonts: FontSet, embedded: Map<string, embeddedFonts.EmbeddedFont>): rewrite.Measurer {
   const characters = new Set(fonts.pick({ family: "sans", isBold: false, isItalic: false }).getCharacterSet());
   return {
-    width: (text, face, size) => fonts.pick(face).widthOfTextAtSize(text, size),
+    width: (text, face, size) => embeddedFor(embedded, face, text)?.width(text, size) ?? fonts.pick(face).widthOfTextAtSize(text, size),
     canEncode: (char) => characters.has(char.codePointAt(0)!),
   };
+}
+
+/** Measures with the resume's own fonts where they cover the text, so wrapping matches what is drawn. */
+export async function createMeasurer(original: Uint8Array): Promise<rewrite.Measurer> {
+  const document = await PDFDocument.load(original, { ignoreEncryption: true });
+  const fonts = new FontSet(document);
+  await fonts.preload();
+  return buildMeasurer(fonts, embeddedFonts.readAll(document));
 }
 
 const white = rgb(1, 1, 1);
@@ -50,33 +63,49 @@ function coverLine(page: PDFPage, block: layout.Block, line: layout.TextLine): v
   page.drawRectangle({ x: block.left - 0.5, y: line.baseline - block.fontSize * 0.24, width: right - block.left + 1.5, height: block.fontSize * 1.05, color: white });
 }
 
+type DrawFont = PDFFont | embeddedFonts.EmbeddedFont;
+
+const isEmbedded = (font: DrawFont): font is embeddedFonts.EmbeddedFont => "hex" in font;
+
 interface WordDraw {
   text: string;
   x: number;
   y: number;
   size: number;
-  font: PDFFont;
+  font: DrawFont;
   color: [red: number, green: number, blue: number];
 }
 
-function layoutWords(text: string, origin: { x: number; y: number }, placement: rewrite.Placement, fonts: FontSet): WordDraw[] {
+interface FontChoice {
+  fonts: FontSet;
+  embedded: Map<string, embeddedFonts.EmbeddedFont>;
+}
+
+function layoutWords(text: string, origin: { x: number; y: number }, placement: rewrite.Placement, choice: FontChoice, measurer: rewrite.Measurer): WordDraw[] {
   const { block } = placement;
   const size = block.fontSize * placement.scale;
-  const spaceWidth = fonts.pick(block.face).widthOfTextAtSize(" ", size);
+  const spaceWidth = measurer.width(" ", block.face, size);
   const words: WordDraw[] = [];
   let x = origin.x;
   for (const word of text.split(" ")) {
     const face = rewrite.faceFor(block, word);
-    const font = fonts.pick(face);
+    const font = embeddedFor(choice.embedded, face, word) ?? choice.fonts.pick(face);
     const { r, g, b } = face.isBold === block.face.isBold ? block.color : block.boldColor;
     words.push({ text: word, x, y: origin.y, size, font, color: [r, g, b] });
-    x += font.widthOfTextAtSize(word, size) + spaceWidth;
+    x += measurer.width(word, face, size) + spaceWidth;
   }
   return words;
 }
 
-function drawWords(page: PDFPage, words: WordDraw[]): void {
-  for (const { text, x, y, size, font, color } of words) page.drawText(text, { x, y, size, font, color: rgb(...color) });
+function drawWords(page: PDFPage, words: WordDraw[], keyOf: (font: DrawFont) => string): void {
+  for (const { text, x, y, size, font, color } of words) {
+    if (!isEmbedded(font)) {
+      page.drawText(text, { x, y, size, font, color: rgb(...color) });
+      continue;
+    }
+    // pdf-lib cannot draw with a font it did not embed, so write the text operators directly
+    page.pushOperators(pushGraphicsState(), setFillingRgbColor(...color), beginText(), setFontAndSize(keyOf(font).slice(1), size), moveText(x, y), showText(PDFHexString.of(font.hex(text))), endText(), popGraphicsState());
+  }
 }
 
 interface LineEntry {
@@ -85,45 +114,45 @@ interface LineEntry {
   words: WordDraw[];
 }
 
-function lineEntries(placements: rewrite.Placement[], fonts: FontSet): LineEntry[] {
+function lineEntries(placements: rewrite.Placement[], choice: FontChoice, measurer: rewrite.Measurer): LineEntry[] {
   return placements.flatMap((placement) =>
     placement.block.lines.map((line, index) => {
       const text = placement.lines[index];
-      const words = text === undefined ? [] : layoutWords(text, { x: placement.block.left, y: line.baseline }, placement, fonts);
+      const words = text === undefined ? [] : layoutWords(text, { x: placement.block.left, y: line.baseline }, placement, choice, measurer);
       return { block: placement.block, line, words };
     }),
   );
 }
 
 /** Registers each font in the page resources on first use and returns its name for the content stream. */
-function fontKeys(page: PDFPage): (font: PDFFont) => string {
-  const keys = new Map<PDFFont, string>();
+function fontKeys(page: PDFPage): (font: DrawFont) => string {
+  const keys = new Map<DrawFont, string>();
   return (font) => {
-    if (!keys.has(font)) keys.set(font, page.node.newFontDictionary(font.name, font.ref).toString());
+    if (!keys.has(font)) keys.set(font, page.node.newFontDictionary(isEmbedded(font) ? "SJEmbedded" : font.name, font.ref).toString());
     return keys.get(font)!;
   };
 }
 
-function toBox({ line, words }: LineEntry, keyOf: (font: PDFFont) => string): strip.LineBox {
+function toBox({ line, words }: LineEntry, keyOf: (font: DrawFont) => string): strip.LineBox {
   const draws = words.map((word) => ({
     fontKey: keyOf(word.font),
     size: word.size,
     color: word.color,
     x: word.x,
     y: word.y,
-    hex: word.font.encodeText(word.text).toString(),
+    hex: isEmbedded(word.font) ? `<${word.font.hex(word.text)}>` : word.font.encodeText(word.text).toString(),
   }));
   return { left: line.left, right: line.right, baseline: line.baseline, fontSize: line.fontSize, draws };
 }
 
 /** Removes the original text and writes the new text in its place in the stream; a line that could not be edited there is covered and drawn on top instead. */
-function rewritePage(page: PDFPage, placements: rewrite.Placement[], fonts: FontSet): void {
-  const entries = lineEntries(placements, fonts);
+function rewritePage(page: PDFPage, placements: rewrite.Placement[], choice: FontChoice, measurer: rewrite.Measurer): void {
+  const entries = lineEntries(placements, choice, measurer);
   const keyOf = fontKeys(page);
   const { hits, inserted } = pageText.removeText(page, entries.map((entry) => toBox(entry, keyOf)));
   entries.forEach((entry, index) => {
     if (!hits[index]) coverLine(page, entry.block, entry.line);
-    if (!inserted[index]) drawWords(page, entry.words);
+    if (!inserted[index]) drawWords(page, entry.words, keyOf);
   });
 }
 
@@ -132,9 +161,11 @@ export async function apply(original: Uint8Array, placements: rewrite.Placement[
   const document = await PDFDocument.load(original, { ignoreEncryption: true });
   const fonts = new FontSet(document);
   await fonts.preload();
+  const choice = { fonts, embedded: embeddedFonts.readAll(document) };
+  const measurer = buildMeasurer(fonts, choice.embedded);
   const pageNumbers = new Set(placements.map((placement) => placement.block.page));
   for (const pageNumber of pageNumbers) {
-    rewritePage(document.getPage(pageNumber - 1), placements.filter((placement) => placement.block.page === pageNumber), fonts);
+    rewritePage(document.getPage(pageNumber - 1), placements.filter((placement) => placement.block.page === pageNumber), choice, measurer);
   }
   return document.save();
 }
