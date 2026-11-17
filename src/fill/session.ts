@@ -91,7 +91,7 @@ async function sendFills(tabId: number, fills: FieldFill[], resume: Resume | nul
     const needsFile = resume?.fileBase64 && frameFills.some((fill) => fill.source === "resume");
     const resumeFile = needsFile ? { name: resume.fileName, base64: resume.fileBase64, mimeType: resume.mimeType } : undefined;
     const response = await sendToFrame(tabId, frameId, { type: "fillFields", fills: frameFills, resumeFile });
-    for (const result of response ?? []) results.set(`${frameId}:${result.id}`, result);
+    for (const result of response ?? []) results.set(`${frameId}:${result.id}`, { ...result, frameId });
   }
   return results;
 }

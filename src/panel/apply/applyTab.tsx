@@ -54,6 +54,11 @@ export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
   const [remember, setRemember] = useState(true);
   const [fillPhase, setFillPhase] = useState("");
 
+  useEffect(() => {
+    setReport(null);
+    setEdits({});
+  }, [tabId]);
+
   const stopRequested = useRef(false);
   // the account password is filled only on an explicit click (Start applying / Re-fill), never by auto-fill on a page the user did not choose
   const fillTask = useTask(async (isUserClick: boolean) => {
@@ -71,7 +76,7 @@ export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
     // a form is already open (e.g. Easy Apply modal, or the next step of one): fill it instead of clicking Apply again
     const alreadyOpen = selection.isPage(tabUrl) ? null : await session.run(tabId, job, { useAi, includeAccount: true, onProgress: setFillPhase });
     if (stopRequested.current) return setNote("Stopped.");
-    if (alreadyOpen && alreadyOpen.fieldCount > 0) {
+    if (alreadyOpen && alreadyOpen.items.length > 0) {
       setReport(alreadyOpen);
       setEdits({});
       await rememberApplication(alreadyOpen, { tabId, url: tabUrl });
@@ -115,7 +120,7 @@ export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
         // Start is the user's go-ahead to type the job-site account into sign-up forms for this run only
         const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true, onProgress: setFillPhase }) : null;
         if (stopRequested.current) return setNote("Stopped.");
-        if (next && next.fieldCount > 0) {
+        if (next && next.items.length > 0) {
           setReport(next);
           setEdits({});
           await rememberApplication(next, target);
@@ -139,7 +144,11 @@ export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
       ...report,
       items: report.items.map((item) => {
         if (!changedKeys.has(itemKey(item))) return item;
-        return { ...item, fill: fillByKey.get(itemKey(item))!, result: results.find((result) => result.id === item.field.id) ?? item.result };
+        return {
+          ...item,
+          fill: fillByKey.get(itemKey(item))!,
+          result: results.find((result) => result.id === item.field.id && (result.frameId === undefined || result.frameId === item.field.frameId)) ?? item.result,
+        };
       }),
     });
     setEdits({});
@@ -241,6 +250,9 @@ async function clearHighlights(tabId: number) {
 
 function ApplicationStatus({ job }: { job: JobPosting | null }) {
   const [isMarked, setIsMarked] = useState(false);
+  useEffect(() => {
+    setIsMarked(false);
+  }, [job?.id]);
   const markApplied = async () => {
     if (!job) return;
     await trackedJobs.track(job, { status: "applied", appliedAt: Date.now() });
@@ -267,7 +279,7 @@ function ReportList({ report, edits, onEdit, tabId }: { report: FillReport; edit
         const items = report.items.filter((item) => groupOf(item) === group);
         if (!items.length) return null;
         return (
-          <Card title={`${group} (${items.length})`}>
+          <Card key={group} title={`${group} (${items.length})`}>
             <div class="stack tight">
               {items.map((item) => (
                 <ReportRow

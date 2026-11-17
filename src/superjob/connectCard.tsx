@@ -35,7 +35,7 @@ export function ConnectCard() {
         Some sites show jobs only when you are signed in. Press Connect: SmartJob opens the login page{settings?.account.email ? " and fills your saved email" : ""}, you sign in, and it brings you back here.
       </p>
       {pending.map((site) => (
-        <div class="row between">
+        <div key={site.name} class="row between">
           <span>{site.name}</span>
           <Button kind="primary" isBusy={connect.isBusy} onClick={() => void connect.run(site)}>
             Connect

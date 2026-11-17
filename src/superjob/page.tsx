@@ -29,11 +29,17 @@ function useSuggestedRoles(profile: Profile): string[] {
   const hasSaved = !!searches?.length;
   useEffect(() => {
     if (!isLoaded || hasSaved) return;
+    let isAlive = true;
     void aiClient
       .withClient((client) => roles.suggest(client, profile))
       .catch(() => roles.fallback(profile))
-      .then(setSuggested);
-  }, [isLoaded, hasSaved]);
+      .then((next) => {
+        if (isAlive) setSuggested(next);
+      });
+    return () => {
+      isAlive = false;
+    };
+  }, [isLoaded, hasSaved, profile]);
   return hasSaved ? normalize.dedupe(searches.map((search) => search.role)) : suggested;
 }
 
@@ -177,7 +183,7 @@ function RoleChips({ roles: suggestedRoles, onPick }: { roles: string[]; onPick:
   return (
     <div class="sj-roles" role="group" aria-label="Suggested roles">
       {suggestedRoles.map((suggested) => (
-        <button type="button" class="sj-role-chip" onClick={() => onPick(suggested)}>
+        <button key={suggested} type="button" class="sj-role-chip" onClick={() => onPick(suggested)}>
           {suggested}
         </button>
       ))}
@@ -197,7 +203,7 @@ function PortalFilters({ statuses, hiddenPortals, jobCount, onToggle }: PortalFi
     <div class="sj-filters">
       <ul class="sj-status" aria-label="Portals">
         {statuses.map((status) => (
-          <li>
+          <li key={status.name}>
             <button type="button" class={`chip pick${hiddenPortals.has(status.name) ? "" : " active"}${status.error ? " warn" : ""}`} aria-pressed={!hiddenPortals.has(status.name)} onClick={() => onToggle(status.name)}>
               {status.name}
               {status.isLoading && <Spinner />}

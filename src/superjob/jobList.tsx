@@ -27,7 +27,7 @@ function toneIndex(name: string): number {
 export function Logo({ job, size }: { job: FoundJob; size: "row" }) {
   const [hasFailed, setHasFailed] = useState(false);
   const initial = (job.company.trim()[0] ?? "?").toUpperCase();
-  if (!job.logoUrl || hasFailed) {
+  if (!/^https?:\/\//.test(job.logoUrl) || hasFailed) {
     return (
       <span class={`sj-logo ${size} tone-${toneIndex(job.company)}`} aria-hidden="true">
         {initial}

@@ -290,6 +290,7 @@ export interface FieldFill {
 
 export interface FillResult {
   id: string;
+  frameId?: number;
   ok: boolean;
   /** value actually present after filling */
   finalValue: string;
