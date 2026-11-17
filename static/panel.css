@@ -628,6 +628,15 @@ textarea:focus {
   width: 52px;
   height: 52px;
 }
+.suggestion {
+  text-align: left;
+}
+.office-map {
+  width: 100%;
+  height: 220px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
 .analysis {
   display: flex;
   flex-direction: column;

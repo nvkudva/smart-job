@@ -152,9 +152,23 @@ export interface CompanyPerks {
   sources: { title: string; url: string }[];
 }
 
+/** Saved starting point for office distance / map origin: typed by the user or from the browser's location. */
+export interface HomeLocation {
+  label: string;
+  lat: number;
+  lon: number;
+}
+
+export interface OfficeAddress {
+  address: string;
+  /** map coordinates when the source (OpenStreetMap) gave them; used for the peak-time estimate */
+  lat?: number;
+  lon?: number;
+}
+
 export interface CompanyOffice {
   /** every office address found for the job's city; when none, the most probable office instead */
-  addresses: string[];
+  addresses: OfficeAddress[];
   /** city: an address is in the job's city · likely: no office in that city was found, most probable office · none: nothing found */
   match: "city" | "likely" | "none";
   /** city taken from the job's location, "" when the location names none */

@@ -40,3 +40,5 @@
 - [ ] Feedback: build widget to JS + publish (npm/GitHub) so non-Bun projects can import it
 - [x] LinkedIn Easy Apply modal: scan/fill scoped to the dialog, non-profile LinkedIn URLs never filled, fill progress shown in Apply tab
 - [x] Analysis Office section: office address(es) for the job's city, most-probable office fallback, cached with the analysis
+- [x] Office moved into the job header (nearest address, peak-time estimate, Maps directions); Missing skills collapsed
+- [x] Office back in its own card: address dropdown, distance + peak time from current location, Google Maps route preview; OSM lookup hardened (city variants, company suffixes, multiple query spellings)

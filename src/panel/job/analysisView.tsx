@@ -1,3 +1,4 @@
+import { useState } from "preact/hooks";
 import type { JobAnalysis, MustHaveMet, Seniority } from "../../types.ts";
 
 export function scoreTone(score: number): string {
@@ -70,6 +71,38 @@ function SkillsRow({ title, skills, chipClass = "" }: { title: string; skills: s
   );
 }
 
+const missingPreview = 6;
+
+/** Missing lists run long and push everything else down; collapsed to a preview until asked for. */
+function MissingSkills({ skills }: { skills: string[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  if (!skills.length) return null;
+  const shown = isExpanded ? skills : skills.slice(0, missingPreview);
+  const hiddenCount = skills.length - shown.length;
+  return (
+    <div class="block">
+      <h4>
+        Missing skills{" "}
+        {hiddenCount > 0 && (
+          <button type="button" class="link" onClick={() => setIsExpanded(true)}>
+            +{hiddenCount} more
+          </button>
+        )}
+        {isExpanded && skills.length > missingPreview && (
+          <button type="button" class="link" onClick={() => setIsExpanded(false)}>
+            Show less
+          </button>
+        )}
+      </h4>
+      <div class="chips">
+        {shown.map((skill) => (
+          <span class="chip warn">{skill}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const seniorityNote: Record<Seniority, string> = { under: "level: below the role", match: "level: fits", over: "level: above the role" };
 
 function evidenceLine(analysis: JobAnalysis): string {
@@ -115,7 +148,7 @@ export function AnalysisDetails({ analysis }: { analysis: JobAnalysis }) {
         <BulletList title="Nice to have" items={analysis.niceToHave} />
       )}
       <SkillsRow title="Matching skills" skills={matched} />
-      <SkillsRow title="Missing skills" skills={missing} chipClass="warn" />
+      <MissingSkills skills={missing} />
     </div>
   );
 }

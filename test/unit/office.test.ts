@@ -16,6 +16,10 @@ describe("cityOf", () => {
     expect(office.cityOf("Remote - Pune, Maharashtra")).toBe("Pune");
     expect(office.cityOf("Remote, India")).toBe("");
     expect(office.cityOf("")).toBe("");
+    expect(office.cityOf("Bengaluru East, Karnataka, India")).toBe("Bengaluru");
+    expect(office.cityOf("Bangalore Urban, Karnataka, India")).toBe("Bangalore");
+    expect(office.companyQueryName("Freshworks Inc.")).toBe("Freshworks");
+    expect(office.companyQueryName("Acme Software Pvt. Ltd.")).toBe("Acme Software");
   });
 });
 
@@ -26,7 +30,7 @@ describe("normalizeOffice", () => {
       results,
       "Bengaluru",
     );
-    expect(result.addresses).toEqual(["Manyata Tech Park, Bengaluru 560045", "Prestige Towers, Bangalore 560001"]);
+    expect(result.addresses).toEqual([{ address: "Manyata Tech Park, Bengaluru 560045" }, { address: "Prestige Towers, Bangalore 560001" }]);
     expect(result.match).toBe("city");
     expect(result.sources).toHaveLength(2);
   });
@@ -63,19 +67,45 @@ describe("parseBraveResults", () => {
 describe("officeFromOsm", () => {
   test("keeps every company place in the city, cleaned of admin repeats, with OSM sources", () => {
     const places = [
-      { display_name: "Google Ananta, Service Road, Mahadevapura, Bengaluru East City Corporation, Bengaluru, Bengaluru Urban, Karnataka, 560093, India", name: "Google Ananta", osm_type: "way", osm_id: 123 },
-      { display_name: "Google, Swamy Vivekananda Road, Benniganahalli, Bengaluru, Karnataka, 560016, India", name: "Google", osm_type: "node", osm_id: 456 },
+      { display_name: "Google Ananta, Service Road, Mahadevapura, Bengaluru East City Corporation, Bengaluru, Bengaluru Urban, Karnataka, 560093, India", name: "Google Ananta", osm_type: "way", osm_id: 123, lat: "12.99", lon: "77.69" },
+      { display_name: "Google, Swamy Vivekananda Road, Benniganahalli, Bengaluru, Karnataka, 560016, India", name: "Google", osm_type: "node", osm_id: 456, lat: "12.98", lon: "77.66" },
       { display_name: "Google Store, MG Road, Chennai, Tamil Nadu, 600001, India", name: "Google Store", osm_type: "node", osm_id: 789 },
       { display_name: "Microsoft, Lavelle Road, Bengaluru, Karnataka, 560001, India", name: "Microsoft", osm_type: "node", osm_id: 999 },
     ];
     const result = office.officeFromOsm(places, "Google", "Bengaluru");
     expect(result?.match).toBe("city");
     expect(result?.addresses).toEqual([
-      "Google Ananta, Service Road, Mahadevapura, Bengaluru, Karnataka, 560093, India",
-      "Google, Swamy Vivekananda Road, Benniganahalli, Bengaluru, Karnataka, 560016, India",
+      { address: "Google Ananta, Service Road, Mahadevapura, Bengaluru, Karnataka, 560093, India", lat: 12.99, lon: 77.69 },
+      { address: "Google, Swamy Vivekananda Road, Benniganahalli, Bengaluru, Karnataka, 560016, India", lat: 12.98, lon: 77.66 },
     ]);
     expect(result?.sources.map((source) => source.url)).toEqual(["https://www.openstreetmap.org/way/123", "https://www.openstreetmap.org/node/456"]);
     expect(office.officeFromOsm(places, "Google", "Pune")).toBeNull();
+  });
+});
+
+describe("peak time", () => {
+  test("haversine and peak-hour text", () => {
+    const km = office.haversineKm({ lat: 12.97, lon: 77.59 }, { lat: 12.99, lon: 77.69 });
+    expect(km).toBeGreaterThan(10);
+    expect(km).toBeLessThan(12);
+    expect(office.peakTimeText(2)).toBe("≈ 15 min at peak");
+    expect(office.peakTimeText(11)).toBe("≈ 50 min at peak");
+    expect(office.peakTimeText(30)).toBe("≈ 2 h 10 min at peak");
+  });
+});
+
+describe("placesFromOsm", () => {
+  test("turns search hits into pickable suggestions, dropping ones without coordinates", () => {
+    const places = [
+      { display_name: "Indiranagar, Bengaluru, Karnataka, 560038, India", lat: "12.97", lon: "77.64" },
+      { display_name: "Indiranagar, Lucknow, Uttar Pradesh, India", lat: "26.87", lon: "80.99" },
+      { display_name: "Nowhere", lat: "", lon: "" },
+    ];
+    expect(office.placesFromOsm(places)).toEqual([
+      { label: "Indiranagar, Bengaluru, Karnataka", lat: 12.97, lon: 77.64 },
+      { label: "Indiranagar, Lucknow, Uttar Pradesh", lat: 26.87, lon: 80.99 },
+    ]);
+    expect(office.placesFromOsm(null)).toEqual([]);
   });
 });
 

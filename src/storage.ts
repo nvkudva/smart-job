@@ -1,5 +1,5 @@
 import * as llm from "./ai/llm.ts";
-import type { AnswerBank, CompanyOffice, CompanyPerks, FillLogEntry, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
+import type { AnswerBank, CompanyOffice, CompanyPerks, FillLogEntry, HomeLocation, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
 
 export interface StoreShape {
   settings: Settings;
@@ -21,6 +21,8 @@ export interface StoreShape {
   jobSearches: JobSearch[];
   /** newest first */
   tailoredResumes: TailoredResume[];
+  /** starting point for office distances; null = ask the user */
+  homeLocation: HomeLocation | null;
 }
 
 export const defaultSettings: Settings = {
@@ -83,6 +85,7 @@ const defaults: StoreShape = {
   linkedinImportedAt: 0,
   jobSearches: [],
   tailoredResumes: [],
+  homeLocation: null,
 };
 
 export async function get<K extends keyof StoreShape>(key: K): Promise<StoreShape[K]> {
