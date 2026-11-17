@@ -193,7 +193,7 @@ test("setup wizard: provider, profile, review, job searches, then tabs", async (
   await panel.getByLabel("Notice period").fill("30 days");
   await panel.getByRole("button", { name: "Save and continue" }).click();
 
-  await visible(panel.getByText("4. Job searches"));
+  await visible(panel.getByRole("heading", { name: "4. Job searches" }));
   await visible(panel.getByRole("button", { name: "Engineer", exact: true }));
   await panel.getByRole("button", { name: "Finish" }).click();
   await panel.getByRole("tab", { name: "Analysis" }).click();

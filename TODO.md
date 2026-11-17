@@ -46,7 +46,7 @@
 - [x] Super Job: job-board UI (logos, match score, saved star, portal filters, Summary / Description / Original tabs, Apply / Save / Analyze)
 - [ ] Super Job: try "Analyze match" and Apply in real Chrome with the real side panel (only tested with the panel opened as a tab)
 - [ ] Super Job: "Load more" paging per portal
-- [ ] Fix pre-existing e2e failure: setup wizard test matches "4. Job searches" twice
+- [x] Fix pre-existing e2e failure: setup wizard test matches "4. Job searches" twice
 - [x] LinkedIn Easy Apply modal: scan/fill scoped to the dialog, non-profile LinkedIn URLs never filled, fill progress shown in Apply tab
 - [x] Analysis Office section: office address(es) for the job's city, most-probable office fallback, cached with the analysis
 - [x] Office moved into the job header (nearest address, peak-time estimate, Maps directions); Missing skills collapsed

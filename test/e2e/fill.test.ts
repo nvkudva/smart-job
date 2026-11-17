@@ -152,8 +152,8 @@ describe("autofill fixtures", () => {
     expect(fields.find((field) => field.automationId === "dateSectionMonth-input-1")).toMatchObject({ kind: "date", label: "From", section: "Work Experience 1" });
     expect(fields.some((field) => field.kind === "text" && field.label.includes("Search"))).toBe(false);
     expect(results.filter((result) => !result.ok).map((result) => result.error)).toEqual([]);
-    // required checkbox left for the user, outlined amber
-    expect(await page.locator('[data-automation-id="acceptTerms"]').evaluate((el) => el.closest("label")!.getAttribute("data-sj-highlight") ?? el.getAttribute("data-sj-highlight"))).toBe("review");
+    // required checkbox left for the user: not ticked, not marked as filled (its pending dot lives in a closed shadow root)
+    expect(await page.locator('[data-automation-id="acceptTerms"]').evaluate((el: HTMLInputElement) => ({ checked: el.checked, mark: el.closest("label")!.getAttribute("data-sj-highlight") ?? el.getAttribute("data-sj-highlight") }))).toEqual({ checked: false, mark: null });
     expect(await page.locator("#resume").evaluate((el: HTMLInputElement) => el.files!.length)).toBe(1);
   }, 60000);
 
@@ -195,7 +195,8 @@ describe("autofill fixtures", () => {
     expect(state["job_application[cover_letter]"]).toBeUndefined();
     expect(state["job_application[website_hp]"]).toBeUndefined();
     expect(results.every((result) => result.ok)).toBe(true);
-    expect(await page.locator("#q_why").getAttribute("data-sj-highlight")).toBe("review");
+    // free-text question left for the user: empty and not marked as filled (its pending dot lives in a closed shadow root)
+    expect(await page.locator("#q_why").getAttribute("data-sj-highlight")).toBeNull();
     expect(await page.locator("#first_name").getAttribute("data-sj-highlight")).toBe("profile");
   }, 60000);
 

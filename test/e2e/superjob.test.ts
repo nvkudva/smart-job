@@ -23,6 +23,6 @@ test("Super Job button opens the search page with the saved roles as chips", asy
 
   expect(page.url()).toEndWith("/superjob.html");
   await page.getByLabel("Role").waitFor({ state: "visible", timeout: 15000 });
-  expect(await page.getByLabel("Location").inputValue()).toBe("Bengaluru");
+  await page.getByRole("button", { name: /Jobs in Bengaluru/ }).waitFor({ state: "visible", timeout: 15000 });
   await page.getByRole("button", { name: "Staff Engineer" }).waitFor({ state: "visible", timeout: 15000 });
 }, 60000);
