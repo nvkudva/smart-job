@@ -29,7 +29,7 @@
 - [x] UI restyle: tokens, glass tab bar with icons, pill buttons, soft cards
 - [x] panel/ grouped by feature (job, apply, write, tracker, settings, shared)
 - [x] Audit fixes: serialized storage updates, capped analysis cache, safe import
-- [ ] Export JSON includes the API key and account password in plain text
+- [x] Export JSON includes the API key and account password in plain text
 - [x] Tabs: Analysis, Apply (with documents), Tracker, Profile, Settings; header row removed
 - [x] Tracker shows posting link, application portal, login email, saved resumes, cover letter
 - [ ] Verify on a real sign-up page that Chrome offers to save the created account (PasswordCredential.store)
@@ -51,3 +51,5 @@
 - [x] Analysis Office section: office address(es) for the job's city, most-probable office fallback, cached with the analysis
 - [x] Office moved into the job header (nearest address, peak-time estimate, Maps directions); Missing skills collapsed
 - [x] Office back in its own card: address dropdown, distance + peak time from current location, Google Maps route preview; OSM lookup hardened (city variants, company suffixes, multiple query spellings)
+- [x] Web Store review: description under 132 chars, tabs permission removed, frame-header rule limited to listed domains, sourcemaps off, PRIVACY.md and store/LISTING.md added
+- [ ] Host PRIVACY.md at a public URL and paste it into the store Privacy tab

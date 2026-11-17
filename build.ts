@@ -13,7 +13,7 @@ const entries = [
 ] as const;
 
 for (const { entry, name, format } of entries) {
-  const result = await Bun.build({ entrypoints: [entry], outdir, target: "browser", format, naming: name, sourcemap: "linked" });
+  const result = await Bun.build({ entrypoints: [entry], outdir, target: "browser", format, naming: name, sourcemap: "none" });
   if (!result.success) {
     for (const log of result.logs) console.error(log);
     process.exit(1);

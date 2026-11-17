@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "SmartJob – AI Job Hunting Copilot",
+  "name": "SmartJob – AI Job Application Assistant",
   "version": "0.1.0",
-  "description": "Job match analysis, salary insight, shortlist tracker and smart autofill for Workday, iCIMS, Greenhouse, LinkedIn and more. Works with local or cloud AI.",
+  "description": "AI job-application assistant: match score, salary insight, tracker, cover letters and autofill. Works with local or cloud AI.",
   "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
   "action": { "default_title": "Open SmartJob" },
   "side_panel": { "default_path": "sidepanel.html" },
   "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["identity", "sidePanel", "storage", "unlimitedStorage", "tabs", "webNavigation", "scripting", "declarativeNetRequestWithHostAccess"],
+  "permissions": ["identity", "sidePanel", "storage", "unlimitedStorage", "webNavigation", "scripting", "declarativeNetRequestWithHostAccess"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
