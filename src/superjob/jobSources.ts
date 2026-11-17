@@ -1,4 +1,5 @@
 import * as foundit from "./foundit.ts";
+import * as greenhouse from "./greenhouse.ts";
 import * as instahyre from "./instahyre.ts";
 import * as linkedin from "./linkedin.ts";
 import * as naukri from "./naukri.ts";
@@ -39,7 +40,7 @@ export interface Source {
   describe(job: FoundJob): Promise<string>;
 }
 
-const sources: Source[] = [linkedin.source, naukri.source, foundit.source, shine.source, instahyre.source];
+const sources: Source[] = [linkedin.source, greenhouse.source, naukri.source, foundit.source, shine.source, instahyre.source];
 
 export function forCountry(country: string): Source[] {
   const typed = country.trim().toLowerCase();

@@ -5,6 +5,7 @@ import * as plainText from "./plainText.ts";
 const name = "LinkedIn";
 const pageSize = 10;
 const listUrl = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search";
+const loginUrl = "https://www.linkedin.com/login";
 const detailUrl = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/";
 
 function parseCard(card: Element): FoundJob | undefined {
@@ -47,7 +48,7 @@ export function parseDescription(raw: string): string {
 
 async function search(query: SearchQuery, page: number): Promise<FoundJob[]> {
   const params = `keywords=${encodeURIComponent(query.role)}&location=${encodeURIComponent(query.location)}&start=${page * pageSize}`;
-  return parseList(await http.text(name, `${listUrl}?${params}`));
+  return parseList(await http.text(name, `${listUrl}?${params}`, loginUrl));
 }
 
 async function describe(job: FoundJob): Promise<string> {

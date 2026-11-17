@@ -7,12 +7,23 @@
   white-space: nowrap;
 }
 
+/* only the panes scroll: nothing, not even a page inside the listing frame, may move the header */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+.sj-home {
+  overflow-y: auto;
+}
 .sj {
+  overflow: hidden;
   font-size: calc(13px + var(--font-bump, 0pt));
   line-height: 1.55;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
 }
 .sj :focus-visible {
   outline: 2px solid var(--text);
@@ -34,6 +45,15 @@
   letter-spacing: -0.035em;
   line-height: 1.1;
   color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  margin: 0;
+}
+.sj-brand-logo {
+  height: 1.15em;
+  width: 1.15em;
+  border-radius: 22%;
 }
 .sj-sub {
   display: flex;
@@ -222,20 +242,24 @@ button.sj-where:focus-visible .sj-where-edit {
   z-index: 2;
 }
 .sj-results-mode .sj-bar {
-  flex-direction: row;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 760px);
+  justify-content: start;
   align-items: center;
-  gap: 8px 24px;
+  gap: 2px 24px;
+}
+/* the form's children join the bar's grid, so the logo centres on the search pill, not on pill plus location line */
+.sj-results-mode .sj-form {
+  display: contents;
+}
+.sj-results-mode .sj-where {
+  grid-column: 2;
+  justify-self: center;
 }
 .sj-results-mode .sj-brand {
+  grid-row: 1;
   font-size: calc(20px + var(--font-bump, 0pt));
   white-space: nowrap;
-}
-.sj-results-mode .sj-form {
-  flex: 1;
-  min-width: 280px;
-  max-width: 760px;
-  gap: 2px;
 }
 .sj-results-mode .sj-search {
   padding: 3px 3px 3px 14px;
@@ -648,9 +672,6 @@ span.sj-logo {
 }
 
 @media (max-width: 860px) {
-  .sj {
-    height: auto;
-  }
   .sj-results-mode .sj-top {
     padding: 10px 16px 8px;
   }
@@ -662,6 +683,7 @@ span.sj-logo {
   }
   .sj-body {
     display: block;
+    overflow-y: auto;
   }
   .sj-list {
     max-height: 45vh;
@@ -702,7 +724,3 @@ span.sj-logo {
   box-shadow: none;
 }
 
-.sj-connect {
-  padding: 12px 14px;
-  gap: 8px;
-}

@@ -8,8 +8,8 @@ import { useStored } from "../panel/shared/useStored.ts";
 import type { Profile } from "../types.ts";
 import type { FoundJob, SearchQuery } from "./jobSources.ts";
 import * as jobSources from "./jobSources.ts";
-import { ConnectCard } from "./connectCard.tsx";
 import { filterByPortals } from "./jobList.tsx";
+import { SignInRequired } from "./http.ts";
 import * as posting from "./posting.ts";
 import { Results, useChosenJob } from "./results.tsx";
 
@@ -18,9 +18,13 @@ interface SourceStatus {
   isLoading: boolean;
   count: number;
   error: string;
+  /** set when the portal needs the user signed in */
+  loginUrl: string;
   /** false once a page came back empty or failed */
   hasMore: boolean;
 }
+
+const isIdleWithMore = (statuses: SourceStatus[], name: string) => statuses.some((status) => status.name === name && status.hasMore && !status.isLoading);
 
 function useSuggestedRoles(profile: Profile): string[] {
   const searches = useStored("jobSearches");
@@ -70,7 +74,7 @@ function useSearch(country: string) {
           setStatuses((current) => current.map((status) => (status.name === source.name ? { ...status, count: status.count + found.length } : status)));
           settle(source.name, { hasMore: found.length > 0 });
         },
-        (failure) => settle(source.name, { error: failure instanceof Error ? failure.message : String(failure), hasMore: false }),
+        (failure) => settle(source.name, { error: failure instanceof Error ? failure.message : String(failure), loginUrl: failure instanceof SignInRequired ? failure.loginUrl : "", hasMore: false }),
       );
     }
   };
@@ -81,13 +85,13 @@ function useSearch(country: string) {
     nextPage.current = {};
     setQuery(next);
     setJobs([]);
-    setStatuses(sources.map((source) => ({ name: source.name, isLoading: true, count: 0, error: "", hasMore: true })));
+    setStatuses(sources.map((source) => ({ name: source.name, isLoading: true, count: 0, error: "", loginUrl: "", hasMore: true })));
     fetchPage(sources, next, searchId);
   };
 
   const loadMore = (hiddenPortals: ReadonlySet<string>) => {
     if (!query) return;
-    const sources = jobSources.forCountry(country).filter((source) => !hiddenPortals.has(source.name) && statuses.find((status) => status.name === source.name)?.hasMore);
+    const sources = jobSources.forCountry(country).filter((source) => !hiddenPortals.has(source.name) && isIdleWithMore(statuses, source.name));
     const names = new Set(sources.map((source) => source.name));
     setStatuses((current) => current.map((status) => (names.has(status.name) ? { ...status, isLoading: true } : status)));
     fetchPage(sources, query, latestSearch.current);
@@ -220,6 +224,15 @@ function PortalFilters({ statuses, hiddenPortals, jobCount, onToggle }: PortalFi
       <p class="sj-total" aria-live="polite">
         {jobCount} {jobCount === 1 ? "job" : "jobs"}
       </p>
+      {statuses.filter((status) => status.loginUrl).map((status) => (
+        <p key={status.name} class="muted small">
+          {status.name} shows jobs only when you are signed in.{" "}
+          <a href={status.loginUrl} target="_blank" rel="noreferrer">
+            Sign in
+          </a>
+          , then search again.
+        </p>
+      ))}
     </div>
   );
 }
@@ -259,8 +272,7 @@ function Page({ profile }: { profile: Profile }) {
   const visibleJobs = filterByPortals(search.jobs, hiddenPortals);
   const chosen = useChosenJob(visibleJobs);
   const hasSearched = search.query !== null;
-  const isLoadingAny = search.statuses.some((status) => status.isLoading);
-  const canLoadMore = search.statuses.some((status) => status.hasMore && !hiddenPortals.has(status.name));
+  const canLoadMore = search.statuses.some((status) => status.hasMore && !status.isLoading && !hiddenPortals.has(status.name));
   const runSearch = (wantedRole: string) => {
     const trimmed = wantedRole.trim();
     if (!trimmed) return;
@@ -276,7 +288,10 @@ function Page({ profile }: { profile: Profile }) {
     <div class={`sj ${hasSearched ? "sj-results-mode" : "sj-home"}`}>
       <header class="sj-top">
         <div class="sj-bar">
-          <h1 class="sj-brand">Super Job</h1>
+          <h1 class="sj-brand">
+            <img class="sj-brand-logo" src="icons/128.png" alt="" />
+            Super Job
+          </h1>
           <SearchForm role={role} location={location} onRole={setRole} onLocation={setLocation} onSearch={runSearch} />
         </div>
         <div class="sj-sub">
@@ -289,10 +304,9 @@ function Page({ profile }: { profile: Profile }) {
           />
           {hasSearched && <PortalFilters statuses={search.statuses} hiddenPortals={hiddenPortals} jobCount={visibleJobs.length} onToggle={togglePortal} />}
         </div>
-        {hasSearched && search.jobs.length > 0 && <ConnectCard />}
         {hasSearched && !profile.country.trim() && <p class="muted small sj-hint">Add your country in Profile to also search local job portals.</p>}
       </header>
-      {hasSearched && <Body jobs={search.jobs} visibleJobs={visibleJobs} statuses={search.statuses} country={profile.country} chosen={chosen} onLoadMore={canLoadMore && !isLoadingAny ? () => search.loadMore(hiddenPortals) : undefined} />}
+      {hasSearched && <Body jobs={search.jobs} visibleJobs={visibleJobs} statuses={search.statuses} country={profile.country} chosen={chosen} onLoadMore={canLoadMore ? () => search.loadMore(hiddenPortals) : undefined} />}
     </div>
   );
 }

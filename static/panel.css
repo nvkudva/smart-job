@@ -34,9 +34,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121212;
-    --surface: #1e1e1e;
-    --surface-2: #2a2a2a;
+    --bg: #232326;
+    --surface: #2d2d31;
+    --surface-2: #38383d;
     --text: #f7f7f7;
     --muted: #b0b0b0;
     --border: rgb(255 255 255 / 12%);
@@ -52,11 +52,11 @@
     --good: #4ac45a;
     --mid: #ffb340;
     --bad: #ff8a75;
-    --chip: #2a2a2a;
+    --chip: #38383d;
     --shadow: 0 0 0 1px rgb(255 255 255 / 4%);
     --shadow-lift: 0 3px 12px rgb(0 0 0 / 50%);
     --shadow-float: 0 6px 16px rgb(0 0 0 / 60%);
-    --glass: rgb(18 18 18 / 82%);
+    --glass: rgb(35 35 38 / 82%);
   }
 }
 
