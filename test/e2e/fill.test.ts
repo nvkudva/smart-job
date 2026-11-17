@@ -223,6 +223,24 @@ describe("autofill fixtures", () => {
     expect(state["comments"] ?? "").toBe("");
   }, 60000);
 
+  test("LinkedIn Easy Apply-like: only the modal is filled, page fields behind it untouched", async () => {
+    const { page, panel } = await openFixture("/linkedin-easy-apply.html");
+    const { fields, results } = await autofill(panel, "/linkedin-easy-apply.html");
+    expect(fields.map((field) => field.name)).not.toContain("backgroundWebsite");
+    expect(fields.map((field) => field.name)).not.toContain("keywords");
+    const state = await readState(page);
+    const expected = {
+      emailAddress: profile.email,
+      linkedinUrl: profile.linkedin,
+      yearsExperience: "6",
+      workAuth: "Yes",
+    };
+    expect(missing(state, expected)).toEqual([]);
+    expect(state["backgroundWebsite"]).toBeUndefined();
+    expect(state["keywords"]).toBeUndefined();
+    expect(results.every((result) => result.ok)).toBe(true);
+  }, 60000);
+
   test("iCIMS-like: form inside an iframe", async () => {
     const { page, panel } = await openFixture("/icims-apply.html");
     const { fields } = await autofill(panel, "/icims-apply.html");

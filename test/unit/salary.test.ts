@@ -64,13 +64,23 @@ describe("lookupLinks", () => {
   test("levels.fyi company + role page and a regional Glassdoor salary search, labelled as look-ups", () => {
     const [levels, glassdoor] = salary.lookupLinks(job);
     expect(levels!.url).toBe("https://www.levels.fyi/companies/stripe/salaries/software-engineer");
-    expect(glassdoor!.url).toBe("https://www.glassdoor.co.in/Salaries/Stripe-Senior-Engineer-salary-SRCH_KO0,22.htm");
+    expect(glassdoor!.url).toBe("https://www.glassdoor.co.in/Salaries/stripe-senior-engineer-salary-SRCH_KO0,22.htm");
     expect([levels, glassdoor].every((link) => link!.title.startsWith(salary.lookupPrefix))).toBe(true);
   });
   test("market-wide links for the role follow the company ones", () => {
     const urls = salary.lookupLinks(job).map((link) => link.url);
-    expect(urls.slice(2)).toEqual(["https://www.levels.fyi/t/software-engineer", "https://www.glassdoor.co.in/Salaries/Senior-Engineer-salary-SRCH_KO0,15.htm"]);
+    expect(urls.slice(2)).toEqual(["https://www.levels.fyi/t/software-engineer", "https://www.glassdoor.co.in/Salaries/senior-engineer-salary-SRCH_KO0,15.htm"]);
   });
+  test("company slug drops legal suffixes, and leadership titles land on the manager track", () => {
+    expect(salary.levelsUrl({ ...job, company: "Stripe, Inc." })).toBe("https://www.levels.fyi/companies/stripe/salaries/software-engineer");
+    expect(salary.levelsUrl({ ...job, company: "Freshworks Inc.", title: "Director, Engineering" })).toBe(
+      "https://www.levels.fyi/companies/freshworks/salaries/software-engineering-manager",
+    );
+    expect(salary.levelsUrl({ ...job, title: "Head of Software Engineering" })).toContain("/software-engineering-manager");
+    expect(salary.levelsUrl({ ...job, title: "Director, Product Management" })).toContain("/product-manager");
+    expect(salary.levelsUrl({ ...job, title: "Senior Software Engineer" })).toContain("/software-engineer");
+  });
+
   test("unknown role keeps the company page; no company falls back to the role page", () => {
     expect(salary.levelsUrl({ ...job, title: "Chief Happiness Officer" })).toBe("https://www.levels.fyi/companies/stripe/salaries");
     expect(salary.levelsUrl({ ...job, company: "" })).toBe("https://www.levels.fyi/t/software-engineer");

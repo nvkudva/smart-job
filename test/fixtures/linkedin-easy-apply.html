@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Senior Engineer at Acme | LinkedIn</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  .artdeco-modal { position: fixed; inset: 40px auto auto 50%; width: 480px; background: #fff; border: 1px solid #ccc; padding: 16px; }
+  label { display: block; font-weight: 600; margin-top: 12px; }
+  input[type=text], input[type=email], input[type=tel], input[type=url] { width: 100%; padding: 6px; box-sizing: border-box; }
+</style>
+</head>
+<body>
+  <main>
+    <input type="text" name="keywords" aria-label="Search by title" value="director" />
+    <label for="background-site">Website</label>
+    <input type="text" id="background-site" name="backgroundWebsite" />
+    <button type="button" aria-label="Easy Apply to Senior Engineer at Acme">Easy Apply</button>
+  </main>
+  <div class="artdeco-modal jobs-easy-apply-modal" role="dialog" aria-label="Apply to Acme">
+    <h2>Apply to Acme</h2>
+    <form onsubmit="return false">
+      <label for="easy-email">Email address *</label>
+      <input type="email" id="easy-email" name="emailAddress" required />
+      <label for="easy-phone">Mobile phone number *</label>
+      <input type="tel" id="easy-phone" name="phoneNumber" required />
+      <label for="easy-linkedin">LinkedIn URL</label>
+      <input type="url" id="easy-linkedin" name="linkedinUrl" />
+      <label for="easy-years">How many years of work experience do you have? *</label>
+      <input type="text" id="easy-years" name="yearsExperience" required />
+      <fieldset>
+        <legend>Are you legally authorized to work in the United States? *</legend>
+        <label><input type="radio" name="workAuth" value="Yes" /> Yes</label>
+        <label><input type="radio" name="workAuth" value="No" /> No</label>
+      </fieldset>
+      <button type="button">Next</button>
+    </form>
+  </div>
+  <script src="/form-state.js"></script>
+</body>
+</html>

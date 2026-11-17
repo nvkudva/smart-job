@@ -238,7 +238,7 @@ const contactRules: Rule[] = [
   [/suffix|prefix/, none],
   [/first name|given name|forename/, ({ profile }) => profile.firstName || undefined],
   [/last name|family name|surname/, ({ profile }) => profile.lastName || undefined],
-  [/linkedin/, ({ profile }) => (/linkedin\.com\/./i.test(profile.linkedin) ? profile.linkedin : undefined)],
+  [/linkedin/, ({ profile }) => (/linkedin\.com\/in\//i.test(profile.linkedin) ? profile.linkedin : undefined)],
   [/github/, ({ profile }) => (/github\.com\/./i.test(profile.github) ? profile.github : undefined)],
   [/(company|employer|organi[sz]ation) (website|url|size|address|phone)/, none],
   [/portfolio/, ({ profile }) => profile.portfolio || profile.website || undefined],
@@ -353,9 +353,15 @@ function hasFilledValue(field: FieldDescriptor): boolean {
   return value !== "" && !(field.kind === "checkbox" && value === "false");
 }
 
+const fileText = (field: FieldDescriptor) => normalize(`${field.label} ${field.name} ${field.automationId}`);
+
+export const isCoverLetterField = (field: FieldDescriptor) => /cover/.test(fileText(field));
+
+/** A file field that is not asking for some other document. */
+export const isResumeField = (field: FieldDescriptor) => !/cover letter|coverletter|transcript|portfolio|writing sample|photo|picture|reference|certificate/.test(fileText(field));
+
 function fileFill(field: FieldDescriptor, resume: Resume | null | undefined): Pick<FieldFill, "value" | "source"> | undefined {
-  const text = normalize(`${field.label} ${field.name} ${field.automationId}`);
-  if (/cover letter|coverletter|transcript|portfolio|writing sample|photo|picture|reference|certificate/.test(text) || !resume?.fileBase64) return undefined;
+  if (!isResumeField(field) || !resume?.fileBase64) return undefined;
   return { value: "resume", source: "resume" };
 }
 

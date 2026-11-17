@@ -2,14 +2,17 @@ import { useState } from "preact/hooks";
 import * as tasks from "../../ai/tasks.ts";
 import type { JobPosting, TrackedJob } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
-import { Button, Card, Choice, AiErrorNote } from "../shared/controls.tsx";
-import * as download from "../shared/download.ts";
+import { Button, Card, Choice, AiErrorNote, ErrorNote } from "../shared/controls.tsx";
+import * as session from "../../fill/session.ts";
+import { toBase64 } from "../../profile/resumeFile.ts";
+import * as coverLetterPdf from "./coverLetterPdf.ts";
+import * as markdown from "./markdown.ts";
 import * as trackedJobs from "../job/trackedJobs.ts";
 import { useTask } from "../shared/useTask.ts";
 
 type Tone = "professional" | "enthusiastic" | "concise";
 
-export function CoverLetter({ job, tracked }: { job: JobPosting; tracked: TrackedJob | undefined }) {
+export function CoverLetter({ job, tabId, tracked }: { job: JobPosting; tabId: number | null; tracked: TrackedJob | undefined }) {
   const [tone, setTone] = useState<Tone>("professional");
   const [words, setWords] = useState("150");
   const [letter, setLetter] = useState(tracked?.coverLetter ?? "");
@@ -19,6 +22,12 @@ export function CoverLetter({ job, tracked }: { job: JobPosting; tracked: Tracke
     const text = await aiContext.run(({ client, candidate }) => tasks.writeCoverLetter(client, job, candidate, { tone, words: Number(words) }));
     setLetter(text);
     await trackedJobs.track(job, { coverLetter: text });
+  });
+  const attach = useTask(async () => {
+    if (!tabId) throw new Error("Open the application page in this tab first.");
+    const bytes = await coverLetterPdf.build(letter);
+    const name = `Cover-letter-${job.company || "job"}.pdf`.replace(/\s+/g, "-");
+    await session.attachFile(tabId, { name, base64: toBase64(bytes), mimeType: "application/pdf" }, "cover letter");
   });
   const copy = async () => {
     await navigator.clipboard.writeText(letter);
@@ -47,8 +56,10 @@ export function CoverLetter({ job, tracked }: { job: JobPosting; tracked: Tracke
           />
           <div class="actions">
             <Button onClick={() => void copy()}>{isCopied ? "Copied" : "Copy"}</Button>
-            <Button onClick={() => download.save(`cover-letter-${job.company || "job"}.txt`.replace(/\s+/g, "-"), letter, "text/plain")}>Download .txt</Button>
+            <Button onClick={() => markdown.openPrintable(letter, `Cover letter - ${job.company || job.title}`)}>Download PDF</Button>
+            <Button isBusy={attach.isBusy} onClick={() => void attach.run()}>Attach to form</Button>
           </div>
+          {attach.error && <ErrorNote message={attach.error} />}
         </>
       )}
     </Card>

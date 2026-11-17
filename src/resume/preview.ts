@@ -1,47 +1,51 @@
+import type { JobPosting } from "../types.ts";
 import type { Rect } from "./layout.ts";
-import * as rewrite from "./rewrite.ts";
 
-export interface PreviewChange {
-  before: string;
-  after: string;
+/** What the editor needs to rebuild a line: the user's wording and whether it is applied. Blocks are found again from the original PDF by id. */
+export interface StoredDraft {
+  blockId: string;
+  text: string;
   reason: string;
-  page: number;
-  rects: Rect[];
+  isOn: boolean;
+  isEdited: boolean;
 }
 
 export interface TailoredPreview {
-  jobTitle: string;
-  company: string;
+  job: JobPosting;
   fileName: string;
   originalBase64: string;
   tailoredBase64: string;
-  changes: PreviewChange[];
+  drafts: StoredDraft[];
+  /** the record in the saved list that this resume keeps updating */
+  savedId?: string;
+  /** bumped by every write, so a page can tell its own write from the other page's */
+  revision: number;
+  source: "panel" | "editor";
 }
 
-// not part of the typed store: it is one throwaway slot that the preview tab reads
-const storageKey = "tailoredPreview";
-
-export function changesOf(placements: rewrite.Placement[]): PreviewChange[] {
-  return placements.map((placement) => ({
-    before: placement.block.text,
-    after: placement.lines.join(" "),
-    reason: placement.reason,
-    page: placement.block.page,
-    rects: rewrite.highlights(placement.block),
-  }));
-}
+// not part of the typed store: it is one throwaway slot that the editor tab and the panel share
+export const storageKey = "tailoredPreview";
 
 export async function save(preview: TailoredPreview): Promise<void> {
   await chrome.storage.local.set({ [storageKey]: preview });
 }
 
 export async function load(): Promise<TailoredPreview | null> {
-  const stored = await chrome.storage.local.get(storageKey);
-  return (stored[storageKey] as TailoredPreview | undefined) ?? null;
+  const stored = (await chrome.storage.local.get(storageKey))[storageKey] as Partial<TailoredPreview> | undefined;
+  // a slot written before the editor existed has no job or drafts
+  return stored?.job && stored.drafts ? (stored as TailoredPreview) : null;
 }
 
+/** Brings the editor tab to the front if it is already open, so Regenerate does not pile up tabs. */
 export async function open(): Promise<void> {
-  await chrome.tabs.create({ url: chrome.runtime.getURL("resumePreview.html") });
+  const url = chrome.runtime.getURL("resumePreview.html");
+  const [existing] = await chrome.tabs.query({ url });
+  if (!existing?.id) {
+    await chrome.tabs.create({ url });
+    return;
+  }
+  await chrome.tabs.update(existing.id, { active: true });
+  await chrome.windows.update(existing.windowId, { focused: true });
 }
 
 export function fromBase64(base64: string): Uint8Array {

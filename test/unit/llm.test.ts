@@ -48,3 +48,38 @@ describe("compact", () => {
     expect(normalize.compact("a   b \n\n\n\n c\t\td  \n")).toBe("a b\n\nc d");
   });
 });
+
+describe("chat on a size limit", () => {
+  const settings = { kind: "openai" as const, baseUrl: "https://api.groq.test/v1", apiKey: "", model: "llama" };
+  const tooBig = () => new Response("Request too large on tokens per minute (TPM): Limit 12000, Requested 14500, please reduce your message size", { status: 413 });
+  const ok = () => new Response(JSON.stringify({ choices: [{ message: { content: "hi" }, finish_reason: "stop" }] }));
+  const sentMaxTokens: unknown[] = [];
+  const record = (replies: (() => Response)[]) => {
+    sentMaxTokens.length = 0;
+    globalThis.fetch = (async (_url: string, init: { body: string }) => (sentMaxTokens.push(JSON.parse(init.body).max_tokens), replies.shift()!())) as unknown as typeof fetch;
+  };
+
+  test("retries once with a smaller max_tokens read from the provider's numbers", async () => {
+    record([tooBig, ok]);
+    expect(await llm.create(settings).chat({ system: "s", user: "u", maxTokens: 8000 })).toBe("hi");
+    expect(sentMaxTokens).toEqual([8000, 5300]);
+  });
+
+  test("says what to do when the input alone is too big", async () => {
+    record([() => new Response("Limit 6000, Requested 14500", { status: 413 })]);
+    await expect(llm.create(settings).chat({ system: "s", user: "u", maxTokens: 8000 })).rejects.toBeInstanceOf(llm.TokenLimitError);
+  });
+
+  test("a cut-off JSON answer is reported as a size problem", async () => {
+    record([() => new Response(JSON.stringify({ choices: [{ message: { content: "{\"a\":" }, finish_reason: "length" }] }))]);
+    await expect(llm.create(settings).chat({ system: "s", user: "u", json: true })).rejects.toThrow("Switch to a provider");
+  });
+
+  test("a local server gets no max_tokens for real tasks, but keeps the cap on tiny probes", async () => {
+    const local = { ...settings, baseUrl: "http://localhost:11434/v1" };
+    record([ok, ok]);
+    await llm.create(local).chat({ system: "s", user: "u", maxTokens: 8000 });
+    await llm.create(local).chat({ system: "s", user: "u", maxTokens: 16 });
+    expect(sentMaxTokens).toEqual([undefined, 16]);
+  });
+});

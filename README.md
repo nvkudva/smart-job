@@ -98,13 +98,13 @@ On first open, a setup wizard walks through the AI provider, your resume and/or 
 1. Settings → upload your resume PDF (or paste text) → **Save resume** → **Extract profile with AI**.
 2. Review the profile, then fill in what a resume does not contain: work authorization, sponsorship, relocation, current salary / CTC, salary expectation, notice period. Leave the EEO fields blank to have SmartJob choose "decline to answer".
 3. Save.
-4. Optional: Settings → **Job-site account email / password**. On Workday / iCIMS "Create Account" or sign-in pages, **Fill this page** fills email, password and confirm password. You click Create Account. The password stays on this device and is never sent to the AI. Workday requires an uppercase letter, a number and a special character.
+4. Optional: Settings → **Job-site account email / password**. On Workday / iCIMS "Create Account" or sign-in pages, **Start applying** fills email, password and confirm password. You click Create Account. The password stays on this device and is never sent to the AI. Workday requires an uppercase letter, a number and a special character.
 
 ## Test walkthrough (manual)
 
 1. **Job analysis**: open a LinkedIn job (`linkedin.com/jobs/view/...` or the search split view). The Job tab shows the job, then the match and salary. Click another job in the list; the panel follows.
 2. **Shortlist**: click ★ Shortlist → the job appears in the Tracker.
-3. **Autofill**: open a Greenhouse (`job-boards.greenhouse.io/...`), Lever (`jobs.lever.co/.../apply`), Workday (`*.myworkdayjobs.com`, after signing in) or iCIMS application form → Apply tab → **Fill this page**. Review the amber items, edit them in the panel, and click **Apply edits** (tick *Remember my answers* to reuse them later). On Workday, click **Next** yourself, then **Fill this page** again, or turn on *Auto-fill when the page changes* in Settings.
+3. **Autofill**: open a Greenhouse (`job-boards.greenhouse.io/...`), Lever (`jobs.lever.co/.../apply`), Workday (`*.myworkdayjobs.com`, after signing in) or iCIMS application form → Apply tab → **Start applying**. Review the amber items, edit them in the panel, and click **Apply edits** (tick *Remember my answers* to reuse them later). On Workday, click **Next** yourself, then **Re-fill**, or turn on *Auto-fill when the page changes* in Settings.
 4. **Writing**: Write tab → generate a cover letter / tailored resume → Copy, or open the printable PDF.
 
 ## Automated tests

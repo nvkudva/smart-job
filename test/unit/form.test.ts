@@ -53,6 +53,18 @@ describe("label resolution", () => {
     expect(fields.map((field) => [field.kind, field.name, field.currentValue])).toEqual([["password", "password", "********"]]);
   });
 
+  test("an open modal (LinkedIn Easy Apply) scopes the scan: page fields behind it are ignored", () => {
+    const fields = scanHtml(`
+      <input name="keywords" aria-label="Search by title" />
+      <label for="bg">Website</label><input id="bg" name="backgroundWebsite" />
+      <div class="artdeco-modal jobs-easy-apply-modal" role="dialog" aria-label="Apply">
+        <label for="li">LinkedIn URL</label><input id="li" name="linkedinUrl" />
+        <label for="em">Email address</label><input id="em" type="email" name="emailAddress" />
+      </div>
+    `);
+    expect(fields.map((field) => field.name)).toEqual(["linkedinUrl", "emailAddress"]);
+  });
+
   test("data-sj-id stays stable across rescans", () => {
     document.body.innerHTML = `<input name="a" aria-label="A" /><input name="b" aria-label="B" />`;
     const first = form.scan().map((field) => field.id);

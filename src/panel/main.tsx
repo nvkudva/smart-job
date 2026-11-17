@@ -5,7 +5,6 @@ import type { JobPosting } from "../types.ts";
 import * as activeTab from "./job/activeTab.ts";
 import * as aiContext from "./shared/aiContext.ts";
 import { ApplyTab } from "./apply/applyTab.tsx";
-import * as applyPage from "./apply/openApplyPage.ts";
 import { Button, Card, ErrorNote } from "./shared/controls.tsx";
 import { useTask } from "./shared/useTask.ts";
 import { Icon } from "./shared/icons.tsx";
@@ -84,6 +83,7 @@ function App() {
   const isSetupComplete = useSetupComplete();
   const active = activeTab.use();
   const [tab, setTab] = useState<TabName>("Analysis");
+  const [applySignal, setApplySignal] = useState(0);
   const [lastJob, setLastJob] = useState<JobPosting | null>(null);
   const isResumeLoaded = resume !== undefined;
   const hasResume = !!resume;
@@ -105,11 +105,17 @@ function App() {
   }
   const currentJob = active.job ?? lastJob;
   const panels: Record<TabName, ComponentChildren> = {
-    Analysis: <AnalysisTab active={active} hasResume={hasResume} onApply={() => {
-      setTab("Apply");
-      if (active.tabId) applyPage.open(active.tabId, active.url, currentJob).catch(console.error);
-    }} />,
-    Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} />,
+    Analysis: (
+      <AnalysisTab
+        active={active}
+        hasResume={hasResume}
+        onApply={() => {
+          setApplySignal((signal) => signal + 1);
+          setTab("Apply");
+        }}
+      />
+    ),
+    Apply: <ApplyTab tabId={active.tabId} tabUrl={active.url} job={currentJob} startSignal={applySignal} />,
     Track: <TrackerTab />,
     Profile: <ProfileTab />,
     Settings: <SettingsTab />,

@@ -130,10 +130,11 @@ test("apply tab runs a fill and never crashes the panel", async () => {
   const apply = panel.getByRole("tabpanel", { name: "Apply" });
   await panel.getByRole("tab", { name: "Apply" }).click();
   await visible(apply.getByText("SmartJob never submits"));
-  await apply.getByRole("button", { name: "Fill this page" }).click();
+  expect(await apply.getByRole("button", { name: "Fill this page" }).count()).toBe(0);
+  await apply.getByRole("button", { name: "Start applying" }).click();
   // either a report (session implemented) or an inline error; both leave the button usable again
   await visible(apply.locator(".report-row, .error, :text('No fillable fields')").first(), 20000);
-  expect(await apply.getByRole("button", { name: "Fill this page" }).isEnabled()).toBe(true);
+  expect(await apply.getByRole("button", { name: "Re-fill" }).isEnabled()).toBe(true);
   await panel.close();
 }, 60000);
 
@@ -154,6 +155,27 @@ test("start applying opens the Apply link, fills the form and does not submit", 
   expect(portal).toBeDefined();
   expect(await portal!.locator("#name").inputValue()).toBe("Ada Lovelace");
   expect(await portal!.locator("#email").inputValue()).toBe("ada@example.com");
+  await panel.close();
+}, 90000);
+
+test("Apply on the Analysis tab opens the portal tab and fills it without another click", async () => {
+  await h.seed({
+    settings: { provider: provider(), autoFillOnPageChange: false, autoAnalyze: false, salarySearch: false, account: { email: "", password: "" } },
+    resume,
+    profile: { ...emptyProfile, firstName: "Ada", lastName: "Lovelace", email: "ada@example.com" },
+    jobs: {},
+    analyses: {},
+  });
+  const panel = await openPanelOnJob("apply-job.html");
+  await visible(panel.locator(".job-title").first(), 15000);
+  await panel.getByRole("button", { name: "Apply", exact: true }).click();
+  const apply = panel.getByRole("tabpanel", { name: "Apply" });
+  await visible(apply.getByText("Filled. Review it, then submit yourself."), 40000);
+  const portal = h.context.pages().find((candidate) => candidate.url().includes("lever-apply.html"));
+  expect(portal).toBeDefined();
+  expect(await portal!.locator("#name").inputValue()).toBe("Ada Lovelace");
+  expect(await portal!.locator("#email").inputValue()).toBe("ada@example.com");
+  expect(await apply.getByRole("button", { name: "Re-fill" }).isEnabled()).toBe(true);
   await panel.close();
 }, 90000);
 

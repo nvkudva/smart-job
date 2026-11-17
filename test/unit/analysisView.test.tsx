@@ -32,6 +32,16 @@ test("an analysis cached before ratings existed still renders with its stored ve
   expect(text).not.toContain("Keywords");
 });
 
+test("missing skills are collapsed to a preview with a +N more toggle", () => {
+  const missing = ["Go", "Rust", "Kafka", "Kubernetes", "Terraform", "GraphQL", "Redis", "gRPC", "Aws", "Ci"];
+  const text = textOf({ ...base, matchedSkills: [], missingSkills: missing });
+  expect(text).toContain("Missing skills");
+  expect(text).toContain("+4 more");
+  expect(text).toContain("GraphQL");
+  expect(text).not.toContain("Redis");
+  expect(text).not.toContain("gRPC");
+});
+
 test("a new analysis shows the reason, evidence line and dealbreakers", () => {
   const text = textOf({ ...base, mustHaveMet: ["yes"], seniority: "match", reason: "Core stack matches", blockers: ["Needs a visa"], verdict: "Weak match - skip" });
   expect(text).toContain("Core stack matches");

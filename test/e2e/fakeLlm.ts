@@ -25,9 +25,10 @@ function reply(system: string): string {
   const prompt = system.toLowerCase();
   if (prompt.includes("recruiter assessing")) return JSON.stringify(analysis);
   if (prompt.includes("structured profile")) return JSON.stringify(profile);
-  if (prompt.includes("tailor a resume")) return JSON.stringify(tailored);
+  if (prompt.includes("tailor this candidate's resume")) return JSON.stringify(tailored);
   if (prompt.includes("cover letters")) return "Dear Hiring Team,\n\nFake cover letter for Globex.\n\nAda Lovelace";
   if (prompt.includes("application question")) return "Fake answer to your question.";
+  if (prompt.includes("company's office")) return JSON.stringify({ addresses: ["No. 3, RMZ Infinity Tower, Old Madras Road, Bengaluru, Karnataka 560038", "Bagmane Constellation Business Park, Bengaluru, Karnataka 560103"], match: "city", sourceIds: [1] });
   if (prompt.includes("salary")) return JSON.stringify(salary);
   if (prompt.includes("form fields")) return JSON.stringify({ answers: {} });
   return "OK";

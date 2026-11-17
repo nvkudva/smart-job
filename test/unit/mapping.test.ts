@@ -163,6 +163,11 @@ describe("address and links", () => {
   test("Lever urls[LinkedIn] by name", () => {
     expect(fillOne(field({ label: "", name: "urls[LinkedIn]" }))?.value).toBe(profile.linkedin);
   });
+
+  test("a non-profile LinkedIn URL (company / job page) is never filled as the candidate's profile", () => {
+    const companyProfile = { ...profile, linkedin: "https://www.linkedin.com/company/acme/" };
+    expect(mapping.map([field({ label: "LinkedIn URL" })], companyProfile, {})).toEqual([]);
+  });
 });
 
 describe("work and education", () => {

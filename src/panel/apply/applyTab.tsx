@@ -42,35 +42,84 @@ interface ApplyTabProps {
   tabUrl: string;
   /** current job, or the most recently viewed one */
   job: JobPosting | null;
+  /** bumped each time the user clicks Apply on the Analysis tab: auto-start applying */
+  startSignal: number;
 }
 
-export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
+export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
   const settings = useStored("settings");
   const [report, setReport] = useState<FillReport | null>(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [useAi, setUseAi] = useState(true);
   const [remember, setRemember] = useState(true);
+  const [fillPhase, setFillPhase] = useState("");
 
-  // the account password is filled only on an explicit click (Fill this page or Start applying), never by auto-fill on a page the user did not choose
+  const stopRequested = useRef(false);
+  // the account password is filled only on an explicit click (Start applying / Re-fill), never by auto-fill on a page the user did not choose
   const fillTask = useTask(async (isUserClick: boolean) => {
     if (!tabId) throw new Error("No tab to fill.");
-    const next = await session.run(tabId, job, { useAi, includeAccount: isUserClick });
+    const next = await session.run(tabId, job, { useAi, includeAccount: isUserClick, onProgress: setFillPhase });
+    if (stopRequested.current) return;
     setReport(next);
     setEdits({});
     if (isUserClick) await rememberApplication(next, { tabId, url: tabUrl });
   });
-  const stopRequested = useRef(false);
   const startTask = useTask(async () => {
     if (!tabId) throw new Error("No tab to apply on.");
     stopRequested.current = false;
     setNote("");
+    // a form is already open (e.g. Easy Apply modal, or the next step of one): fill it instead of clicking Apply again
+    const alreadyOpen = selection.isPage(tabUrl) ? null : await session.run(tabId, job, { useAi, includeAccount: true, onProgress: setFillPhase });
+    if (stopRequested.current) return setNote("Stopped.");
+    if (alreadyOpen && alreadyOpen.fieldCount > 0) {
+      setReport(alreadyOpen);
+      setEdits({});
+      await rememberApplication(alreadyOpen, { tabId, url: tabUrl });
+      setNote("Filled. Review it, then submit yourself.");
+      return;
+    }
+    setFillPhase("Opening the apply form…");
+    // a tab the page itself opens (external Apply) counts as the portal too; the panel-created one below is its fallback
+    let openedTabId: number | undefined;
+    let hasFocusedOpened = false;
+    const onCreated = (created: chrome.tabs.Tab) => {
+      if (created.openerTabId === tabId && created.id) openedTabId = created.id;
+    };
+    chrome.tabs.onCreated.addListener(onCreated);
+    const finishListening = () => chrome.tabs.onCreated.removeListener(onCreated);
     const { portalTabId, click } = await applyPage.open(tabId, tabUrl, job);
     if (portalTabId || click.result !== "none") await sleep(afterClickMs);
     for (let poll = 0; poll < maxFormPolls && !stopRequested.current; poll++) {
-      const target: ApplyTarget = portalTabId ? { tabId: portalTabId, url: (await chrome.tabs.get(portalTabId)).url ?? "" } : await activeTab.readCurrentTab();
+      if (poll > 0) setFillPhase("Waiting for the apply form to appear…");
+      const newTabId = portalTabId ?? openedTabId;
+      let target: ApplyTarget;
+      if (newTabId) {
+        const info = await chrome.tabs.get(newTabId).catch(() => undefined);
+        if (!info) {
+          await sleep(formPollMs);
+          continue;
+        }
+        if (!hasFocusedOpened && !portalTabId) {
+          hasFocusedOpened = true;
+          void chrome.tabs.update(newTabId, { active: true }).catch(() => undefined);
+        }
+        if (info.status !== "complete") {
+          setFillPhase("New tab opened — loading the apply form…");
+          await sleep(formPollMs);
+          continue;
+        }
+        target = { tabId: newTabId, url: info.url ?? "" };
+      } else {
+        target = await activeTab.readCurrentTab();
+      }
       // Start is the user's go-ahead to type the job-site account into sign-up forms for this run only
-      const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true }) : null;
-      if (next && next.items.length > 0) {
+      const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true, onProgress: setFillPhase }) : null;
+      if (stopRequested.current) {
+        finishListening();
+        return setNote("Stopped.");
+      }
+      if (next && next.fieldCount > 0) {
+        finishListening();
         setReport(next);
         setEdits({});
         await rememberApplication(next, target);
@@ -79,7 +128,8 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
       }
       await sleep(formPollMs);
     }
-    if (!stopRequested.current) setNote(click.result === "none" ? "No Apply button or form found here." : "No form appeared. Click Apply on the page, then press Fill this page.");
+    finishListening();
+    if (!stopRequested.current) setNote(click.result === "none" ? "No Apply button or form found here." : "No form appeared. Click Apply on the page, then press Start applying again.");
   });
   const applyTask = useTask(async (items: FillReportItem[]) => {
     if (!tabId || !report) return;
@@ -111,6 +161,13 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
 
   useAutoFillOnFormChange(tabId, { autoFill: !!settings?.autoFillOnPageChange, isBusy: fillTask.isBusy || startTask.isBusy, run: fillTask.run });
 
+  const seenStartSignal = useRef(startSignal);
+  useEffect(() => {
+    if (startSignal === seenStartSignal.current) return;
+    seenStartSignal.current = startSignal;
+    void startTask.run();
+  }, [startSignal]);
+
   const changedItems = (report?.items ?? []).filter((item) => itemKey(item) in edits && edits[itemKey(item)] !== (item.fill?.value ?? ""));
   const [note, setNote] = useState("");
 
@@ -122,19 +179,21 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
           <p class="muted small">Start applying opens the Apply page and fills the form. SmartJob never submits — review and click Submit yourself.</p>
           <div class="actions">
             <span class="grow muted small">{note}</span>
-            <Button isBusy={fillTask.isBusy} disabled={!tabId || startTask.isBusy} onClick={() => void fillTask.run(true)}>
-              {fillTask.isBusy ? "Filling…" : "Fill this page"}
-            </Button>
-            {startTask.isBusy ? (
+            {fillTask.isBusy || startTask.isBusy ? (
               <Button onClick={() => (stopRequested.current = true)}>Stop</Button>
             ) : (
-              <Button kind="primary" disabled={!tabId || fillTask.isBusy} onClick={() => void startTask.run()}>
-                Start applying
+              <Button kind="primary" disabled={!tabId} onClick={() => void startTask.run()}>
+                {report ? "Re-fill" : "Start applying"}
               </Button>
             )}
           </div>
+          {(fillTask.isBusy || startTask.isBusy) && (
+            <p class="muted small" role="status">
+              <span class="spinner" /> {fillPhase || "Working in the background…"} Filling starts as soon as matching finishes — keep this tab open.
+            </p>
+          )}
         </div>
-        <ErrorNote message={fillTask.error || startTask.error} onRetry={() => void (startTask.error ? startTask.run() : fillTask.run(true))} />
+        <ErrorNote message={fillTask.error || startTask.error} onRetry={() => void startTask.run()} />
       </Card>
       {report && (
         <ReportList report={report} edits={edits} onEdit={(key, value) => setEdits({ ...edits, [key]: value })} tabId={tabId} />
@@ -153,7 +212,7 @@ export function ApplyTab({ tabId, tabUrl, job }: ApplyTabProps) {
       <ErrorNote message={applyTask.error} />
       <ApplicationStatus job={job} />
       <h2 class="section-title">Documents</h2>
-      <DocumentsSection currentJob={job} />
+      <DocumentsSection currentJob={job} tabId={tabId} />
     </div>
   );
 }

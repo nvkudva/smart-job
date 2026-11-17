@@ -1,5 +1,5 @@
 import * as llm from "./ai/llm.ts";
-import type { AnswerBank, CompanyPerks, FillLogEntry, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
+import type { AnswerBank, CompanyOffice, CompanyPerks, FillLogEntry, HomeLocation, JobAnalysis, JobSearch, Profile, Resume, SalaryEstimate, Settings, TailoredResume, TrackedJob } from "./types.ts";
 
 export interface StoreShape {
   settings: Settings;
@@ -10,7 +10,7 @@ export interface StoreShape {
   /** analysis cache for jobs not (yet) shortlisted, keyed by JobPosting.id */
   analyses: Record<string, JobAnalysis>;
   /** salary and perks that succeeded when the analysis itself failed, keyed by JobPosting.id */
-  lookups: Record<string, { salary: SalaryEstimate | null; perks: CompanyPerks | null }>;
+  lookups: Record<string, { salary: SalaryEstimate | null; perks: CompanyPerks | null; office?: CompanyOffice | null }>;
   answers: AnswerBank;
   /** newest last, capped; what failed, was edited or was unknown on job forms */
   fillLog: FillLogEntry[];
@@ -23,6 +23,8 @@ export interface StoreShape {
   connectCardDismissed: boolean;
   /** newest first */
   tailoredResumes: TailoredResume[];
+  /** starting point for office distances; null = ask the user */
+  homeLocation: HomeLocation | null;
 }
 
 export const defaultSettings: Settings = {
@@ -86,6 +88,7 @@ const defaults: StoreShape = {
   jobSearches: [],
   connectCardDismissed: false,
   tailoredResumes: [],
+  homeLocation: null,
 };
 
 export async function get<K extends keyof StoreShape>(key: K): Promise<StoreShape[K]> {

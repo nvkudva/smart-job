@@ -106,6 +106,13 @@ describe("rewrite", () => {
     expect(rewrite.parse(null)).toEqual([]);
   });
 
+  test("fit places the user's own text without the model's content checks, and reports overflow", () => {
+    const own = rewrite.fit("Shipped a brand new payments platform for 99 markets", oneLine, measurer);
+    expect("placement" in own && own.placement.lines.join(" ")).toBe("Shipped a brand new payments platform for 99 markets");
+    const tooLong = rewrite.fit("word ".repeat(80), oneLine, measurer);
+    expect("overBy" in tooLong && tooLong.overBy).toBeGreaterThan(0);
+  });
+
   test("clean maps symbols, strips markdown and bullets, drops unencodable characters", () => {
     expect(rewrite.clean("• **Cut** cost → 30% ≥ goal 🚀", measurer)).toBe("Cut cost -> 30% >= goal");
   });
@@ -142,12 +149,19 @@ describe("rewrite", () => {
     expect(rewrite.validate([good, good], resume, measurer).placements).toHaveLength(1);
   });
 
-  test("preview changes carry highlight rectangles on the original lines", () => {
+  test("word marks are red for dropped words and green for new ones, and a block has a click area", () => {
     const text = "Led platform engineers building payments infrastructure across business lines";
-    const { placements } = rewrite.validate([{ id: oneLine.id, newText: text, reason: "keywords" }], resume, measurer);
-    const [change] = preview.changesOf(placements);
-    expect(change).toMatchObject({ before: oneLine.text, after: text, page: 1, reason: "keywords" });
-    expect(change!.rects[0]!.x).toBe(54);
+    const [dropped] = rewrite.validate([{ id: oneLine.id, newText: text, reason: "keywords" }], resume, measurer).placements;
+    const droppedMarks = rewrite.wordMarks(dropped!, measurer);
+    // words only dropped: red on the original, nothing green
+    expect(droppedMarks.removed.length).toBeGreaterThan(0);
+    expect(droppedMarks.removed.every((rect) => rect.x >= 54)).toBe(true);
+    expect(droppedMarks.added).toEqual([]);
+    const withNewWord = rewrite.validate([{ id: oneLine.id, newText: "Led a team of platform engineers building scalable payments infrastructure used across several business lines", reason: "" }], resume, measurer).placements;
+    const addedMarks = rewrite.wordMarks(withNewWord[0]!, measurer);
+    expect(addedMarks.removed).toEqual([]);
+    expect(addedMarks.added).toHaveLength(1);
+    expect(rewrite.blockRect(oneLine)).toMatchObject({ x: 54, width: oneLine.right - 54 });
     expect(preview.toPercent({ x: 0, y: 0, width: 298, height: 421 }, [0, 0, 596, 842])).toEqual({ left: "0%", top: "50%", width: "50%", height: "50%" });
   });
 });
@@ -174,6 +188,27 @@ describe("tailorPdf", () => {
   test("a rewrite that names a skill the candidate never mentions is dropped", async () => {
     const fake = new FakeLlm([JSON.stringify({ rewrites: [{ id: first.id, newText: "Led platform work on Kubernetes and Terraform", reason: "kw" }] })]);
     expect(await tasks.tailorPdf(fake, { ...job, description: "Kubernetes and Terraform" }, candidate, resume, measurer)).toEqual([]);
+  });
+
+  test("the prompt carries the job analysis and the candidate's LinkedIn facts, and asks for a brief first", async () => {
+    const fake = new FakeLlm([JSON.stringify({ rewrites: [] })]);
+    const analysis = { ...tasks.normalizeAnalysis({ mustHave: [{ requirement: "Kubernetes at scale", met: "yes" }], overview: { company: ["You'd join a payments company"], position: [] } }), salary: null, analyzedAt: 1, keywordScore: 0, matchedSkills: [], missingSkills: ["Terraform"] };
+    const withLinkedin = { ...candidate, profile: { ...candidate.profile, linkedinSummary: "Built a 24 engineer platform org" } };
+    await tasks.tailorPdf(fake, job, withLinkedin, resume, measurer, { analysis });
+    const [request] = fake.requests;
+    expect(request!.system).toContain('"brief"');
+    expect(request!.system).toContain("NEVER");
+    expect(request!.user).toContain("Must-have: Kubernetes at scale");
+    expect(request!.user).toContain("You'd join a payments company");
+    expect(request!.user).toContain("do not claim or mention these): Terraform");
+    expect(request!.user).toContain("Built a 24 engineer platform org");
+  });
+
+  test("a figure from another line of the resume may be used, an unknown one may not", async () => {
+    const fake = new FakeLlm([JSON.stringify({ rewrites: [{ id: first.id, newText: "Led platform engineers building payments, cut cloud spend 30%", reason: "scale" }] })]);
+    expect((await tasks.tailorPdf(fake, job, candidate, resume, measurer)).map((placement) => placement.lines.join(" "))).toEqual(["Led platform engineers building payments, cut cloud spend 30%"]);
+    const invented = new FakeLlm([JSON.stringify({ rewrites: [{ id: first.id, newText: "Led platform engineers building payments, cut cloud spend 55%", reason: "scale" }] })]);
+    expect(await tasks.tailorPdf(invented, job, candidate, resume, measurer)).toEqual([]);
   });
 
   test("a failing retry drops the overlong rewrite instead of throwing", async () => {

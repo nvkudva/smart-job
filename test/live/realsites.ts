@@ -1,5 +1,5 @@
 // Manual check against real public job sites: `bun run build && bun test/live/realsites.ts`.
-// Opens a real application form, drives the actual side panel ("Fill this page"), prints the report, saves screenshots. Never submits.
+// Opens a real application form, drives the actual side panel ("Start applying"), prints the report, saves screenshots. Never submits.
 import type { Page } from "playwright";
 import { defaultSettings, emptyProfile } from "../../src/storage.ts";
 import type { FieldDescriptor, Profile } from "../../src/types.ts";
@@ -76,8 +76,8 @@ async function runSite(h: harness.Harness, site: string) {
   const tabId = await panel.evaluate(async (target) => (await chrome.tabs.query({})).find((tab) => tab.url === target)?.id, page.url());
   await panel.goto(`chrome-extension://${h.extensionId}/sidepanel.html?tabId=${tabId}`);
   await panel.getByRole("tab", { name: "Apply" }).click();
-  await panel.getByRole("button", { name: "Fill this page" }).click();
-  await panel.getByRole("button", { name: "Fill this page" }).waitFor({ timeout: 300_000 });
+  await panel.getByRole("button", { name: "Start applying" }).click();
+  await panel.getByRole("button", { name: "Start applying" }).waitFor({ timeout: 300_000 });
   await panel.waitForTimeout(500);
   console.log(`\n=== ${site}: ${url}`);
   const scans = (await harness.sendToTab(panel, page.url(), { type: "scanFields" })) as (FieldDescriptor[] | undefined)[];

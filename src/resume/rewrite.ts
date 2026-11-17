@@ -1,5 +1,6 @@
 import * as normalize from "../ai/normalize.ts";
 import * as layout from "./layout.ts";
+import * as textDiff from "./textDiff.ts";
 
 export interface Measurer {
   /** width of `text` drawn in `face` at `size` points */
@@ -29,6 +30,9 @@ export interface Overlong {
 }
 
 const minScale = 0.85;
+const nearlyEqualRatio = 0.98;
+// a rewrite may re-angle a line heavily, but one that keeps almost none of its words is the model pointing at the wrong id
+const minKeptShare = 0.2;
 const lineTolerance = 0.5;
 
 // ---------- prompt side ----------
@@ -99,15 +103,15 @@ function keepsContent(newText: string, original: string): boolean {
   const newWords = contentWords(newText);
   if (originalWords.size === 0) return true;
   const kept = [...originalWords].filter((word) => newWords.has(word)).length;
-  return kept / originalWords.size >= 0.3;
+  return kept / originalWords.size >= minKeptShare;
 }
 
 function numbersIn(text: string): string[] {
   return (text.match(/\d[\d,.]*\d|\d/g) ?? []).map((value) => value.replace(/[,.]+$/, ""));
 }
 
-function hasInventedNumbers(newText: string, original: string): boolean {
-  const known = new Set(numbersIn(original));
+/** A figure is real when it appears anywhere on the resume: a summary may lift "3 to 24+ engineers" from a bullet further down. */
+function hasInventedNumbers(newText: string, known: Set<string>): boolean {
   return numbersIn(newText).some((value) => !known.has(value));
 }
 
@@ -115,13 +119,15 @@ function hasInventedNumbers(newText: string, original: string): boolean {
 
 export function faceFor(block: layout.Block, word: string): layout.FontFace {
   const isEmphasized = block.boldWords.includes(layout.wordKey(word));
-  return isEmphasized ? { ...block.face, isBold: true } : block.face;
+  return isEmphasized ? { ...block.face, isBold: true, pdfName: block.boldPdfName } : block.face;
 }
 
 function fontScale(block: layout.Block, measurer: Measurer): number {
   const originalWidth = block.lines.reduce((sum, line) => sum + line.right - line.left, 0);
   const standInWidth = block.lines.reduce((sum, line) => sum + measurer.width(layout.lineText(line), block.face, block.fontSize), 0);
-  return normalize.clamp(originalWidth / Math.max(1, standInWidth), minScale, 1);
+  const ratio = originalWidth / Math.max(1, standInWidth);
+  // the resume's own font measures within a rounding error of the original; shrinking by that would only make the text look smaller
+  return ratio >= nearlyEqualRatio ? 1 : normalize.clamp(ratio, minScale, 1);
 }
 
 export function wrap(words: string[], maxWidth: number, widthOf: (text: string) => number): string[] | null {
@@ -155,19 +161,32 @@ function fitLines(text: string, block: layout.Block, scale: number, measurer: Me
 
 type Outcome = { kind: "placed"; placement: Placement } | { kind: "overlong" } | { kind: "rejected" };
 
-function place(rewrite: Rewrite, block: layout.Block, measurer: Measurer): Outcome {
+function place(rewrite: Rewrite, block: layout.Block, measurer: Measurer, knownNumbers: Set<string>): Outcome {
   const text = clean(rewrite.newText, measurer);
   const isUnchanged = normalize.comparable(text) === normalize.comparable(block.text);
-  if (!text || isUnchanged || hasInventedNumbers(text, block.text) || !keepsContent(text, block.text)) return { kind: "rejected" };
+  if (!text || isUnchanged || hasInventedNumbers(text, knownNumbers) || !keepsContent(text, block.text)) return { kind: "rejected" };
   const scale = fontScale(block, measurer);
   const lines = fitLines(text, block, scale, measurer);
   if (!lines) return { kind: "overlong" };
   return { kind: "placed", placement: { block, lines, scale, reason: rewrite.reason } };
 }
 
+/** Characters a block can hold, the same budget the model is given. */
+export const maxCharsOf = (block: layout.Block): number => capacity(block).maxChars;
+
+/** The user's own text for a block: cleaned and fitted only. No truthfulness checks, the user is the author. */
+export function fit(text: string, block: layout.Block, measurer: Measurer, reason = "Edited by you"): { placement: Placement; cleaned: string } | { cleaned: string; overBy: number } {
+  const cleaned = clean(text, measurer);
+  const scale = fontScale(block, measurer);
+  const lines = cleaned ? fitLines(cleaned, block, scale, measurer) : null;
+  if (!lines) return { cleaned, overBy: Math.max(1, cleaned.length - maxCharsOf(block)) };
+  return { placement: { block, lines, scale, reason }, cleaned };
+}
+
 /** Placements that fit their original lines, plus the rewrites that were valid but too long to fit. */
 export function validate(rewrites: Rewrite[], resume: layout.Layout, measurer: Measurer): { placements: Placement[]; overlong: Overlong[] } {
   const blocks = new Map(layout.allBlocks(resume).map((block) => [block.id, block]));
+  const knownNumbers = new Set(numbersIn(resume.pages.flatMap((page) => page.lines).map(layout.lineText).join(" ")));
   const seen = new Set<string>();
   const placements: Placement[] = [];
   const overlong: Overlong[] = [];
@@ -175,18 +194,82 @@ export function validate(rewrites: Rewrite[], resume: layout.Layout, measurer: M
     const block = blocks.get(rewrite.id);
     if (!block || seen.has(rewrite.id)) continue;
     seen.add(rewrite.id);
-    const outcome = place(rewrite, block, measurer);
+    const outcome = place(rewrite, block, measurer, knownNumbers);
     if (outcome.kind === "placed") placements.push(outcome.placement);
     if (outcome.kind === "overlong") overlong.push({ rewrite, block, maxChars: capacity(block).maxChars });
   }
   return { placements, overlong };
 }
 
-export function highlights(block: layout.Block): layout.Rect[] {
-  return block.lines.map((line) => ({
-    x: line.left,
-    y: line.baseline - block.fontSize * 0.22,
-    width: line.right - line.left,
-    height: block.fontSize * 1.05,
-  }));
+/** The area a block's text covers, for click targets over a rendered page. */
+export function blockRect(block: layout.Block): layout.Rect {
+  const baselines = block.lines.map((line) => line.baseline);
+  const bottom = Math.min(...baselines) - block.fontSize * 0.22;
+  const top = Math.max(...baselines) + block.fontSize * 0.85;
+  return { x: block.left, y: bottom, width: block.right - block.left, height: top - bottom };
+}
+
+interface PlacedWord {
+  x: number;
+  width: number;
+  baseline: number;
+}
+
+/** One rectangle per run of changed words on a line, so a rewritten phrase reads as one highlight. */
+function changedRects(words: PlacedWord[], isChanged: boolean[], fontSize: number): layout.Rect[] {
+  const rects: layout.Rect[] = [];
+  let open: { start: PlacedWord; end: PlacedWord } | null = null;
+  const close = () => {
+    if (!open) return;
+    rects.push({ x: open.start.x, y: open.start.baseline - fontSize * 0.22, width: open.end.x + open.end.width - open.start.x, height: fontSize * 1.05 });
+    open = null;
+  };
+  words.forEach((word, index) => {
+    if (!isChanged[index]) return close();
+    if (open && open.end.baseline !== word.baseline) close();
+    open = { start: open?.start ?? word, end: word };
+  });
+  close();
+  return rects;
+}
+
+/** Where each word of the original lines sat, spread across the line's drawn width in proportion to the stand-in font's widths. */
+function originalWords(block: layout.Block, measurer: Measurer): PlacedWord[] {
+  return block.lines.flatMap((line) => {
+    const words = layout.lineText(line).split(/\s+/).filter(Boolean);
+    const fullWidth = measurer.width(words.join(" "), block.face, block.fontSize) || 1;
+    const scale = (line.right - line.left) / fullWidth;
+    return words.map((_, index) => {
+      const start = index ? measurer.width(`${words.slice(0, index).join(" ")} `, block.face, block.fontSize) : 0;
+      const end = measurer.width(words.slice(0, index + 1).join(" "), block.face, block.fontSize);
+      return { x: line.left + start * scale, width: (end - start) * scale, baseline: line.baseline };
+    });
+  });
+}
+
+/** Where each word of the rewritten lines is drawn, mirroring the layout the renderer uses. */
+function placedWords(placement: Placement, measurer: Measurer): PlacedWord[] {
+  const { block } = placement;
+  const size = block.fontSize * placement.scale;
+  const spaceWidth = measurer.width(" ", block.face, size);
+  return placement.lines.flatMap((text, index) => {
+    const baseline = block.lines[index]?.baseline ?? block.lines[0]!.baseline;
+    let x = block.left;
+    return text.split(" ").filter(Boolean).map((word) => {
+      const width = measurer.width(word, faceFor(block, word), size);
+      const placed = { x, width, baseline };
+      x += width + spaceWidth;
+      return placed;
+    });
+  });
+}
+
+/** Rectangles over just the words that differ: `removed` on the original page, `added` on the tailored one. */
+export function wordMarks(placement: Placement, measurer: Measurer): { removed: layout.Rect[]; added: layout.Rect[] } {
+  const { block } = placement;
+  const changed = textDiff.changedWords(block.text, placement.lines.join(" "));
+  return {
+    removed: changedRects(originalWords(block, measurer), changed.before, block.fontSize),
+    added: changedRects(placedWords(placement, measurer), changed.after, block.fontSize * placement.scale),
+  };
 }
