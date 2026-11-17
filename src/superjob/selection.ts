@@ -1,3 +1,4 @@
+import * as sessionTabs from "../sessionTabs.ts";
 import type { JobPosting } from "../types.ts";
 
 /** What a Super Job tab currently shows; the side panel reads it because content scripts never run on extension pages. */
@@ -7,32 +8,21 @@ export interface Selection {
   isLoading: boolean;
 }
 
-const storageKey = "superjobSelections";
-
-type Selections = Record<string, Selection>;
-
-async function readAll(): Promise<Selections> {
-  const stored = await chrome.storage.session.get(storageKey);
-  return (stored[storageKey] as Selections | undefined) ?? {};
-}
+const key = "superjobSelection";
 
 export function isPage(url: string): boolean {
   return url.startsWith(chrome.runtime.getURL("superjob.html"));
 }
 
-export async function publish(tabId: number, selection: Selection): Promise<void> {
-  const all = await readAll();
-  await chrome.storage.session.set({ [storageKey]: { ...all, [tabId]: selection } });
-}
+export const publish = (tabId: number, selection: Selection) => sessionTabs.write(key, tabId, selection);
 
 export async function read(tabId: number): Promise<Selection | null> {
-  const all = await readAll();
-  return all[tabId] ?? null;
+  return (await sessionTabs.read<Selection>(key, tabId)) ?? null;
 }
 
 export function onChange(listener: () => void): () => void {
   const handler = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-    if (area === "session" && storageKey in changes) listener();
+    if (area === "session" && Object.keys(changes).some((changed) => sessionTabs.isKeyFor(changed, key))) listener();
   };
   chrome.storage.onChanged.addListener(handler);
   return () => chrome.storage.onChanged.removeListener(handler);

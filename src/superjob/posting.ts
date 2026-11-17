@@ -1,13 +1,16 @@
 import * as sites from "../content/jobSites.ts";
 import * as messages from "../messages.ts";
-import * as linkedinImport from "../profile/linkedinImport.ts";
 import type { JobPosting } from "../types.ts";
+import * as hiddenTab from "./hiddenTab.ts";
 import * as jobSources from "./jobSources.ts";
 import type { FoundJob } from "./jobSources.ts";
 
 const thinDescriptionChars = 300;
 const extractAttempts = 4;
 const extractRetryMs = 1000;
+
+/** Portal markup is third-party input; only http(s) links may reach the listing frame, a new tab or the id lookup. */
+export const hasOpenableUrl = (job: FoundJob) => /^https?:\/\//.test(job.url);
 
 export function idFor(job: FoundJob): string {
   return job.isSearchUrl ? job.id.toLowerCase() : sites.idFromUrl(job.url);
@@ -18,22 +21,17 @@ async function portalDescription(job: FoundJob): Promise<string> {
 }
 
 /** The listing's own page, read by the content extractor in an inactive tab that is always closed. */
-async function extractFromListing(url: string): Promise<JobPosting | null> {
-  const tab = await chrome.tabs.create({ url, active: false });
-  const tabId = tab.id!;
-  try {
-    await linkedinImport.waitForLoad(tabId, false);
-    for (let attempt = 0; attempt < extractAttempts; attempt++) {
-      const extracted = await messages.sendToFrame(tabId, 0, { type: "extractJob" });
-      if (extracted) return extracted;
-      await new Promise((resolve) => setTimeout(resolve, extractRetryMs));
-    }
-    return null;
-  } catch {
-    return null;
-  } finally {
-    await chrome.tabs.remove(tabId).catch(() => undefined);
-  }
+function extractFromListing(url: string): Promise<JobPosting | null> {
+  return hiddenTab
+    .withTab(url, async (tabId) => {
+      for (let attempt = 0; attempt < extractAttempts; attempt++) {
+        const extracted = await messages.sendToFrame(tabId, 0, { type: "extractJob" });
+        if (extracted) return extracted;
+        await new Promise((resolve) => setTimeout(resolve, extractRetryMs));
+      }
+      return null;
+    })
+    .catch(() => null);
 }
 
 /** Never throws for a missing description: falls back to the listing's own page, then to the card snippet. */

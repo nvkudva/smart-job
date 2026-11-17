@@ -26,7 +26,13 @@ class LlmHttpError extends Error {
 
 const switchAdvice = "Switch to a provider or model with a larger limit in Settings (a local model has none).";
 
-const isLocalServer = (baseUrl: string) => /\/\/(localhost|127\.0\.0\.1)[:/]/.test(baseUrl);
+export function isLocalServer(baseUrl: string): boolean {
+  try {
+    return ["localhost", "127.0.0.1"].includes(new URL(baseUrl).hostname);
+  } catch {
+    return false;
+  }
+}
 
 const tooLargeWords = /request too large|context length|too many tokens|tokens per minute|prompt is too long|reduce (your|the) (message|prompt|input)|input is too long/i;
 
@@ -168,7 +174,7 @@ async function fetchWithRateLimitRetry(url: string, init: RequestInit & { signal
 
 /** Local thinking models (Qwen 3.x) spend minutes reasoning; Ollama honours "none", LM Studio only shortens on "low". Cloud non-reasoning models reject the field, so local only. */
 function localReasoningOption(baseUrl: string): { reasoning_effort?: string } {
-  if (!/\/\/(localhost|127\.0\.0\.1)[:/]/.test(baseUrl)) return {};
+  if (!isLocalServer(baseUrl)) return {};
   return { reasoning_effort: baseUrl.includes(":11434") ? "none" : "low" };
 }
 

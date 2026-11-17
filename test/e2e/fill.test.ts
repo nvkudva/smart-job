@@ -268,7 +268,9 @@ describe("autofill fixtures", () => {
     expect(await frame.locator("#resumeFile").evaluate((el: HTMLInputElement) => el.files!.length)).toBe(1);
   }, 60000);
 
-  test("formChanged is broadcast when the form DOM changes (wizard step)", async () => {
+  test("formChanged is broadcast when the form DOM changes (wizard step), but only while auto re-fill is on", async () => {
+    const withAutoFill = (isOn: boolean) => h.seed({ settings: { ...defaultSettings, autoFillOnPageChange: isOn, provider: { kind: "openai", baseUrl: "http://127.0.0.1:9/v1", apiKey: "", model: "x" } } });
+    await withAutoFill(true);
     const { page, panel } = await openFixture("/lever-apply.html");
     await panel.evaluate(() => {
       (window as any).__changes = [];
@@ -283,5 +285,6 @@ describe("autofill fixtures", () => {
     });
     await page.waitForTimeout(1500);
     expect(await panel.evaluate(() => (window as any).__changes.length)).toBeGreaterThanOrEqual(1);
+    await withAutoFill(false);
   }, 30000);
 });

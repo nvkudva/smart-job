@@ -35,9 +35,7 @@ const posting = (id: string, title: string, company: string): JobPosting => ({
 function publish(page: Page, tabId: number, job: JobPosting | null, isLoading = false): Promise<void> {
   return page.evaluate(
     async ({ tabId, job, isLoading }) => {
-      const stored = await chrome.storage.session.get("superjobSelections");
-      const all = stored.superjobSelections ?? {};
-      await chrome.storage.session.set({ superjobSelections: { ...all, [tabId]: { job, isLoading } } });
+      await chrome.storage.session.set({ [`superjobSelection:${tabId}`]: { job, isLoading } });
     },
     { tabId, job, isLoading },
   );

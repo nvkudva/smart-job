@@ -40,9 +40,13 @@ function usePostings(selected: FoundJob | undefined, tabId: number | undefined):
     publish(null, true);
     let isCurrent = true;
     const timer = setTimeout(async () => {
-      const loaded = await posting.load(selected);
-      setPostings((current) => ({ ...current, [selected.id]: loaded }));
-      if (isCurrent) publish(loaded, false);
+      try {
+        const loaded = await posting.load(selected);
+        setPostings((current) => ({ ...current, [selected.id]: loaded }));
+        if (isCurrent) publish(loaded, false);
+      } catch {
+        if (isCurrent) publish(null, false);
+      }
     }, loadDelayMs);
     return () => {
       isCurrent = false;

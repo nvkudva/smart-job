@@ -28,3 +28,9 @@ test("idFor matches the id the content extractor gives the same listing URL", ()
   expect(job.extract(listing(jsonLd, "<h1>Engineering Manager</h1>"), generic)?.id).toBe(posting.idFor(found("Shine", generic)));
   expect(job.extract(listing("", topCard), linkedin)?.id).toBe(posting.idFor(found("LinkedIn", linkedin)));
 });
+
+test("only listings with an http(s) link are kept, so a malformed link never reaches the frame or the id lookup", () => {
+  expect(posting.hasOpenableUrl(found("Naukri", "not a url"))).toBe(false);
+  expect(posting.hasOpenableUrl(found("Naukri", "javascript:alert(1)"))).toBe(false);
+  expect(posting.hasOpenableUrl(found("Naukri", "https://www.naukri.com/job-1"))).toBe(true);
+});

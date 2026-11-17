@@ -86,50 +86,48 @@ export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
       if (created.openerTabId === tabId && created.id) openedTabId = created.id;
     };
     chrome.tabs.onCreated.addListener(onCreated);
-    const finishListening = () => chrome.tabs.onCreated.removeListener(onCreated);
-    const { portalTabId, click } = await applyPage.open(tabId, tabUrl, job);
-    if (portalTabId || click.result !== "none") await sleep(afterClickMs);
-    for (let poll = 0; poll < maxFormPolls && !stopRequested.current; poll++) {
-      if (poll > 0) setFillPhase("Waiting for the apply form to appear…");
-      const newTabId = portalTabId ?? openedTabId;
-      let target: ApplyTarget;
-      if (newTabId) {
-        const info = await chrome.tabs.get(newTabId).catch(() => undefined);
-        if (!info) {
-          await sleep(formPollMs);
-          continue;
+    try {
+      const { portalTabId, click } = await applyPage.open(tabId, tabUrl, job);
+      if (portalTabId || click.result !== "none") await sleep(afterClickMs);
+      for (let poll = 0; poll < maxFormPolls && !stopRequested.current; poll++) {
+        if (poll > 0) setFillPhase("Waiting for the apply form to appear…");
+        const newTabId = portalTabId ?? openedTabId;
+        let target: ApplyTarget;
+        if (newTabId) {
+          const info = await chrome.tabs.get(newTabId).catch(() => undefined);
+          if (!info) {
+            await sleep(formPollMs);
+            continue;
+          }
+          if (!hasFocusedOpened && !portalTabId) {
+            hasFocusedOpened = true;
+            void chrome.tabs.update(newTabId, { active: true }).catch(() => undefined);
+          }
+          if (info.status !== "complete") {
+            setFillPhase("New tab opened — loading the apply form…");
+            await sleep(formPollMs);
+            continue;
+          }
+          target = { tabId: newTabId, url: info.url ?? "" };
+        } else {
+          target = await activeTab.readCurrentTab();
         }
-        if (!hasFocusedOpened && !portalTabId) {
-          hasFocusedOpened = true;
-          void chrome.tabs.update(newTabId, { active: true }).catch(() => undefined);
+        // Start is the user's go-ahead to type the job-site account into sign-up forms for this run only
+        const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true, onProgress: setFillPhase }) : null;
+        if (stopRequested.current) return setNote("Stopped.");
+        if (next && next.fieldCount > 0) {
+          setReport(next);
+          setEdits({});
+          await rememberApplication(next, target);
+          setNote("Filled. Review it, then submit yourself.");
+          return;
         }
-        if (info.status !== "complete") {
-          setFillPhase("New tab opened — loading the apply form…");
-          await sleep(formPollMs);
-          continue;
-        }
-        target = { tabId: newTabId, url: info.url ?? "" };
-      } else {
-        target = await activeTab.readCurrentTab();
+        await sleep(formPollMs);
       }
-      // Start is the user's go-ahead to type the job-site account into sign-up forms for this run only
-      const next = target.tabId ? await session.run(target.tabId, job, { useAi, includeAccount: true, onProgress: setFillPhase }) : null;
-      if (stopRequested.current) {
-        finishListening();
-        return setNote("Stopped.");
-      }
-      if (next && next.fieldCount > 0) {
-        finishListening();
-        setReport(next);
-        setEdits({});
-        await rememberApplication(next, target);
-        setNote("Filled. Review it, then submit yourself.");
-        return;
-      }
-      await sleep(formPollMs);
+      if (!stopRequested.current) setNote(click.result === "none" ? "No Apply button or form found here." : "No form appeared. Click Apply on the page, then press Start applying again.");
+    } finally {
+      chrome.tabs.onCreated.removeListener(onCreated);
     }
-    finishListening();
-    if (!stopRequested.current) setNote(click.result === "none" ? "No Apply button or form found here." : "No form appeared. Click Apply on the page, then press Start applying again.");
   });
   const applyTask = useTask(async (items: FillReportItem[]) => {
     if (!tabId || !report) return;

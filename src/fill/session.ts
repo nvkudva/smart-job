@@ -2,6 +2,7 @@ import * as llm from "../ai/llm.ts";
 import * as tasks from "../ai/tasks.ts";
 import type { ApplyClick } from "../messages.ts";
 import { listFrameIds, sendToFrame } from "../messages.ts";
+import * as sessionTabs from "../sessionTabs.ts";
 import * as storage from "../storage.ts";
 import type { AnswerBank, FieldDescriptor, FieldFill, FillResult, JobPosting, Profile, Resume } from "../types.ts";
 import * as learning from "./learning.ts";
@@ -142,16 +143,8 @@ async function logMisses(tabId: number, unknown: FieldDescriptor[], fills: Field
  * Some portals (iCIMS) reload the page when a file is attached and drop the other fields; attaching again on the reloaded page would loop forever.
  * Kept in session storage because the panel and the resume editor tab are separate pages that both attach files.
  */
-const uploadedKey = "uploadedResumePages";
-
-async function uploadedPages(): Promise<Record<number, string>> {
-  const stored = await chrome.storage.session?.get(uploadedKey);
-  return (stored?.[uploadedKey] as Record<number, string> | undefined) ?? {};
-}
-
-async function markResumeUploaded(tabId: number, pageKey: string): Promise<void> {
-  await chrome.storage.session?.set({ [uploadedKey]: { ...(await uploadedPages()), [tabId]: pageKey } });
-}
+const uploadedPage = (tabId: number) => sessionTabs.read<string>("uploadedResumePage", tabId);
+const markResumeUploaded = (tabId: number, pageKey: string) => sessionTabs.write("uploadedResumePage", tabId, pageKey);
 
 async function pageKeyOf(tabId: number): Promise<string> {
   try {
@@ -194,7 +187,7 @@ export async function run(
   const ai = options.useAi ? await askAi(leftovers, { profile, resume, job, answers }) : { fills: [], failed: false };
   const fieldOrder = new Map(fields.map((field, index) => [keyOf(field), index]));
   const pageKey = await pageKeyOf(tabId);
-  const hasResumeUploaded = (await uploadedPages())[tabId] === pageKey;
+  const hasResumeUploaded = (await uploadedPage(tabId)) === pageKey;
   const allFills = [...fills, ...ai.fills]
     .filter((fill) => !(hasResumeUploaded && fill.source === "resume"))
     .sort((a, b) => fieldOrder.get(keyOf(a))! - fieldOrder.get(keyOf(b))!);

@@ -11,18 +11,45 @@ async function waitForContainer(readySelector: string, containerSelector: string
   return "";
 }
 
-/** Opens url in an inactive tab, runs func in it and returns its string result; the tab is always closed. */
-export async function run<Args extends unknown[]>(url: string, func: (...args: Args) => string | Promise<string>, args: Args): Promise<string> {
+let queue: Promise<unknown> = Promise.resolve();
+const openTabIds = new Set<number>();
+let isCleanupRegistered = false;
+
+/** The page's scripts stop when it closes, so the finally blocks below never run; this closes the tabs it left open. */
+function closeLeftoverTabsOnPageClose(): void {
+  if (isCleanupRegistered) return;
+  isCleanupRegistered = true;
+  addEventListener("pagehide", () => void chrome.tabs.remove([...openTabIds]).catch(() => undefined));
+}
+
+async function useTab<Result>(url: string, use: (tabId: number) => Promise<Result>): Promise<Result> {
   const tab = await chrome.tabs.create({ url, active: false });
   const tabId = tab.id!;
+  openTabIds.add(tabId);
   try {
     await linkedinImport.waitForLoad(tabId, false);
+    return await use(tabId);
+  } finally {
+    openTabIds.delete(tabId);
+    await chrome.tabs.remove(tabId).catch(() => undefined);
+  }
+}
+
+/** Opens url in an inactive tab that has finished loading, runs use, always closes the tab. One tab at a time, so quick repeat searches cannot pile up heavy portal pages. */
+export function withTab<Result>(url: string, use: (tabId: number) => Promise<Result>): Promise<Result> {
+  closeLeftoverTabsOnPageClose();
+  const turn = queue.then(() => useTab(url, use));
+  queue = turn.catch(() => undefined);
+  return turn;
+}
+
+/** Runs func in the page and returns its string result. */
+export function run<Args extends unknown[]>(url: string, func: (...args: Args) => string | Promise<string>, args: Args): Promise<string> {
+  return withTab(url, async (tabId) => {
     const results = await chrome.scripting.executeScript({ target: { tabId }, func, args });
     const result = results[0]?.result;
     return typeof result === "string" ? result : "";
-  } finally {
-    await chrome.tabs.remove(tabId).catch(() => undefined);
-  }
+  });
 }
 
 /** HTML of the container once readySelector appears; throws when the portal never shows it. */

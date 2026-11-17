@@ -171,12 +171,7 @@ function isTrustedProvider(settings: Record<string, unknown>): boolean {
   const provider = settings.provider;
   if (provider === undefined) return true;
   if (!isPlainObject(provider) || typeof provider.baseUrl !== "string" || typeof provider.kind !== "string") return false;
-  if (llm.presetFor(provider as unknown as Settings["provider"])) return true;
-  try {
-    return ["localhost", "127.0.0.1"].includes(new URL(provider.baseUrl).hostname);
-  } catch {
-    return false;
-  }
+  return !!llm.presetFor(provider as unknown as Settings["provider"]) || llm.isLocalServer(provider.baseUrl);
 }
 
 /** Only known keys with the right basic shape are written, so a wrong or hand-edited file cannot plant stray data or crash the panel. */
@@ -190,7 +185,17 @@ export async function importAll(json: string): Promise<void> {
   }
   const settings = parsed.settings;
   if (isPlainObject(settings) && !isTrustedProvider(settings)) throw new Error("This file points the AI provider at an unknown server. Edit the base URL to a known provider or a local server and try again.");
-  await chrome.storage.local.set(Object.fromEntries(known));
+  const toWrite = Object.fromEntries(known);
+  if (isPlainObject(settings)) toWrite.settings = await withKeptSecrets(settings as Partial<Settings>);
+  await chrome.storage.local.set(toWrite);
+}
+
+/** Exports leave the API key and job-site password empty, so importing them back must not wipe the ones already saved. */
+async function withKeptSecrets(incoming: Partial<Settings>): Promise<Partial<Settings>> {
+  const current = await get("settings");
+  const provider = incoming.provider && { ...incoming.provider, apiKey: incoming.provider.apiKey || current.provider.apiKey };
+  const account = incoming.account && { ...incoming.account, password: incoming.account.password || current.account.password };
+  return { ...incoming, ...(provider && { provider }), ...(account && { account }) };
 }
 
 export async function clearAll(): Promise<void> {

@@ -10,6 +10,7 @@ import type { FoundJob, SearchQuery } from "./jobSources.ts";
 import * as jobSources from "./jobSources.ts";
 import { ConnectCard } from "./connectCard.tsx";
 import { filterByPortals } from "./jobList.tsx";
+import * as posting from "./posting.ts";
 import { Results, useChosenJob } from "./results.tsx";
 
 interface SourceStatus {
@@ -52,8 +53,9 @@ function useSearch(country: string) {
     for (const source of sources) {
       const page = nextPage.current[source.name] ?? 0;
       source.search(searchQuery, page).then(
-        (found) => {
+        (allFound) => {
           if (searchId !== latestSearch.current) return;
+          const found = allFound.filter(posting.hasOpenableUrl);
           nextPage.current[source.name] = page + 1;
           setJobs((current) => {
             const knownIds = new Set(current.map((job) => job.id));

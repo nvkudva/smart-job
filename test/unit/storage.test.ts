@@ -50,3 +50,12 @@ test("export leaves out the API key and account password", async () => {
   expect(exported).not.toContain("hunter2");
   expect(exported).toContain("a@b.c");
 });
+
+test("importing an export keeps the saved API key and job-site password", async () => {
+  backing.settings = { provider: { kind: "openai", baseUrl: "http://localhost:1234/v1", apiKey: "sk-keep", model: "m" }, account: { email: "a@b.c", password: "pw-keep" } };
+  const exported = await storage.exportAll();
+  await storage.importAll(exported);
+  const settings = backing.settings as { provider: { apiKey: string }; account: { password: string } };
+  expect(settings.provider.apiKey).toBe("sk-keep");
+  expect(settings.account.password).toBe("pw-keep");
+});
