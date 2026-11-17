@@ -62,13 +62,17 @@ export function parseBraveResults(html: string): SearchResult[] {
 }
 
 async function searchQuery(query: string, fetchPage: typeof fetch): Promise<SearchResult[]> {
-  // every engine: Bing often answers office queries with unrelated pages and DDG challenges some networks; Brave snippets carry the address itself
-  const [brave, ddg, bing] = await Promise.all([
-    salary.fetchResults(`https://search.brave.com/search?q=${encodeURIComponent(query)}`, parseBraveResults, fetchPage),
-    salary.fetchResults(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, salary.parseSearchResults, fetchPage),
-    salary.fetchResults(`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en`, salary.parseBingResults, fetchPage),
-  ]);
-  return [...brave, ...ddg, ...bing];
+  // Brave first because its snippets carry the address itself; Bing often answers office queries with unrelated pages and DDG challenges some networks. The next engine is asked only when one comes back empty.
+  const engines: [string, (html: string) => SearchResult[]][] = [
+    [`https://search.brave.com/search?q=${encodeURIComponent(query)}`, parseBraveResults],
+    [`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, salary.parseSearchResults],
+    [`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en`, salary.parseBingResults],
+  ];
+  for (const [url, parse] of engines) {
+    const results = await salary.fetchResults(url, parse, fetchPage);
+    if (results.length) return results;
+  }
+  return [];
 }
 
 const ADDRESS_SIGNAL = /address|located|office|campus|\b\d{6}\b|road|street|nagar|layout|park|tower|plaza|floor|block|sector|phase/i;

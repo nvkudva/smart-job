@@ -1,3 +1,5 @@
+import * as sessionTabs from "./sessionTabs.ts";
+
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
 // Local and private-network servers (Ollama, LM Studio, llama.cpp) answer 403 to chrome-extension:// origins unless allow-listed. Dropping the Origin header
@@ -37,3 +39,5 @@ const frameHeadersRule: chrome.declarativeNetRequest.Rule = {
 chrome.declarativeNetRequest
   .updateSessionRules({ removeRuleIds: [ollamaOriginRule.id, frameHeadersRule.id], addRules: [ollamaOriginRule, frameHeadersRule] })
   .catch(console.error);
+
+chrome.tabs.onRemoved.addListener((tabId) => void sessionTabs.forget(tabId).catch(console.error));

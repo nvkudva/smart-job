@@ -11,12 +11,7 @@ export function parseIds(body: unknown): string[] {
 
 /** The key only goes to a known provider or a local server, never to a half-typed URL someone else may own. */
 function isTrustedHost(provider: ProviderSettings): boolean {
-  if (llm.presetFor(provider)) return true;
-  try {
-    return ["localhost", "127.0.0.1"].includes(new URL(provider.baseUrl).hostname);
-  } catch {
-    return false;
-  }
+  return !!llm.presetFor(provider) || llm.isLocalServer(provider.baseUrl);
 }
 
 /** Model ids from an OpenAI-compatible GET /models; [] on any failure because typing a model name still works. */

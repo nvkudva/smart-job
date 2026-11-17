@@ -12,7 +12,7 @@ interface Spec {
   location: string[];
   description: string[];
   salary: string[];
-  id?: (url: URL, doc: Document) => string;
+  id?: (url: URL, doc?: Document) => string;
   /** Tried before the selectors, for sites whose markup has no stable class names */
   readLayout?: (doc: Document, url: URL) => SiteJob | null;
   fixup?: (job: SiteJob) => void;
@@ -98,9 +98,9 @@ const LINKEDIN_TITLE = [
   ".top-card-layout__title",
 ];
 
-function linkedinJobId(url: URL, doc: Document): string {
+function linkedinJobId(url: URL, doc?: Document): string {
   const fromUrl = url.searchParams.get("currentJobId") ?? url.pathname.match(/\/jobs\/view\/(?:[^/]*-)?(\d+)/)?.[1];
-  if (fromUrl) return fromUrl;
+  if (fromUrl || !doc) return fromUrl ?? "";
   const active = doc.querySelector("[data-job-id].jobs-search-results-list__list-item--active, [data-job-id].job-card-container--active");
   return (active ?? doc.querySelector(".jobs-search__job-details [data-job-id], [data-job-id]"))?.getAttribute("data-job-id") ?? "";
 }
@@ -249,6 +249,17 @@ const SPECS: Spec[] = [
     salary: [],
   },
 ];
+
+export function urlId(url: URL): string {
+  return `url:${url.origin}${url.pathname}`;
+}
+
+/** The id a real tab on this listing gets, from the URL alone (the listing's page is not loaded). */
+export function idFromUrl(href: string): string {
+  const url = new URL(href);
+  const spec = SPECS.find((candidate) => candidate.host.test(url.hostname));
+  return spec?.id?.(url) || urlId(url);
+}
 
 /** The first site extractor whose host or markers match this document. */
 export function detect(doc: Document, href: string): SiteJob | null {

@@ -427,6 +427,12 @@ describe("account forms", () => {
     const password = field({ id: "p", kind: "password", label: "Password" });
     expect(mapping.map([email, password], profile, {}, null)).toEqual([{ id: "e", frameId: 0, value: profile.email, source: "profile" }]);
   });
+  test("a password box in a third-party frame with no login field never gets the account password", () => {
+    const widget = field({ id: "w", kind: "password", label: "Password", frameId: 3 });
+    expect(mapping.map([widget], profile, {}, null, account)).toEqual([]);
+    const loginFrame = [field({ id: "e", kind: "email", label: "Email", frameId: 3 }), widget];
+    expect(mapping.map(loginFrame, profile, {}, null, account).map((fill) => fill.value)).toEqual(["me@jobs.test", "s3cret!"]);
+  });
   test("saved answers never fill a password field", () => {
     const password = field({ id: "p", kind: "password", label: "Password" });
     expect(mapping.map([password], profile, { password: { question: "Password", answer: "leak", updatedAt: 0 } })).toEqual([]);

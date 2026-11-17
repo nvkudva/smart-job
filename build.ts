@@ -9,6 +9,7 @@ const entries = [
   { entry: "src/content/index.ts", name: "content.js", format: "iife" },
   { entry: "src/panel/main.tsx", name: "panel.js", format: "esm" },
   { entry: "src/panel/documents/resumePreview.tsx", name: "resumePreview.js", format: "esm" },
+  { entry: "src/superjob/page.tsx", name: "superjob.js", format: "esm" },
 ] as const;
 
 for (const { entry, name, format } of entries) {

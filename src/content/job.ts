@@ -36,7 +36,7 @@ function finish(found: Fields, site: sites.SiteJob | null, doc: Document, href: 
     company: cleanCompany(found.company || meta(doc, "og:site_name") || (site?.source === "lever" ? (doc.title.split(" - ")[0] ?? "").trim() : "") || companyFromBoardUrl(url)),
     description,
     salaryText: found.salaryText || sites.findSalary(description),
-    id: site?.id || `url:${url.origin}${url.pathname}`,
+    id: site?.id || sites.urlId(url),
     url: href,
   };
 }

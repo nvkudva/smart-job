@@ -152,6 +152,15 @@ a:hover,
 .tabs button.active .icon {
   color: var(--accent);
 }
+.superjob-bar {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 10;
+}
+.superjob-bar .btn {
+  box-shadow: var(--shadow-float);
+}
 .tabs .dot {
   position: absolute;
   top: 6px;

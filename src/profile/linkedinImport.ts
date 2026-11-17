@@ -34,7 +34,7 @@ function politePause(): Promise<void> {
 }
 
 /** Resolves on "complete", or after the timeout so a stuck tracker script cannot block a readable page. */
-function waitForLoad(tabId: number, isAlreadyLoading: boolean): Promise<void> {
+export function waitForLoad(tabId: number, isAlreadyLoading: boolean): Promise<void> {
   return new Promise((resolve) => {
     const finish = () => {
       clearTimeout(timer);

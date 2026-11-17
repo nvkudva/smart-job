@@ -368,18 +368,31 @@ function fileFill(field: FieldDescriptor, resume: Resume | null | undefined): Pi
 /** Sign-in / create-account pages: passwords from settings, and the account email for the email / username field. */
 function accountFill(field: FieldDescriptor, account: AccountLogin | undefined): Pick<FieldFill, "value" | "source"> | undefined {
   if (field.kind === "password") return account?.password ? { value: account.password, source: "profile" } : undefined;
+  return isLoginField(field) && account?.email ? { value: account.email, source: "profile" } : undefined;
+}
+
+function isLoginField(field: FieldDescriptor): boolean {
   const text = normalize(`${field.label} ${field.name} ${field.automationId} ${field.placeholder}`);
-  const isLogin = field.kind === "email" || /e ?mail|user ?name|user ?id|login/.test(text);
-  return isLogin && account?.email ? { value: account.email, source: "profile" } : undefined;
+  return field.kind === "email" || /e ?mail|user ?name|user ?id|login/.test(text);
+}
+
+/** A password is typed only into the page's own form or a frame that also holds the login field, so a stray third-party frame with a password box never gets it. */
+function accountFrameIds(fields: FieldDescriptor[]): Set<number> {
+  const frameIds = new Set<number>();
+  for (const field of fields) {
+    if (field.kind !== "password") continue;
+    if (field.frameId === 0 || fields.some((other) => other.frameId === field.frameId && isLoginField(other))) frameIds.add(field.frameId);
+  }
+  return frameIds;
 }
 
 export function map(fields: FieldDescriptor[], profile: Profile, answers: AnswerBank, resume?: Resume | null, account?: AccountLogin): FieldFill[] {
   const hasPhoneCodeField = fields.some((field) => /country (phone )?code|phone code/.test(normalize(field.label)));
-  const isAccountForm = fields.some((field) => field.kind === "password");
+  const accountFrames = accountFrameIds(fields);
   const fills: FieldFill[] = [];
   for (const field of fields) {
     if (hasFilledValue(field)) continue;
-    const fromAccount = isAccountForm ? accountFill(field, account) : undefined;
+    const fromAccount = accountFrames.has(field.frameId) ? accountFill(field, account) : undefined;
     const fill = fromAccount ?? (field.kind === "file" ? fileFill(field, resume) : field.kind === "password" ? undefined : fromBankOrProfile(field, profile, answers, hasPhoneCodeField));
     if (fill) fills.push({ id: field.id, frameId: field.frameId, ...fill });
   }

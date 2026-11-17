@@ -68,7 +68,7 @@ function signature(): string {
 }
 
 /** Broadcast { type: "formChanged" } (debounced) when the form DOM changes substantially (wizard step). */
-export function watchForChanges(): void {
+export function watchForChanges(): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastSignature: string | undefined;
   const check = () => {
@@ -88,4 +88,8 @@ export function watchForChanges(): void {
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   timer = setTimeout(check, CHANGE_DEBOUNCE_MS); // baseline signature
+  return () => {
+    clearTimeout(timer);
+    observer.disconnect();
+  };
 }

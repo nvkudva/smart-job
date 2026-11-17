@@ -52,11 +52,27 @@ async function storeCredential(username: string, password: string): Promise<bool
   }
 }
 
+/** formChanged only feeds the panel's automatic re-fill, so a page is scanned for changes only while that setting is on. */
+function watchFormWhileAutoFillIsOn(): void {
+  let stopWatching: (() => void) | undefined;
+  const follow = (settings: { autoFillOnPageChange?: boolean } | undefined) => {
+    if (settings?.autoFillOnPageChange && !stopWatching) stopWatching = form.watchForChanges();
+    if (!settings?.autoFillOnPageChange && stopWatching) {
+      stopWatching();
+      stopWatching = undefined;
+    }
+  };
+  void chrome.storage.local.get("settings").then((stored) => follow(stored.settings as { autoFillOnPageChange?: boolean } | undefined));
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.settings) follow(changes.settings.newValue as { autoFillOnPageChange?: boolean } | undefined);
+  });
+}
+
 // the panel injects this script into tabs that have none, which can race Chrome's own injection; a second copy would double every listener
 const marker = globalThis as { __smartjob?: boolean };
 if (!marker.__smartjob) {
   marker.__smartjob = true;
   listen();
-  form.watchForChanges();
+  watchFormWhileAutoFillIsOn();
   job.watchForChanges();
 }
