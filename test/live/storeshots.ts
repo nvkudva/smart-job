@@ -252,9 +252,9 @@ const dataUrl = async (path: string) => `data:image/png;base64,${Buffer.from(awa
 
 const frameStyle = `
   *{box-sizing:border-box;margin:0}body{width:1280px;height:800px;overflow:hidden;font-family:-apple-system,"SF Pro Display","Segoe UI",Helvetica,Arial,sans-serif;color:#fff;
-  background:radial-gradient(900px 500px at 85% -10%,#2f6bff 0%,transparent 60%),radial-gradient(700px 500px at -10% 110%,#00b59a55 0%,transparent 60%),#0a1530}
+  background:radial-gradient(900px 500px at 85% -10%,#ff6a3d 0%,transparent 60%),radial-gradient(700px 500px at -10% 110%,#e5557e66 0%,transparent 60%),#150e12}
   h1{position:absolute;left:56px;top:34px;font-size:46px;letter-spacing:-.02em;font-weight:800}
-  p.sub{position:absolute;left:58px;top:94px;font-size:21px;color:#b8c6e6}
+  p.sub{position:absolute;left:58px;top:94px;font-size:21px;color:#ffd9c9}
   .win{position:absolute;left:50px;top:146px;width:1180px;height:620px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 30px 80px #0008,0 0 0 1px #ffffff22}
   .bar{height:36px;background:#e9edf5;display:flex;align-items:center;gap:8px;padding:0 14px}
   .bar i{width:12px;height:12px;border-radius:50%;background:#c4cada}.bar span{margin:0 auto;transform:translateX(-30px);background:#fff;border-radius:8px;padding:3px 60px;color:#5b6478;font-size:13px}
@@ -271,20 +271,22 @@ const scenes: [file: string, headline: string, sub: string, site: string, panel:
   ["2-pay-and-perks", "See pay and perks before you apply", "Posted pay, or a clearly labelled estimate, plus the benefits the posting states.", "site-job", "panel-analysis-pay", "careers.cobaltharbor.example/senior-frontend-engineer"],
   ["3-autofill", "Autofill the application. You press Submit.", "Fields are filled from your profile, AI answers the rest, and every field is colour-coded.", "site-apply", "panel-apply", "careers.cobaltharbor.example/apply"],
   ["4-cover-letter", "A cover letter written for this job", "Short, keyword-aware, in your tone. Tailor your resume the same way.", "site-apply", "panel-write", "careers.cobaltharbor.example/apply"],
+  ["6-profile-settings", "Your profile and your AI, set once", "Pick a local model or your own key. Your details are stored on your device.", "site-apply", "panel-profile", "careers.cobaltharbor.example/apply"],
+  ["7-free-open-source", "Free, open source, no payment", "MIT licensed. No account, no subscription, no analytics.", "site-job", "panel-settings", "careers.cobaltharbor.example/senior-frontend-engineer"],
   ["5-tracker", "Track every application in one place", "Shortlist, status, notes and CSV export. Everything stays on your device.", "site-job", "panel-tracker", "careers.cobaltharbor.example/senior-frontend-engineer"],
 ];
 
-const tagline = "Your AI sidekick for job search and apply";
+const tagline = "Your AI job assistant. Free, open source, works with any AI.";
 
 async function promoHtml(width: number, height: number, isWide: boolean): Promise<string> {
   const panel = await dataUrl(`${rawDir}/panel-analysis.png`);
   const side = isWide ? `<img src="${panel}" style="position:absolute;right:70px;top:60px;width:380px;border-radius:14px;box-shadow:0 20px 60px #0008">` : "";
-  return `<style>*{box-sizing:border-box;margin:0}body{width:${width}px;height:${height}px;overflow:hidden;font-family:-apple-system,"SF Pro Display",Helvetica,Arial,sans-serif;color:#fff;position:relative;
-  background:radial-gradient(60% 90% at 90% 0%,#2f6bff 0%,transparent 70%),radial-gradient(50% 70% at 0% 100%,#00b59a66 0%,transparent 70%),#0a1530}
-  .logo{position:absolute;left:${isWide ? 70 : 36}px;top:${isWide ? 110 : 40}px;width:${isWide ? 96 : 64}px}.logo svg{width:100%;height:auto}
-  h1{position:absolute;left:${isWide ? 70 : 36}px;top:${isWide ? 230 : 120}px;font-size:${isWide ? 76 : 44}px;font-weight:800;letter-spacing:-.02em}
-  p{position:absolute;left:${isWide ? 72 : 38}px;top:${isWide ? 330 : 180}px;width:${isWide ? 620 : 370}px;font-size:${isWide ? 30 : 21}px;line-height:1.3;color:#c3d0ee}</style>
-  <div class="logo">${iconSvg}</div><h1>SmartJob</h1><p>${tagline}</p>${side}`;
+  return `<style>*{box-sizing:border-box;margin:0}html{height:${height}px;background-repeat:no-repeat}body{width:${width}px;height:${height}px;overflow:hidden;font-family:-apple-system,"SF Pro Display",Helvetica,Arial,sans-serif;color:#fff;position:relative;
+  background:radial-gradient(60% 90% at 90% 0%,#ff6a3d 0%,transparent 70%),radial-gradient(50% 70% at 0% 100%,#e5557e66 0%,transparent 70%),#150e12}
+  .logo{position:absolute;left:${isWide ? 70 : 36}px;top:${isWide ? 110 : 34}px;width:${isWide ? 96 : 52}px}.logo svg{width:100%;height:auto}
+  h1{position:absolute;left:${isWide ? 70 : 36}px;top:${isWide ? 230 : 100}px;font-size:${isWide ? 76 : 34}px;font-weight:800;letter-spacing:-.02em}
+  p{position:absolute;left:${isWide ? 72 : 38}px;top:${isWide ? 330 : 150}px;width:${isWide ? 620 : 370}px;font-size:${isWide ? 30 : 20}px;line-height:1.3;color:#ffd9c9}</style>
+  <div class="logo">${iconSvg}</div><h1>SmartJob Assistant</h1><p>${tagline}</p>${side}`;
 }
 
 async function compose(): Promise<void> {
@@ -297,9 +299,10 @@ async function compose(): Promise<void> {
     await page.screenshot({ path: `${storeDir}/screenshot-${file}.png` });
   }
   for (const [file, width, height, isWide] of [["promo-small-440x280", 440, 280, false], ["promo-marquee-1400x560", 1400, 560, true]] as const) {
-    await page.setViewportSize({ width, height });
-    await page.setContent(await promoHtml(width, height, isWide));
-    await page.screenshot({ path: `${storeDir}/${file}.png` });
+    const promoPage = await browser.newPage({ viewport: { width, height } });
+    await promoPage.setContent(await promoHtml(width, height, isWide));
+    await promoPage.screenshot({ path: `${storeDir}/${file}.png` });
+    await promoPage.close();
   }
   await browser.close();
 }

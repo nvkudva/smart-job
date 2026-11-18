@@ -1,5 +1,5 @@
 {
-  "name": "smartjob",
+  "name": "smartjob-assistant",
   "type": "module",
   "private": true,
   "scripts": {
@@ -8,7 +8,7 @@
     "typecheck": "bun check",
     "test": "bun test test/unit",
     "test:e2e": "bun run build.ts && bun test test/e2e",
-    "zip": "bun run build.ts && cd dist && zip -qr ../smartjob.zip ."
+    "zip": "bun run build.ts && cd dist && zip -qr ../smartjob-assistant.zip ."
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^21.0.4",

@@ -305,7 +305,7 @@ function Editor({ initial }: { initial: preview.TailoredPreview }) {
 function App() {
   const slot = usePanelSlot();
   if (slot === undefined) return <p class="muted preview-empty">Loading…</p>;
-  if (slot === null) return <p class="muted preview-empty">Nothing to edit yet. Generate a tailored resume from the SmartJob side panel (Write tab).</p>;
+  if (slot === null) return <p class="muted preview-empty">Nothing to edit yet. Generate a tailored resume from the SmartJob Assistant side panel (Write tab).</p>;
   return <Editor initial={slot} />;
 }
 

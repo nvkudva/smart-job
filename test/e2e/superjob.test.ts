@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
+import { hasSuperJob } from "../../src/features.ts";
 import { emptyProfile } from "../../src/storage.ts";
 import * as harness from "./harness.ts";
 
@@ -10,7 +11,7 @@ afterAll(async () => {
   await h?.close();
 });
 
-test("Super Job button opens the search page with the saved roles as chips", async () => {
+test.skipIf(!hasSuperJob)("Super Job button opens the search page with the saved roles as chips", async () => {
   await h.seed({
     setupComplete: true,
     profile: { ...emptyProfile, city: "Bengaluru", country: "India" },

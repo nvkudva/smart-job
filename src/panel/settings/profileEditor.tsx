@@ -56,7 +56,7 @@ const groups: { title: string; note?: string; fields: (FieldSpec | FieldSpec[])[
   },
   {
     title: "EEO (voluntary)",
-    note: "Leave blank to decline to answer. SmartJob picks “prefer not to say” for blank fields.",
+    note: "Leave blank to decline to answer. SmartJob Assistant picks “prefer not to say” for blank fields.",
     fields: [
       [{ key: "gender", label: "Gender" }, { key: "pronouns", label: "Pronouns" }],
       [{ key: "ethnicity", label: "Ethnicity" }, { key: "veteranStatus", label: "Veteran status" }],

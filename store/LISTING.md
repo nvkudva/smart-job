@@ -4,20 +4,21 @@
 Help a job seeker evaluate and apply to jobs: analyse a posting against their resume, track it, and fill the application form for them to review and submit.
 
 ## Name / summary (manifest)
-SmartJob – AI Job Application Assistant (summary max 132 chars, in `static/manifest.json`)
+SmartJob Assistant (summary max 132 chars, in `static/manifest.json`)
 
 ## Detailed description (paste)
-SmartJob is a side-panel assistant for job applications. Open a job posting and it shows a match score against your resume, salary insight, office location and a shortlist button. On application forms it fills your details for you to review. You always click Submit yourself.
+SmartJob Assistant is a side-panel assistant for job applications. Open a job posting and it shows a match score against your resume, salary insight, office location and a shortlist button. On application forms it fills your details for you to review. You always click Submit yourself.
 
-Why it asks for access to all sites: job postings and application forms live on many different company domains, so SmartJob has to run where you open them. It reads the posting and fills form fields only when you ask, never submits, and sends nothing to the developer. Your data stays on your device, except what you send to the AI provider you choose.
+Why it asks for access to all sites: job postings and application forms live on many different company domains, so SmartJob Assistant has to run where you open them. It reads the posting and fills form fields only when you ask, never submits, and sends nothing to the developer. Your data stays on your device, except what you send to the AI provider you choose.
 - Match score with a requirement-by-requirement breakdown
 - Pay and perks estimate with sources
 - Autofill for common application systems (works with Workday, iCIMS, Greenhouse, Lever, Ashby and LinkedIn Easy Apply forms)
 - Cover letters and tailored resumes that keep your PDF's look
 - Job tracker
 - Full job search across portals: coming soon
+- Free, no payment, open source (MIT) on GitHub
 - Bring your own AI: a local model (free, private) or your own cloud API key
-SmartJob is not affiliated with or endorsed by any job site or employer named above. All product names are trademarks of their owners.
+SmartJob Assistant is not affiliated with or endorsed by any job site or employer named above. All product names are trademarks of their owners.
 Your data is stored on your device. See the privacy policy.
 
 ## Permission justifications (dashboard)
@@ -37,7 +38,7 @@ Your data is stored on your device. See the privacy policy.
 - Privacy policy URL: host `PRIVACY.md` (e.g. GitHub Pages or the raw repo page) and paste the link.
 
 ## Reviewer test notes
-Load the extension, open Settings and pick a provider (a local model is not needed to review: the match tab works without AI using keyword scoring). Open any public job posting, for example a Greenhouse board job, then open the side panel. Demo video: `marketing/smartjob-launch-16x9.mp4`.
+Load the extension, open Settings and pick a provider (a local model is not needed to review: the match tab works without AI using keyword scoring). Open any public job posting, for example a Greenhouse board job, then open the side panel. Demo video: `marketing/smartjob-assistant-launch-16x9.mp4`.
 
 ## Images
-Icons in `static/icons`. Screenshots 1280x800 and promo tiles 440x280 / 1400x560 in `store/`.
+Icons in `static/icons`. Screenshots 1-7 (1280x800) and promo tiles 440x280 / 1400x560 in `store/`.

@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "SmartJob – AI Job Application Assistant",
+  "name": "SmartJob Assistant",
   "version": "0.1.0",
   "description": "AI job-application assistant: match score, salary insight, tracker, cover letters and autofill. Works with local or cloud AI.",
   "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
-  "action": { "default_title": "Open SmartJob" },
+  "action": { "default_title": "Open SmartJob Assistant" },
   "side_panel": { "default_path": "sidepanel.html" },
   "background": { "service_worker": "background.js", "type": "module" },
   "permissions": ["identity", "sidePanel", "storage", "unlimitedStorage", "webNavigation", "scripting", "declarativeNetRequestWithHostAccess"],

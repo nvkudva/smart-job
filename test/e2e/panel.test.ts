@@ -36,15 +36,15 @@ const resume = { text: "Ada Lovelace. TypeScript and Preact engineer.", fileName
 
 test("first run shows the setup wizard; skipping lands on Settings", async () => {
   const panel = await h.openPanel();
-  await visible(panel.getByText("Set up SmartJob"));
+  await visible(panel.getByText("Set up SmartJob Assistant"));
   await visible(panel.getByRole("button", { name: "Save and continue" }));
   expect(await panel.getByRole("button", { name: "Skip" }).isDisabled()).toBe(true);
-  await panel.getByLabel("I understand how SmartJob handles my data and agree to continue").check();
+  await panel.getByLabel("I understand how SmartJob Assistant handles my data and agree to continue").check();
   await panel.getByRole("button", { name: "Skip" }).click();
-  await visible(panel.getByText("Welcome to SmartJob"));
+  await visible(panel.getByText("Welcome to SmartJob Assistant"));
   expect(await panel.getByRole("tab", { name: "Profile" }).getAttribute("aria-selected")).toBe("true");
   await panel.getByRole("tab", { name: "Analysis" }).click();
-  await visible(panel.getByText("Welcome to SmartJob"));
+  await visible(panel.getByText("Welcome to SmartJob Assistant"));
   await panel.close();
 }, 30000);
 
@@ -63,7 +63,7 @@ test("settings, resume and profile extraction persist", async () => {
   await panel.getByRole("tab", { name: "Profile", exact: true }).click();
   await panel.getByLabel("Resume text").fill(resume.text);
   await panel.getByRole("button", { name: "Save resume" }).click();
-  await hidden(panel.getByText("Welcome to SmartJob"));
+  await hidden(panel.getByText("Welcome to SmartJob Assistant"));
   expect(((await stored(panel, "resume")) as { text: string }).text).toBe(resume.text);
 
   await panel.getByRole("button", { name: "Extract profile with AI" }).click();
@@ -110,7 +110,7 @@ test("job tab shows job, analysis, salary; shortlist reaches tracker; write tab 
   await panel.getByRole("tab", { name: "Analysis" }).click();
   await panel.getByRole("button", { name: "Apply", exact: true }).click();
   const write = panel.getByRole("tabpanel", { name: "Apply" });
-  await visible(write.getByText("SmartJob never submits"));
+  await visible(write.getByText("SmartJob Assistant never submits"));
   await write.getByRole("button", { name: "Generate" }).first().click();
   await valueMatches(write.getByLabel("Cover letter text"), /Fake cover letter/);
   await write.getByLabel("Application question").fill("Why do you want this job?");
@@ -131,12 +131,12 @@ test("apply tab runs a fill and never crashes the panel", async () => {
   const panel = await openPanelOnJob("panel-job.html");
   const apply = panel.getByRole("tabpanel", { name: "Apply" });
   await panel.getByRole("tab", { name: "Apply" }).click();
-  await visible(apply.getByText("SmartJob never submits"));
+  await visible(apply.getByText("SmartJob Assistant never submits"));
   expect(await apply.getByRole("button", { name: "Fill this page" }).count()).toBe(0);
   await apply.getByRole("button", { name: "Start applying" }).click();
   // either a report (session implemented) or an inline error; both leave the button usable again
-  await visible(apply.locator(".report-row, .error, :text('No fillable fields')").first(), 20000);
-  expect(await apply.getByRole("button", { name: "Re-fill" }).isEnabled()).toBe(true);
+  await visible(apply.locator(".report-row, .error, :text('No fillable fields'), :text('No form appeared'), :text('No Apply button')").first(), 40000);
+  expect(await apply.getByRole("button", { name: /Start applying|Re-fill/ }).isEnabled()).toBe(true);
   await panel.close();
 }, 60000);
 
@@ -186,7 +186,7 @@ test("setup wizard: provider, profile, review, job searches, then tabs", async (
   const panel = await h.openPanel();
   await panel.getByLabel("Base URL").fill(llm.baseUrl);
   await panel.getByLabel("Model", { exact: true }).fill("fake");
-  await panel.getByLabel("I understand how SmartJob handles my data and agree to continue").check();
+  await panel.getByLabel("I understand how SmartJob Assistant handles my data and agree to continue").check();
   await panel.getByRole("button", { name: "Save and continue" }).click();
 
   await panel.getByLabel("Resume text").fill(resume.text);

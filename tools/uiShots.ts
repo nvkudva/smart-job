@@ -28,7 +28,7 @@ await prep(wizard);
 await shot(wizard, "01-wizard-step1");
 await wizard.getByLabel("Base URL").fill(llm.baseUrl);
 await wizard.getByLabel("Model", { exact: true }).fill("fake");
-await wizard.getByLabel("I understand how SmartJob handles my data and agree to continue").check();
+await wizard.getByLabel("I understand how SmartJob Assistant handles my data and agree to continue").check();
 await wizard.getByRole("button", { name: "Save and continue" }).click();
 await shot(wizard, "02-wizard-step2");
 await wizard.getByLabel("Resume text").fill(resume.text);

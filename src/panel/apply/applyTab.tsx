@@ -183,7 +183,7 @@ export function ApplyTab({ tabId, tabUrl, job, startSignal }: ApplyTabProps) {
       <Card title="Autofill">
         <div class="stack tight">
           <Check label="Use AI for unanswered questions" checked={useAi} onChecked={setUseAi} />
-          <p class="muted small">Start applying opens the Apply page and fills the form. SmartJob never submits — review and click Submit yourself.</p>
+          <p class="muted small">Start applying opens the Apply page and fills the form. SmartJob Assistant never submits — review and click Submit yourself.</p>
           <div class="actions">
             <span class="grow muted small">{note}</span>
             {fillTask.isBusy || startTask.isBusy ? (

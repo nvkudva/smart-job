@@ -45,7 +45,7 @@ export function DataSection() {
         <ErrorNote message={importFile.error} />
       </Card>
       <Card title="Troubleshooting">
-        <p class="muted">Copy these as JSON when you report a form SmartJob could not fill. The field scan reads the tab you have open.</p>
+        <p class="muted">Copy these as JSON when you report a form SmartJob Assistant could not fill. The field scan reads the tab you have open.</p>
         <div class="actions">
           <span class="grow muted small">{copy.error || copyNote}</span>
           <Button isBusy={copy.isBusy} onClick={() => void copy.run(diagnostics.copyFieldScan)}>

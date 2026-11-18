@@ -197,7 +197,7 @@ function showDot(element: HTMLElement, isRequired: boolean): void {
 function showTip(element: HTMLElement): void {
   const note = document.createElement("div");
   note.className = "note";
-  note.innerHTML = `${LOGO}<span>SmartJob saves your answer for next time</span>`;
+  note.innerHTML = `${LOGO}<span>SmartJob Assistant saves your answer for next time</span>`;
   show(element, note);
 }
 

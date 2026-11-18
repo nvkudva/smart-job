@@ -1,12 +1,12 @@
-<p align="center"><img src="assets/icon.svg" width="88" height="88" alt="Smart Job icon"></p>
+<p align="center"><img src="assets/icon.svg" width="88" height="88" alt="SmartJob Assistant icon"></p>
 
-<h1 align="center">Smart Job</h1>
+<h1 align="center">SmartJob Assistant</h1>
 
 <p align="center"><b>An AI sidekick for your job search and apply.</b><br>
-SmartJob is a Chrome side panel that scores every job against your resume, shows pay and perks, and fills in the application. It never submits for you.</p>
+SmartJob Assistant is a Chrome side panel that scores every job against your resume, shows pay and perks, and fills in the application. It never submits for you.</p>
 
 <p align="center">
-  <a href="marketing/smartjob-launch-16x9.mp4"><img src="docs/screenshots/1-match-score.png" alt="Watch the 34 second launch video" width="760"></a><br>
+  <a href="marketing/smartjob-assistant-launch-16x9.mp4"><img src="docs/screenshots/1-match-score.png" alt="Watch the 34 second launch video" width="760"></a><br>
   <sub>Click to watch the 34 second launch video. All screens use a fictional candidate and company.</sub>
 </p>
 
@@ -59,7 +59,7 @@ Shortlisted and applied jobs with status, notes, saved resumes and CSV export.
 
 Everything is stored locally in `chrome.storage.local`. Data leaves the machine only for calls to the AI endpoint you choose and for the salary web search. Use a local model (Ollama, LM Studio) and nothing goes to a cloud AI at all.
 
-## Why SmartJob asks for these permissions
+## Why SmartJob Assistant asks for these permissions
 
 | Permission | Why |
 | --- | --- |
@@ -84,7 +84,7 @@ bun run build          # outputs dist/
 
 1. Open `chrome://extensions`, turn on **Developer mode**.
 2. **Load unpacked** → select the `dist/` folder.
-3. Pin SmartJob, click its toolbar icon → the side panel opens.
+3. Pin SmartJob Assistant, click its toolbar icon → the side panel opens.
 
 After code changes: `bun run build`, then click the reload icon on the extension card and reopen the panel.
 
@@ -101,7 +101,7 @@ Settings tab → pick a preset → **Test connection** → **Save settings**.
 | OpenAI / OpenRouter | cloud | Paste API key. |
 | Anthropic | `https://api.anthropic.com` | Paste API key; default model `claude-opus-5-5` (uses server-side fallback on refusals). |
 
-Ollama rejects browser-extension origins by default (HTTP 403). SmartJob strips the `Origin` header from its own requests to `localhost:11434`, so no `OLLAMA_ORIGINS` setup is needed. The rule applies only to requests this extension makes.
+Ollama rejects browser-extension origins by default (HTTP 403). SmartJob Assistant strips the `Origin` header from its own requests to `localhost:11434`, so no `OLLAMA_ORIGINS` setup is needed. The rule applies only to requests this extension makes.
 
 Small local models (<4B) produce weak analysis; ≥7B local or any cloud model is recommended. Form filling mostly does not need AI: the standard fields are filled by deterministic rules.
 
@@ -110,7 +110,7 @@ Small local models (<4B) produce weak analysis; ≥7B local or any cloud model i
 On first open, a setup wizard walks through the AI provider, your resume and/or LinkedIn profile, a review of the profile, and suggested roles. Each role you pick becomes a LinkedIn job search that you can reopen from the Job tab. The steps below are the same thing done by hand in Settings.
 
 1. Settings → upload your resume PDF (or paste text) → **Save resume** → **Extract profile with AI**.
-2. Review the profile, then fill in what a resume does not contain: work authorization, sponsorship, relocation, current salary / CTC, salary expectation, notice period. Leave the EEO fields blank to have SmartJob choose "decline to answer".
+2. Review the profile, then fill in what a resume does not contain: work authorization, sponsorship, relocation, current salary / CTC, salary expectation, notice period. Leave the EEO fields blank to have SmartJob Assistant choose "decline to answer".
 3. Save.
 4. Optional: Settings → **Job-site account email / password**. On Workday / iCIMS "Create Account" or sign-in pages, **Start applying** fills email, password and confirm password. You click Create Account. The password stays on this device and is never sent to the AI. Workday requires an uppercase letter, a number and a special character.
 
@@ -147,7 +147,7 @@ If Workday or iCIMS misbehaves: Apply tab → **Copy field scan (for bug reports
 
 - Real Workday and iCIMS application pages need an account, so they were tested against fixtures modelled on their markup, not live. If a field stays amber, it was not filled.
 - LinkedIn logged-in pages (2026 UI: `/jobs/search-results/` and `/jobs/view/`) were tested live. LinkedIn uses hashed class names, so a redesign can break detection again.
-- Salary web search: search engines and salary sites (Bing, DuckDuckGo, levels.fyi, Glassdoor) serve captchas or junk results to automated requests. SmartJob filters out results that don't mention pay. When nothing usable remains, it shows an AI estimate labelled **Estimate**, plus links to Levels.fyi and Glassdoor.
+- Salary web search: search engines and salary sites (Bing, DuckDuckGo, levels.fyi, Glassdoor) serve captchas or junk results to automated requests. SmartJob Assistant filters out results that don't mention pay. When nothing usable remains, it shows an AI estimate labelled **Estimate**, plus links to Levels.fyi and Glassdoor.
 - Comboboxes such as react-select don't list their options until opened. AI answers for them are matched against the menu when it opens.
 - File upload attaches your stored resume to file inputs. Some sites parse the upload and overwrite fields, so upload first and then fill again.
 - DOCX resumes are not parsed yet; use PDF or paste the text.

@@ -177,9 +177,9 @@ function isTrustedProvider(settings: Record<string, unknown>): boolean {
 /** Only known keys with the right basic shape are written, so a wrong or hand-edited file cannot plant stray data or crash the panel. */
 export async function importAll(json: string): Promise<void> {
   const parsed: unknown = JSON.parse(json);
-  if (!isPlainObject(parsed)) throw new Error("Not a SmartJob export file.");
+  if (!isPlainObject(parsed)) throw new Error("Not a SmartJob Assistant export file.");
   const known = Object.entries(parsed).filter(([key]) => key in defaults);
-  if (known.length === 0) throw new Error("This file has no SmartJob data.");
+  if (known.length === 0) throw new Error("This file has no SmartJob Assistant data.");
   for (const [key, value] of known) {
     if (!hasExpectedShape(key as keyof StoreShape, value)) throw new Error(`The "${key}" data in this file has the wrong format.`);
   }

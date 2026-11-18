@@ -27,7 +27,7 @@ test("overlapping updates to one key both land", async () => {
   expect(Object.keys(backing.answers as object).sort()).toEqual(["a", "b"]);
 });
 
-test("import ignores unknown keys and rejects files without SmartJob data", async () => {
+test("import ignores unknown keys and rejects files without SmartJob Assistant data", async () => {
   await storage.importAll(JSON.stringify({ setupComplete: true, evil: 1 }));
   expect(backing).toEqual({ setupComplete: true });
   await expect(storage.importAll("[]")).rejects.toThrow();

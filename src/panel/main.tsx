@@ -46,7 +46,7 @@ function AiBanner({ onSettings, isOnSettings }: { onSettings: () => void; isOnSe
   if (status !== "error" && !isRateLimited) return null;
   const message = isRateLimited
     ? "Provider is rate limited. Try another endpoint."
-    : "SmartJob needs AI to work. Check your provider.";
+    : "SmartJob Assistant needs AI to work. Check your provider.";
   return (
     <div class="ai-banner" role="alert">
       <div>
@@ -63,7 +63,7 @@ function AiBanner({ onSettings, isOnSettings }: { onSettings: () => void; isOnSe
 
 function Onboarding({ onProfile, isOnProfile }: { onProfile: () => void; isOnProfile: boolean }) {
   return (
-    <Card title="Welcome to SmartJob">
+    <Card title="Welcome to SmartJob Assistant">
       <p class="muted">
         Add your resume and choose an AI model to unlock match scores, autofill and writing tools.
         {!isOnProfile && (

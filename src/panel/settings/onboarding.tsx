@@ -26,7 +26,7 @@ export function useSetupComplete(): boolean | undefined {
   return isComplete;
 }
 
-const consentLabel = "I understand how SmartJob handles my data and agree to continue";
+const consentLabel = "I understand how SmartJob Assistant handles my data and agree to continue";
 
 function PrivacyNotice({ hasConsented, onConsent }: { hasConsented: boolean; onConsent: (checked: boolean) => void }) {
   return (
@@ -34,7 +34,7 @@ function PrivacyNotice({ hasConsented, onConsent }: { hasConsented: boolean; onC
       <div class="muted small">
         <strong>Privacy &amp; data use</strong>
         <ul class="privacy-list">
-          <li>SmartJob has no server. Your resume, profile, saved jobs, and optional job-site credentials stay on this device.</li>
+          <li>SmartJob Assistant has no server. Your resume, profile, saved jobs, and optional job-site credentials stay on this device.</li>
           <li>Job text, resume/profile details, and form questions go only to the AI provider you choose (a local model like Ollama or LM Studio keeps everything on your machine).</li>
           <li>Optional lookups also send search terms to Bing, DuckDuckGo, Brave Search, or OpenStreetMap Nominatim, and to job portals you search.</li>
         </ul>
@@ -220,7 +220,7 @@ function StepHeader({ step, canSkip }: { step: number; canSkip: boolean }) {
   const skip = () => void storage.set("setupComplete", true);
   return (
     <Card
-      title="Set up SmartJob"
+      title="Set up SmartJob Assistant"
       actions={
         <button type="button" class="link" disabled={!canSkip} onClick={skip}>
           Skip
