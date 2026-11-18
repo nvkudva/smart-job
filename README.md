@@ -59,6 +59,20 @@ Shortlisted and applied jobs with status, notes, saved resumes and CSV export.
 
 Everything is stored locally in `chrome.storage.local`. Data leaves the machine only for calls to the AI endpoint you choose and for the salary web search. Use a local model (Ollama, LM Studio) and nothing goes to a cloud AI at all.
 
+## Why SmartJob asks for these permissions
+
+| Permission | Why |
+| --- | --- |
+| Access to all sites (`<all_urls>` content script) | Job postings and employer application forms live on any domain, and some use iframes. The script reads the posting and fills form fields only when you ask. It never submits. |
+| `sidePanel` | The whole interface is the side panel. |
+| `storage`, `unlimitedStorage` | Your profile, settings, saved jobs and answers, plus resume PDFs and tailored resumes, stay on your device. |
+| `webNavigation` | Finds application forms inside iframes. |
+| `scripting` | Adds the content script to tabs that were already open before install, and reads the job page or LinkedIn profile you open or choose to import. |
+| `declarativeNetRequestWithHostAccess` | Removes the `Origin` header on this extension's own requests to localhost or private-network AI servers, which reject `chrome-extension://` origins. |
+| `identity` | Optional OpenRouter sign-in, so you do not have to copy an API key. |
+
+No analytics, no remote code, and the developer receives none of your data. See [PRIVACY.md](PRIVACY.md).
+
 See [PLAN.md](PLAN.md) for the product requirements, research and architecture.
 
 ## Install (developer mode)

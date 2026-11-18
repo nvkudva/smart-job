@@ -8,6 +8,8 @@ SmartJob – AI Job Application Assistant (summary max 132 chars, in `static/man
 
 ## Detailed description (paste)
 SmartJob is a side-panel assistant for job applications. Open a job posting and it shows a match score against your resume, salary insight, office location and a shortlist button. On application forms it fills your details for you to review. You always click Submit yourself.
+
+Why it asks for access to all sites: job postings and application forms live on many different company domains, so SmartJob has to run where you open them. It reads the posting and fills form fields only when you ask, never submits, and sends nothing to the developer. Your data stays on your device, except what you send to the AI provider you choose.
 - Match score with a requirement-by-requirement breakdown
 - Pay and perks estimate with sources
 - Autofill for common application systems (works with Workday, iCIMS, Greenhouse, Lever, Ashby and LinkedIn Easy Apply forms)
