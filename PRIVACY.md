@@ -1,8 +1,8 @@
 # SmartJob Assistant Privacy Policy
 
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
-SmartJob Assistant is a Chrome extension that helps you apply for jobs. It has no server and no account. The developer receives none of your data.
+SmartJob Assistant is a Chrome extension that helps you apply for jobs. It has no server and no account. The developer receives none of your data. With a local AI model (Ollama, LM Studio), your resume and profile never leave your device (only the optional salary web search sends the job title and company to a search engine). If you choose a cloud AI provider, the text it needs (resume, profile, job posting) is sent to that provider under its own terms, never to the developer.
 
 ## What SmartJob Assistant stores
 Stored only on your device, in `chrome.storage.local` and `chrome.storage.session`:

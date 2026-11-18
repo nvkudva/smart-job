@@ -19,7 +19,7 @@ Why it asks for access to all sites: job postings and application forms live on 
 - Free, no payment, open source (MIT) on GitHub
 - Bring your own AI: a local model (free, private) or your own cloud API key
 SmartJob Assistant is not affiliated with or endorsed by any job site or employer named above. All product names are trademarks of their owners.
-Your data is stored on your device. See the privacy policy.
+Privacy: SmartJob Assistant has no server and the developer never receives your data. With a local AI model (Ollama, LM Studio) your resume and profile never leave your device (only the optional salary web search sends a job title and company to a search engine). Only if you choose a cloud AI provider, the text it needs is sent to that provider, never to the developer. See the privacy policy.
 
 ## Permission justifications (dashboard)
 - `host_permissions` / content script on all sites: job postings and employer application forms live on any domain; the script detects the posting and fills form fields in all frames (iCIMS uses iframes). It runs only to extract the job and fill the form on user action.
