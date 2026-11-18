@@ -276,7 +276,7 @@ const scenes: [file: string, headline: string, sub: string, site: string, panel:
   ["5-tracker", "Track every application in one place", "Shortlist, status, notes and CSV export. Everything stays on your device.", "site-job", "panel-tracker", "careers.cobaltharbor.example/senior-frontend-engineer"],
 ];
 
-const tagline = "Your AI job assistant. Free, open source, works with any AI.";
+const tagline = "Your AI job search assistant. Free, open source, works with any AI.";
 
 async function promoHtml(width: number, height: number, isWide: boolean): Promise<string> {
   const panel = await dataUrl(`${rawDir}/panel-analysis.png`);
