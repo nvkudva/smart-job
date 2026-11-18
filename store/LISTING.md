@@ -12,7 +12,8 @@ SmartJob is a side-panel assistant for job applications. Open a job posting and 
 - Pay and perks estimate with sources
 - Autofill for common application systems (works with Workday, iCIMS, Greenhouse, Lever, Ashby and LinkedIn Easy Apply forms)
 - Cover letters and tailored resumes that keep your PDF's look
-- Job tracker and a multi-portal search page
+- Job tracker
+- Full job search across portals: coming soon
 - Bring your own AI: a local model (free, private) or your own cloud API key
 SmartJob is not affiliated with or endorsed by any job site or employer named above. All product names are trademarks of their owners.
 Your data is stored on your device. See the privacy policy.
@@ -23,7 +24,7 @@ Your data is stored on your device. See the privacy policy.
 - `storage`: profile, settings, saved jobs, answers, cached analyses.
 - `unlimitedStorage`: stores resume PDFs and tailored resume files.
 - `webNavigation`: `getAllFrames` to reach application forms inside iframes.
-- `scripting`: inject the content script into tabs opened before install, and read results from the job-portal and LinkedIn tabs the user searches.
+- `scripting`: inject the content script into tabs opened before install, and read the job page or LinkedIn profile the user has open or chooses to import. Used by the upcoming multi-portal job search to read results from portal tabs the user searches.
 - `declarativeNetRequestWithHostAccess`: remove the `Origin` header on this extension's requests to localhost/private-network AI servers, which reject `chrome-extension://` origins.
 - `identity`: OpenRouter OAuth sign-in (`launchWebAuthFlow`) so the user need not copy an API key.
 

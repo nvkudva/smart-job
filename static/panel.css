@@ -162,6 +162,13 @@ a:hover,
   bottom: 12px;
   z-index: 10;
 }
+.superjob-bar p {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
 .superjob-bar .btn {
   box-shadow: var(--shadow-float);
 }

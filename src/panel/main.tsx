@@ -1,6 +1,7 @@
 import { Component, render } from "preact";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
+import * as features from "../features.ts";
 import type { JobPosting } from "../types.ts";
 import * as activeTab from "./job/activeTab.ts";
 import * as aiContext from "./shared/aiContext.ts";
@@ -134,9 +135,13 @@ function App() {
       </nav>
       <AiBanner onSettings={() => setTab("Settings")} isOnSettings={tab === "Settings"} />
       <div class="superjob-bar">
-        <button type="button" class="btn primary" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("superjob.html") })}>
-          Super Job ↗
-        </button>
+        {features.hasSuperJob ? (
+          <button type="button" class="btn primary" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("superjob.html") })}>
+            Super Job ↗
+          </button>
+        ) : (
+          <p class="muted small">Full job search across portals is coming soon.</p>
+        )}
       </div>
       <main>
         {isResumeLoaded && !hasResume && <Onboarding onProfile={() => setTab("Profile")} isOnProfile={tab === "Profile"} />}
