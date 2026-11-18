@@ -240,11 +240,6 @@ export function peakTimeText(distanceKm: number): string {
   return rest ? `≈ ${hours} h ${rest} min at peak` : `≈ ${hours} h at peak`;
 }
 
-/** Coordinates for a free-text place (the user's own address), for saving as the distance starting point. */
-export function geocodeAddress(address: string, fetchPage: typeof fetch = fetch): Promise<Coords | undefined> {
-  return geocode(address, fetchPage);
-}
-
 export interface PlaceSuggestion {
   /** first parts of the OSM display name, e.g. "Indiranagar, Bengaluru, Karnataka" */
   label: string;
