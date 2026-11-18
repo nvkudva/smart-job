@@ -8,9 +8,11 @@ import { useStored } from "../panel/shared/useStored.ts";
 import type { Profile } from "../types.ts";
 import type { FoundJob, SearchQuery } from "./jobSources.ts";
 import * as jobSources from "./jobSources.ts";
-import { filterByPortals } from "./jobList.tsx";
+import { filterByPortals, PortalIcon } from "./jobList.tsx";
 import { SignInRequired } from "./http.ts";
 import * as posting from "./posting.ts";
+import * as recentSearches from "./recentSearches.tsx";
+import { RecentPills, SuggestionList, suggestionsFor } from "./recentSearches.tsx";
 import { Results, useChosenJob } from "./results.tsx";
 
 interface SourceStatus {
@@ -105,93 +107,83 @@ interface SearchFormProps {
   onRole: (role: string) => void;
   onLocation: (location: string) => void;
   onSearch: (role: string) => void;
+  recent: SearchQuery[];
+  suggestedRoles: string[];
+  onPick: (query: SearchQuery) => void;
 }
 
 function SearchIcon() {
   return (
-    <svg class="sj-search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
     </svg>
   );
 }
 
-function PinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z" />
-      <circle cx="12" cy="9.5" r="2.5" />
-    </svg>
-  );
-}
-
-/** Reads as a line of text under the search bar; a click turns it into an input that settles on Enter, Escape or blur. */
-function LocationLine({ location, onLocation }: { location: string; onLocation: (location: string) => void }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (isEditing) inputRef.current?.select();
-  }, [isEditing]);
-  if (isEditing) {
-    return (
-      <label class="sj-where is-editing">
-        <PinIcon />
-        <span class="sr-only">Location</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={location}
-          placeholder="City or region"
-          onInput={(event) => onLocation(event.currentTarget.value)}
-          onBlur={() => setIsEditing(false)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setIsEditing(false);
-          }}
-        />
-      </label>
-    );
-  }
-  return (
-    <button type="button" class="sj-where" onClick={() => setIsEditing(true)}>
-      <PinIcon />
-      <span>{location.trim() ? `Jobs in ${location.trim()}` : "Anywhere"}</span>
-      <span class="sj-where-edit">{location.trim() ? "Change" : "Add a location"}</span>
-    </button>
-  );
-}
-
-function SearchForm({ role, location, onRole, onLocation, onSearch }: SearchFormProps) {
+function SearchForm({ role, location, onRole, onLocation, onSearch, recent, suggestedRoles, onPick }: SearchFormProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const items = isOpen ? suggestionsFor(role, recent, suggestedRoles, location) : [];
+  const pick = (query: SearchQuery) => {
+    setIsOpen(false);
+    onPick(query);
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") return setIsOpen(false);
+    if (!items.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsOpen(true);
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setActiveIndex((activeIndex + step + items.length + 1) % (items.length + 1) - 1);
+    }
+    if (event.key === "Enter" && activeIndex >= 0) {
+      event.preventDefault();
+      pick(items[activeIndex]!.query);
+    }
+  };
   return (
     <form
       class="sj-form"
       role="search"
       onSubmit={(event) => {
         event.preventDefault();
+        setIsOpen(false);
         onSearch(role);
       }}
     >
       <div class="sj-search">
-        <SearchIcon />
-        <input type="text" class="sj-input" value={role} placeholder="Search job titles, e.g. Product Manager" aria-label="Role" onInput={(event) => onRole(event.currentTarget.value)} />
+        <label class="sj-seg sj-seg-what">
+          <span class="sj-seg-label">Role</span>
+          <input
+            type="text"
+            class="sj-input"
+            value={role}
+            placeholder="Job title, e.g. Product Manager"
+            autocomplete="off"
+            onInput={(event) => {
+              onRole(event.currentTarget.value);
+              setActiveIndex(-1);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onBlur={() => setIsOpen(false)}
+            onKeyDown={onKeyDown}
+          />
+        </label>
+        <span class="sj-seg-divider" aria-hidden="true" />
+        <label class="sj-seg sj-seg-where">
+          <span class="sj-seg-label">Where</span>
+          <input type="text" class="sj-input" value={location} placeholder="City or region" autocomplete="off" onInput={(event) => onLocation(event.currentTarget.value)} />
+        </label>
         <button type="submit" class="sj-go" aria-label="Search">
+          <SearchIcon />
           Search
         </button>
+        <SuggestionList items={items} activeIndex={activeIndex} onPick={pick} />
       </div>
-      <LocationLine location={location} onLocation={onLocation} />
     </form>
-  );
-}
-
-function RoleChips({ roles: suggestedRoles, onPick }: { roles: string[]; onPick: (role: string) => void }) {
-  if (!suggestedRoles.length) return null;
-  return (
-    <div class="sj-roles" role="group" aria-label="Suggested roles">
-      {suggestedRoles.map((suggested) => (
-        <button key={suggested} type="button" class="sj-role-chip" onClick={() => onPick(suggested)}>
-          {suggested}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -209,12 +201,13 @@ function PortalFilters({ statuses, hiddenPortals, jobCount, onToggle }: PortalFi
         {statuses.map((status) => (
           <li key={status.name}>
             <button type="button" class={`chip pick${hiddenPortals.has(status.name) ? "" : " active"}${status.error ? " warn" : ""}`} aria-pressed={!hiddenPortals.has(status.name)} onClick={() => onToggle(status.name)}>
+              <PortalIcon name={status.name} />
               {status.name}
               {status.isLoading && <Spinner />}
               {!status.isLoading && !status.error && <span class="sj-chip-count">{status.count}</span>}
               {status.error && (
                 <span class="sj-chip-error" title={status.error}>
-                  {status.error}
+                  <span aria-hidden="true">⚠</span> {status.loginUrl ? "Sign in" : /in time/.test(status.error) ? "Timed out" : "Failed"}
                 </span>
               )}
             </button>
@@ -225,7 +218,7 @@ function PortalFilters({ statuses, hiddenPortals, jobCount, onToggle }: PortalFi
         {jobCount} {jobCount === 1 ? "job" : "jobs"}
       </p>
       {statuses.filter((status) => status.loginUrl).map((status) => (
-        <p key={status.name} class="muted small">
+        <p key={status.name} class="muted small sj-signin">
           {status.name} shows jobs only when you are signed in.{" "}
           <a href={status.loginUrl} target="_blank" rel="noreferrer">
             Sign in
@@ -273,11 +266,19 @@ function Page({ profile }: { profile: Profile }) {
   const chosen = useChosenJob(visibleJobs);
   const hasSearched = search.query !== null;
   const canLoadMore = search.statuses.some((status) => status.hasMore && !status.isLoading && !hiddenPortals.has(status.name));
-  const runSearch = (wantedRole: string) => {
+  const recent = useStored("recentSearches") ?? [];
+  const runSearch = (wantedRole: string, wantedLocation = location) => {
     const trimmed = wantedRole.trim();
     if (!trimmed) return;
+    const query = { role: trimmed, location: wantedLocation.trim() };
     setHiddenPortals(new Set());
-    search.start({ role: trimmed, location: location.trim() });
+    search.start(query);
+    void recentSearches.remember(query);
+  };
+  const pickQuery = (picked: SearchQuery) => {
+    setRole(picked.role);
+    setLocation(picked.location);
+    runSearch(picked.role, picked.location);
   };
   const togglePortal = (name: string) => {
     const next = new Set(hiddenPortals);
@@ -292,16 +293,10 @@ function Page({ profile }: { profile: Profile }) {
             <img class="sj-brand-logo" src="icons/128.png" alt="" />
             Super Job
           </h1>
-          <SearchForm role={role} location={location} onRole={setRole} onLocation={setLocation} onSearch={runSearch} />
+          <SearchForm role={role} location={location} onRole={setRole} onLocation={setLocation} onSearch={runSearch} recent={recent} suggestedRoles={suggestedRoles} onPick={pickQuery} />
         </div>
         <div class="sj-sub">
-          <RoleChips
-            roles={suggestedRoles}
-            onPick={(picked) => {
-              setRole(picked);
-              runSearch(picked);
-            }}
-          />
+          <RecentPills recent={recent} current={search.query} onPick={pickQuery} />
           {hasSearched && <PortalFilters statuses={search.statuses} hiddenPortals={hiddenPortals} jobCount={visibleJobs.length} onToggle={togglePortal} />}
         </div>
         {hasSearched && !profile.country.trim() && <p class="muted small sj-hint">Add your country in Profile to also search local job portals.</p>}

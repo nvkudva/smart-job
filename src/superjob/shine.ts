@@ -18,7 +18,7 @@ function parseCard(card: Element): FoundJob | undefined {
   const url = card.querySelector('meta[itemprop="url"]')?.getAttribute("content") ?? "";
   const title = plainText.line(card.querySelector("h3"));
   if (!url || !title) return undefined;
-  const [, salary = "", location = ""] = [...card.querySelectorAll('[class*="result-card_meta-text"]')].map(plainText.line);
+  const [years = "", salary = "", location = ""] = [...card.querySelectorAll('[class*="result-card_meta-text"]')].map(plainText.line);
   return {
     id: `${name}:${url.split("/").pop()}`,
     source: name,
@@ -28,6 +28,7 @@ function parseCard(card: Element): FoundJob | undefined {
     url,
     posted: plainText.line(card.querySelector('[class*="result-card_posted"]')),
     salary: notDisclosed.test(salary) ? "" : salary,
+    experience: /\byrs?\b/i.test(years) ? years : "",
     snippet: skillsOf(card),
     logoUrl: "",
   };

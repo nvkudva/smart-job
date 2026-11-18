@@ -24,6 +24,7 @@ function parseCard(card: Element): FoundJob | undefined {
     url,
     posted: plainText.line(card.querySelector(".job-post-day")),
     salary: plainText.line(card.querySelector(".sal-wrap")),
+    experience: plainText.line(card.querySelector(".expwdth")),
     snippet: plainText.line(card.querySelector(".job-desc")),
     logoUrl: card.querySelector("img.logoImage")?.getAttribute("src") ?? "",
   };

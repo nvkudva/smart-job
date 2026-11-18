@@ -8,7 +8,7 @@ import { Button, Card, Check, Choice, ErrorNote, Field } from "../shared/control
 import { JobSearchLinks } from "../job/jobSearchLinks.tsx";
 import { runImport } from "./linkedinButton.tsx";
 import { ProviderFields } from "./providerForm.tsx";
-import { ResumeSection, saveExtractedProfile } from "./resumeSection.tsx";
+import { ResumeFields, saveExtractedProfile } from "./resumeSection.tsx";
 import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
 
@@ -26,7 +26,25 @@ export function useSetupComplete(): boolean | undefined {
   return isComplete;
 }
 
-function ProviderStep({ initial, onNext }: { initial: Settings; onNext: () => void }) {
+const consentLabel = "I understand how SmartJob handles my data and agree to continue";
+
+function PrivacyNotice({ hasConsented, onConsent }: { hasConsented: boolean; onConsent: (checked: boolean) => void }) {
+  return (
+    <div class="stack tight">
+      <div class="muted small">
+        <strong>Privacy &amp; data use</strong>
+        <ul class="privacy-list">
+          <li>SmartJob has no server. Your resume, profile, saved jobs, and optional job-site credentials stay on this device.</li>
+          <li>Job text, resume/profile details, and form questions go only to the AI provider you choose (a local model like Ollama or LM Studio keeps everything on your machine).</li>
+          <li>Optional lookups also send search terms to Bing, DuckDuckGo, Brave Search, or OpenStreetMap Nominatim, and to job portals you search.</li>
+        </ul>
+      </div>
+      <Check label={consentLabel} checked={hasConsented} onChecked={onConsent} />
+    </div>
+  );
+}
+
+function ProviderStep({ initial, hasConsented, onConsent, onNext }: { initial: Settings; hasConsented: boolean; onConsent: (checked: boolean) => void; onNext: () => void }) {
   const [provider, setProvider] = useState(initial.provider);
   const save = async () => {
     await storage.update("settings", (current) => ({ ...current, provider }));
@@ -37,7 +55,8 @@ function ProviderStep({ initial, onNext }: { initial: Settings; onNext: () => vo
       <div class="stack tight">
         <p class="muted small">Pick where the AI runs. A local model (Ollama, LM Studio) keeps everything on this machine.</p>
         <ProviderFields provider={provider} onProvider={(patch: Partial<ProviderSettings>) => setProvider({ ...provider, ...patch })} />
-        <Button kind="primary" onClick={() => void save()}>
+        <PrivacyNotice hasConsented={hasConsented} onConsent={onConsent} />
+        <Button kind="primary" disabled={!hasConsented} onClick={() => void save()}>
           Save and continue
         </Button>
       </div>
@@ -65,18 +84,19 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 
   return (
     <div class="stack">
-      <ResumeSection isOnboarding />
-      <Card title="LinkedIn (optional)">
-        <Check label="Import from LinkedIn (needs to be logged in; opens a background tab)" checked={isLinkedin} onChecked={setIsLinkedin} />
+      <Card title="2. Your profile">
+        <ResumeFields isOnboarding />
+        <hr />
+        <Check label="Import from LinkedIn, optional (needs to be logged in; opens a background tab)" checked={isLinkedin} onChecked={setIsLinkedin} />
+        <ErrorNote message={build.error} />
+        <div class="actions">
+          {build.isBusy && status && <span class="grow muted small">{status}</span>}
+          <Button onClick={onNext}>Continue without</Button>
+          <Button kind="primary" isBusy={build.isBusy} onClick={() => void build.run()}>
+            Build my profile
+          </Button>
+        </div>
       </Card>
-      <div class="row wrap">
-        <Button kind="primary" isBusy={build.isBusy} onClick={() => void build.run()}>
-          Build my profile
-        </Button>
-        {build.isBusy && status && <span class="muted small">{status}</span>}
-        <Button onClick={onNext}>Continue without</Button>
-      </div>
-      <ErrorNote message={build.error} />
     </div>
   );
 }
@@ -94,7 +114,7 @@ function ReviewForm({ initial, onNext }: { initial: Profile; onNext: () => void 
   return (
     <Card title="3. Review your details">
       <div class="stack tight">
-        <p class="muted small">Check what was found and fill the blanks a resume cannot give. You can change everything later in Settings.</p>
+        <p class="muted small">Check what was found and fill the blanks a resume cannot give. You can change everything later in the Profile tab.</p>
         <div class="grid2">
           <Field label="First name" value={draft.firstName} onValue={(firstName) => change({ firstName })} />
           <Field label="Last name" value={draft.lastName} onValue={(lastName) => change({ lastName })} />
@@ -169,7 +189,7 @@ function SearchForm({ profile }: { profile: Profile }) {
   return (
     <Card title="4. Job searches">
       <div class="stack tight">
-        <p class="muted small">Roles to look for, based on your profile. Pick the ones you want; each becomes a LinkedIn search you can reopen from the Job tab.</p>
+        <p class="muted small">Roles to look for, based on your profile. Pick the ones you want; each becomes a LinkedIn search you can reopen from the Analysis tab.</p>
         {suggest.isBusy && <span class="muted small">Suggesting roles…</span>}
         <ErrorNote message={suggest.error} onRetry={() => void suggest.run()} />
         <div class="chips">
@@ -180,8 +200,8 @@ function SearchForm({ profile }: { profile: Profile }) {
           ))}
         </div>
         <div class="grid2">
-          <Field label="Location" value={location} onValue={setLocation} />
           <Field label="Add a role" value={custom} onValue={setCustom} />
+          <Field label="Location" value={location} onValue={setLocation} />
         </div>
         <div class="row between">
           <Check label="Remote" checked={isRemote} onChecked={setIsRemote} />
@@ -196,13 +216,13 @@ function SearchForm({ profile }: { profile: Profile }) {
   );
 }
 
-function StepHeader({ step }: { step: number }) {
+function StepHeader({ step, canSkip }: { step: number; canSkip: boolean }) {
   const skip = () => void storage.set("setupComplete", true);
   return (
     <Card
       title="Set up SmartJob"
       actions={
-        <button type="button" class="link" onClick={skip}>
+        <button type="button" class="link" disabled={!canSkip} onClick={skip}>
           Skip
         </button>
       }
@@ -222,11 +242,12 @@ export function SetupWizard() {
   const settings = useStored("settings");
   const profile = useStored("profile");
   const [step, setStep] = useState(0);
+  const [hasConsented, setHasConsented] = useState(false);
   const next = () => setStep(step + 1);
   return (
     <div class="stack">
-      <StepHeader step={step} />
-      {step === 0 && settings && <ProviderStep initial={settings} onNext={next} />}
+      <StepHeader step={step} canSkip={hasConsented || step > 0} />
+      {step === 0 && settings && <ProviderStep initial={settings} hasConsented={hasConsented} onConsent={setHasConsented} onNext={next} />}
       {step === 1 && <ProfileStep onNext={next} />}
       {/* keyed so a profile that lands just after the step starts still reaches the draft */}
       {step === 2 && profile && <ReviewForm key={JSON.stringify(profile)} initial={profile} onNext={next} />}

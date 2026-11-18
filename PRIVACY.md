@@ -16,9 +16,9 @@ SmartJob does not sell, rent or share this data, and does not use it for adverti
 ## What leaves your device
 Data is sent only when you use a feature that needs it:
 1. **AI provider you choose.** Job text, resume and profile text, and form questions are sent to the endpoint in Settings (a local model such as Ollama or LM Studio, or a cloud provider such as OpenAI, Anthropic, OpenRouter, Google Gemini, Groq or DeepSeek). Your API key is sent only to that provider. The provider's own privacy policy applies. With a local model, nothing goes to a cloud AI. Passwords are never sent to the AI.
-2. **Job portals you search.** Search terms and location are sent to LinkedIn, Naukri, Foundit, Shine, Instahyre or Greenhouse when you run a Super Job search or open a listing. SmartJob reads those pages in your own browser session.
-3. **Salary lookups.** Role and company terms are sent to Bing or DuckDuckGo, and Levels.fyi or Glassdoor pages are shown in a frame.
-4. **Office lookup.** A company name and city are sent to OpenStreetMap Nominatim. If you allow location access, your coordinates are used in the browser to show distance and a Google Maps route.
+2. **Job portals you search or import from.** Search terms and location are sent to LinkedIn, Naukri, Foundit, Shine, Instahyre or Greenhouse when you run a Super Job search or open a listing, and your LinkedIn profile page (`linkedin.com/in/me/`) is read if you choose Import from LinkedIn. SmartJob reads those pages in your own browser session.
+3. **Salary and perks lookups.** Role and company terms are sent to Bing or DuckDuckGo when web search is enabled. Links to Levels.fyi or Glassdoor open in a new tab when you click them.
+4. **Office lookup.** A company name and city are sent to Brave Search, DuckDuckGo or Bing, and to OpenStreetMap Nominatim. If you allow location access, your coordinates are used in the browser to show distance and a Google Maps route.
 5. **OpenRouter sign-in.** If you choose it, the sign-in uses Chrome's identity flow with openrouter.ai.
 
 No analytics, telemetry or tracking is included.

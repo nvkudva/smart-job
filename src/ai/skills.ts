@@ -328,6 +328,16 @@ export function skillsIn(text: string): string[] {
   return dedupe([...found, ...acronyms.filter((word) => !found.some((name) => name.toLowerCase() === word.toLowerCase()))]);
 }
 
+export function isKnown(name: string): boolean {
+  return skills.some((skill) => skill.name === name);
+}
+
+/** A fresh global copy for finding every occurrence; the shared patterns stay non-global so test() keeps no state. */
+export function finder(name: string): RegExp {
+  const pattern = skills.find((skill) => skill.name === name)?.pattern ?? termPattern([name]);
+  return new RegExp(pattern.source, `${pattern.flags}g`);
+}
+
 /** Is this skill (dictionary name or bare acronym) present in the candidate text? */
 export function hasSkill(name: string, candidateText: string): boolean {
   const known = skills.find((skill) => skill.name === name);

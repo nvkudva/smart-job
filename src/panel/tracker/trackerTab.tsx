@@ -29,8 +29,10 @@ function CoverLetterNote({ text }: { text: string }) {
   return (
     <details class="block">
       <summary class="small">Cover letter</summary>
-      <p class="small preline">{text}</p>
-      <Button onClick={() => void navigator.clipboard.writeText(text)}>Copy</Button>
+      <div class="note-body stack tight">
+        <p class="small preline">{text}</p>
+        <Button onClick={() => void navigator.clipboard.writeText(text)}>Copy</Button>
+      </div>
     </details>
   );
 }
@@ -65,7 +67,9 @@ function ResumeNote({ jobId }: { jobId: string }) {
   return (
     <details class="block">
       <summary class="small">Resume</summary>
-      <SavedResumes jobId={jobId} showTitle={false} />
+      <div class="note-body">
+        <SavedResumes jobId={jobId} showTitle={false} />
+      </div>
     </details>
   );
 }
@@ -82,11 +86,13 @@ function TrackerCard({ entry }: { entry: TrackedJob }) {
       <div class="tracker-head">
         <div>
           <div class="job-title small-title">{job.title}</div>
-          <div class="muted small">{[job.company, job.location, salary].filter(Boolean).join(" · ")}</div>
+          <div class="muted small">
+            {[job.company, job.location].filter(Boolean).join(" · ")}
+            {salary && <>{job.company || job.location ? " · " : ""}<span class="nowrap">{salary}</span></>}
+          </div>
         </div>
         <div class="tracker-side">
           <label class="tracker-status">
-            <span class="muted small">Progress</span>
             <select class="status-pill" data-status={entry.status} aria-label="Progress" title="Change progress" value={entry.status} onChange={(event) => setStatus(event.currentTarget.value as JobStatus)}>
               {statuses.map((status) => (
                 <option value={status}>{status}</option>
@@ -101,6 +107,7 @@ function TrackerCard({ entry }: { entry: TrackedJob }) {
       {hasResume && <ResumeNote jobId={job.id} />}
       {isNoteOpen && <NotesField entry={entry} />}
       <div class="tracker-foot small">
+        <div class="tracker-links">
         <a href={job.url} target="_blank" rel="noreferrer">
           Posting <Icon name="External" />
         </a>
@@ -119,6 +126,7 @@ function TrackerCard({ entry }: { entry: TrackedJob }) {
             Mark applied
           </button>
         )}
+        </div>
         <span class="tracker-actions">
           {entry.status !== "rejected" && (
             <button type="button" class="icon-btn primary" aria-label="Continue" title="Continue: open the job tab to write a cover letter, tailor your resume or fill the form" onClick={() => void reopenJob.open(entry)}>

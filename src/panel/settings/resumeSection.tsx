@@ -5,7 +5,7 @@ import * as resumeFile from "../../profile/resumeFile.ts";
 import * as storage from "../../storage.ts";
 import type { Resume } from "../../types.ts";
 import * as aiContext from "../shared/aiContext.ts";
-import { Button, Card, ErrorNote, FileButton } from "../shared/controls.tsx";
+import { Button, ErrorNote, FileButton } from "../shared/controls.tsx";
 import { useStored } from "../shared/useStored.ts";
 import { useTask } from "../shared/useTask.ts";
 
@@ -18,14 +18,6 @@ export async function saveExtractedProfile(text: string): Promise<void> {
 }
 
 /** In the wizard the resume saves itself (after a file read and on every edit) and extraction is left to "Build my profile". */
-export function ResumeSection({ isOnboarding = false }: { isOnboarding?: boolean }) {
-  return (
-    <Card title="Resume">
-      <ResumeFields isOnboarding={isOnboarding} />
-    </Card>
-  );
-}
-
 export function ResumeFields({ isOnboarding = false }: { isOnboarding?: boolean }) {
   const stored = useStored("resume");
   const [text, setText] = useState("");
@@ -90,7 +82,7 @@ export function ResumeFields({ isOnboarding = false }: { isOnboarding?: boolean 
             Extract profile with AI
           </Button>
         )}
-        <Button kind="primary" disabled={!text.trim() || !isDirty} onClick={() => void save()}>
+        <Button kind={isOnboarding ? "ghost" : "primary"} disabled={!text.trim() || !isDirty} onClick={() => void save()}>
           Save resume
         </Button>
       </div>

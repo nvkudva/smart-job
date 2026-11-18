@@ -19,6 +19,8 @@ export interface StoreShape {
   /** epoch ms of the last LinkedIn import, 0 = never */
   linkedinImportedAt: number;
   jobSearches: JobSearch[];
+  /** Super Job searches, newest first, capped */
+  recentSearches: { role: string; location: string }[];
   /** newest first */
   tailoredResumes: TailoredResume[];
   /** starting point for office distances; null = ask the user */
@@ -84,6 +86,7 @@ const defaults: StoreShape = {
   setupComplete: false,
   linkedinImportedAt: 0,
   jobSearches: [],
+  recentSearches: [],
   tailoredResumes: [],
   homeLocation: null,
 };

@@ -24,6 +24,8 @@ export interface FoundJob {
   isSearchUrl?: boolean;
   /** as the portal words it ("3 days ago"), "" when unknown */
   posted: string;
+  /** years asked for as the portal words it ("12-16 Yrs"), "" when the card shows none */
+  experience?: string;
   salary: string;
   /** short text from the result card, "" when the portal shows none */
   snippet: string;

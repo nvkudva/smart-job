@@ -29,8 +29,8 @@ export function DataSection() {
   return (
     <>
       <Card title="Your data">
-        <p class="muted">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint and salary search.</p>
-        <div class="actions start">
+        <p class="muted">Everything is stored in this browser. Nothing leaves it except calls to your chosen AI endpoint, salary and perks search, and the job portals Super Job searches.</p>
+        <div class="actions even">
           <Button onClick={() => void exportAll()}>Export JSON</Button>
           <Button disabled={!jobs || Object.keys(jobs).length === 0} onClick={exportTracker}>
             Export tracker CSV
@@ -38,11 +38,9 @@ export function DataSection() {
           <FileButton accept="application/json,.json" isBusy={importFile.isBusy} onFile={(file) => void importFile.run(file)}>
             Import JSON
           </FileButton>
-          <span class="push">
-            <Button kind="danger" onClick={() => void clearAll()}>
-              Clear all
-            </Button>
-          </span>
+          <Button kind="danger" onClick={() => void clearAll()}>
+            Clear all
+          </Button>
         </div>
         <ErrorNote message={importFile.error} />
       </Card>

@@ -11,9 +11,7 @@ export function DocumentsSection({ currentJob: job, tabId }: { currentJob: JobPo
 
   return (
     <div class="stack">
-      {job ? (
-        <p class="muted small">For {job.title} @ {job.company}</p>
-      ) : (
+      {!job && (
         <Card>
           <p class="muted">Open a job posting to write a cover letter or tailor your resume. The question answerer below works without one.</p>
         </Card>

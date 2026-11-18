@@ -100,7 +100,7 @@ export function Results({ jobs, chosen, isLoading, onLoadMore }: ResultsProps) {
       </section>
       <section class="sj-detail" aria-label="Job details">
         {selected ? (
-          <JobDetail key={selected.id} job={selected} />
+          <JobDetail key={selected.id} job={selected} loaded={chosen.loaded} />
         ) : (
           <p class="muted sj-empty">{isLoading ? "Searching the portals…" : "Select a job to see its details."}</p>
         )}

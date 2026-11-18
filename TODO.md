@@ -53,3 +53,5 @@
 - [x] Office back in its own card: address dropdown, distance + peak time from current location, Google Maps route preview; OSM lookup hardened (city variants, company suffixes, multiple query spellings)
 - [x] Web Store review: description under 132 chars, tabs permission removed, frame-header rule limited to listed domains, sourcemaps off, PRIVACY.md and store/LISTING.md added
 - [ ] Host PRIVACY.md at a public URL and paste it into the store Privacy tab
+- [x] Super Job enrichment: portal icons, posted freshness, experience on Naukri/Shine/Foundit rows, experience fit, skill match chips, formatted and highlighted description
+- [x] Super Job: recent searches chips and job type tags (Remote/Hybrid/On-site, Full-time/Contract/Internship/Part-time)

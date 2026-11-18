@@ -3,6 +3,7 @@ import { ScoreRing } from "../panel/job/analysisView.tsx";
 import type { JobAnalysis, TrackedJob } from "../types.ts";
 import type { FoundJob } from "./jobSources.ts";
 import * as posting from "./posting.ts";
+import * as facts from "./postingFacts.ts";
 
 export interface StoredJobs {
   analyses: Record<string, JobAnalysis>;
@@ -24,7 +25,7 @@ function toneIndex(name: string): number {
   return sum % 4;
 }
 
-export function Logo({ job, size }: { job: FoundJob; size: "row" }) {
+export function Logo({ job, size }: { job: FoundJob; size: "row" | "detail" }) {
   const [hasFailed, setHasFailed] = useState(false);
   const initial = (job.company.trim()[0] ?? "?").toUpperCase();
   if (!/^https?:\/\//.test(job.logoUrl) || hasFailed) {
@@ -35,6 +36,29 @@ export function Logo({ job, size }: { job: FoundJob; size: "row" }) {
     );
   }
   return <img class={`sj-logo ${size}`} src={job.logoUrl} alt="" loading="lazy" referrerpolicy="no-referrer" onError={() => setHasFailed(true)} />;
+}
+
+const portalsWithIcon = new Set(["linkedin", "greenhouse", "naukri", "foundit", "shine", "instahyre"]);
+
+/** Bundled portal favicon; the portal name always stays as text beside it. */
+export function PortalIcon({ name }: { name: string }) {
+  const file = name.toLowerCase();
+  if (!portalsWithIcon.has(file)) return null;
+  return <img class="sj-portal-icon" src={`icons/portals/${file}.png`} alt="" width="14" height="14" />;
+}
+
+export function JobTypes({ types }: { types: string[] }) {
+  return (
+    <span class="sj-types">
+      {types.map((type) => (
+        <span class={`sj-type type-${type.toLowerCase()}`}>{type}</span>
+      ))}
+    </span>
+  );
+}
+
+function withDots(parts: unknown[]) {
+  return parts.filter(Boolean).flatMap((part, index) => (index ? [<span class="sj-dot" aria-hidden="true">·</span>, part] : [part]));
 }
 
 export function StarIcon() {
@@ -55,6 +79,9 @@ interface JobRowProps {
 }
 
 function JobRow({ job, isSelected, isOpened, score, isSaved, onSelect }: JobRowProps) {
+  const years = job.experience ? facts.parseYears(job.experience) : null;
+  const fresh = facts.freshness(job.posted);
+  const types = facts.jobTypes(`${job.title} ${job.location} ${job.snippet}`);
   return (
     <li>
       <button type="button" class={`sj-row${isOpened ? " is-opened" : ""}`} tabIndex={isSelected ? 0 : -1} aria-current={isSelected ? "true" : undefined} onClick={onSelect}>
@@ -63,13 +90,25 @@ function JobRow({ job, isSelected, isOpened, score, isSaved, onSelect }: JobRowP
           <span class="sj-row-title">{job.title}</span>
           <span class="sj-row-company">{job.company}</span>
           <span class="sj-meta">
-            {job.location && <span class="sj-loc">{job.location}</span>}
-            {job.salary && <span class="sj-salary">{job.salary}</span>}
-            {job.posted && <span>{job.posted}</span>}
-            <span>{job.source}</span>
+            {withDots([
+              job.location && <span class="sj-loc">{job.location}</span>,
+              job.salary && <span class="sj-salary">{job.salary}</span>,
+              years && <span class="sj-exp">{facts.formatYears(years)}</span>,
+            ])}
           </span>
+          <span class="sj-meta sj-row-foot">
+            {withDots([
+              <span class="sj-portal">
+                <PortalIcon name={job.source} />
+                {job.source}
+              </span>,
+              job.posted && <span class={`sj-posted fresh-${fresh || "none"}`}>{job.posted}</span>,
+            ])}
+          </span>
+          {types.length > 0 && <JobTypes types={types} />}
         </span>
         <span class="sj-row-flags">
+          {fresh === "new" && <span class="sj-new">New</span>}
           {score !== null && <ScoreRing score={score} />}
           {isSaved && (
             <span class="sj-saved" title="Saved">

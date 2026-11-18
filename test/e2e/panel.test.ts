@@ -38,6 +38,8 @@ test("first run shows the setup wizard; skipping lands on Settings", async () =>
   const panel = await h.openPanel();
   await visible(panel.getByText("Set up SmartJob"));
   await visible(panel.getByRole("button", { name: "Save and continue" }));
+  expect(await panel.getByRole("button", { name: "Skip" }).isDisabled()).toBe(true);
+  await panel.getByLabel("I understand how SmartJob handles my data and agree to continue").check();
   await panel.getByRole("button", { name: "Skip" }).click();
   await visible(panel.getByText("Welcome to SmartJob"));
   expect(await panel.getByRole("tab", { name: "Profile" }).getAttribute("aria-selected")).toBe("true");
@@ -184,6 +186,7 @@ test("setup wizard: provider, profile, review, job searches, then tabs", async (
   const panel = await h.openPanel();
   await panel.getByLabel("Base URL").fill(llm.baseUrl);
   await panel.getByLabel("Model", { exact: true }).fill("fake");
+  await panel.getByLabel("I understand how SmartJob handles my data and agree to continue").check();
   await panel.getByRole("button", { name: "Save and continue" }).click();
 
   await panel.getByLabel("Resume text").fill(resume.text);

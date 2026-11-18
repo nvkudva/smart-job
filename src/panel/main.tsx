@@ -38,7 +38,7 @@ function AiDot() {
 }
 
 /** One place for AI failures that hit several cards at once: says what is wrong in a line and offers the fix. */
-function AiBanner({ onSettings }: { onSettings: () => void }) {
+function AiBanner({ onSettings, isOnSettings }: { onSettings: () => void; isOnSettings: boolean }) {
   const status = aiContext.useStatus();
   const isRateLimited = aiContext.useRateLimited();
   const recheck = useTask(aiContext.check);
@@ -55,7 +55,7 @@ function AiBanner({ onSettings }: { onSettings: () => void }) {
       <Button isBusy={recheck.isBusy} onClick={() => void recheck.run()}>
         Retry
       </Button>
-      <Button onClick={onSettings}>Settings</Button>
+      {!isOnSettings && <Button onClick={onSettings}>Settings</Button>}
     </div>
   );
 }
@@ -132,7 +132,7 @@ function App() {
           </button>
         ))}
       </nav>
-      <AiBanner onSettings={() => setTab("Settings")} />
+      <AiBanner onSettings={() => setTab("Settings")} isOnSettings={tab === "Settings"} />
       <div class="superjob-bar">
         <button type="button" class="btn primary" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL("superjob.html") })}>
           Super Job ↗

@@ -37,6 +37,7 @@ function parseCard(card: Element, listUrl: string): FoundJob | undefined {
     posted: plainText.line(card.querySelector(".timeText")).replace(/^Posted /, ""),
     salary: "",
     snippet: experience ? `Experience: ${experience}` : "",
+    experience,
     logoUrl: card.querySelector(".companyLogo img")?.getAttribute("src") ?? "",
   };
 }

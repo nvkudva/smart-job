@@ -36,7 +36,7 @@ interface PerksSectionProps {
 export function PerksSection({ perks, isLoading, error: rawError, onFind }: PerksSectionProps) {
   const error = aiContext.useCardError(rawError);
   return (
-    <Card title="Perks" actions={perks && !isLoading ? <Button onClick={onFind}>Refresh</Button> : undefined}>
+    <Card title="Perks" actions={!isLoading && (perks || !error) ? <Button onClick={onFind}>{perks ? "Refresh" : "Find perks"}</Button> : undefined}>
       {isLoading && (
         <p class="muted">
           <Spinner /> Looking up perks and benefits…
@@ -44,7 +44,6 @@ export function PerksSection({ perks, isLoading, error: rawError, onFind }: Perk
       )}
       <ErrorNote message={error} onRetry={onFind} />
       {perks && !isLoading && <PerksList perks={perks} />}
-      {!perks && !isLoading && !error && <Button onClick={onFind}>Find perks</Button>}
     </Card>
   );
 }

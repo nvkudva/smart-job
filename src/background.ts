@@ -18,31 +18,8 @@ const ollamaOriginRule: chrome.declarativeNetRequest.Rule = {
   },
 };
 
-// Salary sites and job portals forbid framing. Dropping their frame-blocking headers only for frames this extension opens, and only on these domains, lets the panel show a source inline.
-const framedDomains = [
-  "levels.fyi", "glassdoor.com", "glassdoor.co.in", "glassdoor.co.uk", "glassdoor.ca", "glassdoor.com.au",
-  "linkedin.com", "naukri.com", "foundit.in", "shine.com", "instahyre.com", "greenhouse.io",
-];
-
-const frameHeadersRule: chrome.declarativeNetRequest.Rule = {
-  id: 2,
-  priority: 1,
-  action: {
-    type: "modifyHeaders" as chrome.declarativeNetRequest.RuleActionType,
-    responseHeaders: [
-      { header: "x-frame-options", operation: "remove" as chrome.declarativeNetRequest.HeaderOperation },
-      { header: "content-security-policy", operation: "remove" as chrome.declarativeNetRequest.HeaderOperation },
-    ],
-  },
-  condition: {
-    requestDomains: framedDomains,
-    initiatorDomains: [chrome.runtime.id],
-    resourceTypes: ["sub_frame" as chrome.declarativeNetRequest.ResourceType],
-  },
-};
-
 chrome.declarativeNetRequest
-  .updateSessionRules({ removeRuleIds: [ollamaOriginRule.id, frameHeadersRule.id], addRules: [ollamaOriginRule, frameHeadersRule] })
+  .updateSessionRules({ removeRuleIds: [ollamaOriginRule.id, 2], addRules: [ollamaOriginRule] })
   .catch(console.error);
 
 chrome.tabs.onRemoved.addListener((tabId) => void sessionTabs.forget(tabId).catch(console.error));

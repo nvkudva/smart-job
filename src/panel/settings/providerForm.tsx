@@ -79,7 +79,7 @@ export function ProviderFields({ provider, onProvider }: ProviderFieldsProps) {
       await llm.create(target).chat({ system: "Reply with the single word OK.", user: "ping", maxTokens: 16 });
     } catch (failure) {
       aiContext.report("error");
-      throw failure;
+      throw failure instanceof TypeError ? new Error(`Could not reach ${target.baseUrl}. Is the server running?`) : failure;
     }
     aiContext.report("ok");
     setLatency(Math.round(performance.now() - started));

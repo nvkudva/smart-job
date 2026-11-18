@@ -39,9 +39,9 @@ export function CoverLetter({ job, tabId, tracked }: { job: JobPosting; tabId: n
     <Card title="Cover letter">
       <div class="grid2">
         <Choice label="Tone" value={tone} options={[["professional", "Conversational"], ["enthusiastic", "Enthusiastic"], ["concise", "Opener + 3 bullets"]]} onValue={(value) => setTone(value as Tone)} />
-        <Choice label="Length" value={words} options={[["120", "Short (~120 words)"], ["150", "Standard (~150 words)"], ["180", "Fuller (~180 words)"]]} onValue={setWords} />
+        <Choice label="Length" value={words} options={[["120", "~120 words"], ["150", "~150 words"], ["180", "~180 words"]]} onValue={setWords} />
       </div>
-      <Button kind="primary" isBusy={generate.isBusy} onClick={() => void generate.run()}>
+      <Button kind={letter ? "ghost" : "primary"} isBusy={generate.isBusy} onClick={() => void generate.run()}>
         {letter ? "Regenerate" : "Generate"}
       </Button>
       <AiErrorNote message={generate.error} onRetry={() => void generate.run()} />
@@ -54,7 +54,7 @@ export function CoverLetter({ job, tabId, tracked }: { job: JobPosting; tabId: n
             onInput={(event) => setLetter(event.currentTarget.value)}
             onBlur={() => void trackedJobs.track(job, { coverLetter: letter })}
           />
-          <div class="actions">
+          <div class="actions start">
             <Button onClick={() => void copy()}>{isCopied ? "Copied" : "Copy"}</Button>
             <Button onClick={() => markdown.openPrintable(letter, `Cover letter - ${job.company || job.title}`)}>Download PDF</Button>
             <Button isBusy={attach.isBusy} onClick={() => void attach.run()}>Attach to form</Button>

@@ -24,11 +24,12 @@ Your data is stored on your device. See the privacy policy.
 - `unlimitedStorage`: stores resume PDFs and tailored resume files.
 - `webNavigation`: `getAllFrames` to reach application forms inside iframes.
 - `scripting`: inject the content script into tabs opened before install, and read results from the job-portal and LinkedIn tabs the user searches.
-- `declarativeNetRequestWithHostAccess`: (1) remove the `Origin` header on this extension's requests to localhost/private-network AI servers, which reject chrome-extension origins; (2) remove frame-blocking headers on this extension's own frames, only for levels.fyi, glassdoor and the supported job portals.
+- `declarativeNetRequestWithHostAccess`: remove the `Origin` header on this extension's requests to localhost/private-network AI servers, which reject `chrome-extension://` origins.
 - `identity`: OpenRouter OAuth sign-in (`launchWebAuthFlow`) so the user need not copy an API key.
 
 ## Privacy tab
 - Data collected: personally identifiable information, authentication information (optional job-site password and API key), website content, location (optional).
+- Prominent disclosure & affirmative consent: shown in the onboarding wizard before setup can be completed or skipped.
 - Not sold or transferred except to the user-chosen AI provider and portals as described; not used for unrelated purposes; not used for creditworthiness.
 - Privacy policy URL: host `PRIVACY.md` (e.g. GitHub Pages or the raw repo page) and paste the link.
 

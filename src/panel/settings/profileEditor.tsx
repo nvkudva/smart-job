@@ -14,8 +14,8 @@ const groups: { title: string; note?: string; fields: (FieldSpec | FieldSpec[])[
   {
     title: "Contact",
     fields: [
-      [{ key: "firstName", label: "First name" }, { key: "middleName", label: "Middle name" }],
-      { key: "lastName", label: "Last name" },
+      [{ key: "firstName", label: "First name" }, { key: "lastName", label: "Last name" }],
+      [{ key: "middleName", label: "Middle name" }],
       { key: "email", label: "Email", type: "email" },
       [{ key: "phoneCountryCode", label: "Country code", isNarrow: true }, { key: "phone", label: "Phone", type: "tel" }],
       { key: "address", label: "Address" },

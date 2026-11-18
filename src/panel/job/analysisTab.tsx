@@ -10,6 +10,11 @@ import { JobSearchLinks } from "./jobSearchLinks.tsx";
 import { useStored } from "../shared/useStored.ts";
 import type { JobPosting, TrackedJob } from "../../types.ts";
 
+const sourceNames: Record<string, string> = { jsonld: "Job page", jsonLd: "Job page" };
+const sourceLabel = (source: string) => sourceNames[source] ?? sourceNames[source.toLowerCase()] ?? source.charAt(0).toUpperCase() + source.slice(1);
+/** "FULL_TIME" -> "Full-time" */
+const humanize = (type: string | undefined) => (type ?? "").toLowerCase().replace(/_/g, " ").replace(/^full time$/, "full-time").replace(/^part time$/, "part-time").replace(/^./, (first) => first.toUpperCase());
+
 function EmptyState({ isDetecting }: { isDetecting: boolean }) {
   const searches = useStored("jobSearches");
   if (isDetecting) {
@@ -52,15 +57,15 @@ function JobCard({ job, tracked, state, onApply, onShortlist }: JobCardProps) {
           <h2 class="job-title">{job.title || "Untitled role"}</h2>
           <div class="muted">
             <strong class="job-company">{job.company}</strong>
-            {[job.location, job.employmentType].filter(Boolean).map((part) => ` · ${part}`)}
+            {[job.location, humanize(job.employmentType)].filter(Boolean).map((part) => ` · ${part}`)}
           </div>
         </div>
         {analysis && <ScoreRing score={analysis.matchScore} />}
       </div>
       <div class="job-foot">
         <div class="row wrap">
-          <span class="badge">{job.source}</span>
-          {job.salaryText && <span class="badge basis-posted">{job.salaryText}</span>}
+          <span class="badge">{sourceLabel(job.source)}</span>
+          {job.salaryText && <span class="badge basis-posted">{job.salaryText.replace(/\/ (Year|Month|Hour)$/, (unit) => unit.toLowerCase())}</span>}
         </div>
         <div class="actions">
           <Button kind="primary" onClick={onApply}>

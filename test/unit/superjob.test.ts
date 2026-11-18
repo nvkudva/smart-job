@@ -40,3 +40,9 @@ test("shine list", () => expectUsable(shine.parseList(fixture("shine.html")), "S
 test("shine description", () => expectPlainDescription(shine.parseDescription(fixture("shine-detail.html"))));
 test("instahyre list", () => expectUsable(instahyre.parseList(fixture("instahyre.json")), "Instahyre"));
 test("instahyre description", () => expectPlainDescription(instahyre.parseDescription(fixture("instahyre-detail.html"))));
+
+test("list cards carry the portal's experience wording", () => {
+  expect(naukri.parseList(fixture("naukri-list.html"))[0]?.experience).toBe("12-16 Yrs");
+  expect(shine.parseList(fixture("shine.html")).map((job) => job.experience)).toContain("16 to >25 Yrs");
+  expect(foundit.parseList(fixture("foundit-list.html")).map((job) => job.experience)).toContain("10 - 12 Years");
+});

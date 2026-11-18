@@ -45,7 +45,7 @@ test("missing skills are collapsed to a preview with a +N more toggle", () => {
 test("a new analysis shows the reason, evidence line and dealbreakers", () => {
   const text = textOf({ ...base, mustHaveMet: ["yes"], seniority: "match", reason: "Core stack matches", blockers: ["Needs a visa"], verdict: "Weak match - skip" });
   expect(text).toContain("Core stack matches");
-  expect(text).toContain("1 of 1 must-haves · level: fits");
+  expect(text).toContain("1 of 1 must-haves · Level: fits");
   expect(text).toContain("Dealbreakers");
   expect(text).toContain("Needs a visa");
 });

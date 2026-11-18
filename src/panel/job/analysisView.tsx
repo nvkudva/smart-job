@@ -103,7 +103,7 @@ function MissingSkills({ skills }: { skills: string[] }) {
   );
 }
 
-const seniorityNote: Record<Seniority, string> = { under: "level: below the role", match: "level: fits", over: "level: above the role" };
+const seniorityNote: Record<Seniority, string> = { under: "Level: below the role", match: "Level: fits", over: "Level: above the role" };
 
 function evidenceLine(analysis: JobAnalysis): string {
   const met = analysis.mustHaveMet ?? [];
